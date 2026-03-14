@@ -4,6 +4,7 @@ Polymarket paper trade: fetch markets, select best, or log a trade.
 Stdlib only. Called from polymarket-trade.sh.
 """
 import json
+import math
 import os
 import sys
 import urllib.request
@@ -11,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 API_URL = "https://gamma-api.polymarket.com/markets"
 TRADES_FILE = "data/polymarket-trades.json"
+PENDING_FILE = "data/polymarket-pending-trade.json"
 
 
 def fetch_markets():
@@ -41,16 +43,30 @@ def select_market(markets):
     return best
 
 
+def resolve_workspace_root(argv):
+    if len(argv) >= 2:
+        return argv[1]
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def validate_odds(odds):
+    value = float(odds)
+    if not math.isfinite(value) or value <= 0 or value > 1:
+        raise ValueError("odds must be a finite float in (0, 1]")
+    return value
+
+
 def log_trade(workspace_root, market_id, question, side, odds, reasoning):
     trades_path = os.path.join(workspace_root, TRADES_FILE)
     os.makedirs(os.path.dirname(trades_path), exist_ok=True)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    normalized_odds = validate_odds(odds)
     entry = {
         "date": today,
         "market_id": market_id,
         "question": question,
         "side": side,
-        "odds": float(odds),
+        "odds": normalized_odds,
         "reasoning": reasoning,
         "resolved": False,
     }
@@ -58,6 +74,44 @@ def log_trade(workspace_root, market_id, question, side, odds, reasoning):
     with open(trades_path, "a") as f:
         f.write(line)
     print(f"Logged trade: {question[:50]}... ({side} @ {odds})")
+
+
+def stage_candidate(workspace_root, candidate):
+    pending_path = os.path.join(workspace_root, PENDING_FILE)
+    os.makedirs(os.path.dirname(pending_path), exist_ok=True)
+    with open(pending_path, "w", encoding="utf-8") as handle:
+        json.dump(candidate, handle)
+
+
+def load_staged_candidate(workspace_root):
+    pending_path = os.path.join(workspace_root, PENDING_FILE)
+    if not os.path.exists(pending_path):
+        return None
+    with open(pending_path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def clear_staged_candidate(workspace_root):
+    pending_path = os.path.join(workspace_root, PENDING_FILE)
+    if os.path.exists(pending_path):
+        os.remove(pending_path)
+
+
+def log_staged_trade(workspace_root, side, reasoning):
+    candidate = load_staged_candidate(workspace_root)
+    if candidate is None:
+        raise ValueError("no staged candidate for today")
+
+    odds_key = "odds_yes" if side == "YES" else "odds_no"
+    log_trade(
+        str(workspace_root),
+        candidate["market_id"],
+        candidate["question"],
+        side,
+        candidate[odds_key],
+        reasoning,
+    )
+    clear_staged_candidate(workspace_root)
 
 
 def already_traded_today(workspace_root):
@@ -80,9 +134,9 @@ def already_traded_today(workspace_root):
 
 
 def main():
-    if len(sys.argv) == 1:
+    if len(sys.argv) <= 2:
         # Fetch and select
-        workspace_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        workspace_root = resolve_workspace_root(sys.argv)
         if already_traded_today(workspace_root):
             print("Already traded today, skipping.", file=sys.stderr)
             sys.exit(0)
@@ -98,14 +152,27 @@ def main():
         odds_yes = float(prices[0]) if prices else 0.5
         odds_no = float(prices[1]) if len(prices) > 1 else 1 - odds_yes
         out = {
+            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "id": best.get("id") or best.get("conditionId"),
+            "market_id": best.get("id") or best.get("conditionId"),
             "question": best.get("question", ""),
             "odds_yes": odds_yes,
             "odds_no": odds_no,
             "volume": best.get("volume") or best.get("volumeNum"),
             "endDate": best.get("endDate") or best.get("end_date_iso"),
         }
+        stage_candidate(workspace_root, out)
         print(json.dumps(out))
+        return
+
+    if len(sys.argv) == 4:
+        workspace_root = sys.argv[1]
+        side = sys.argv[2]
+        reasoning = sys.argv[3]
+        if side not in ("YES", "NO"):
+            print("side must be YES or NO", file=sys.stderr)
+            sys.exit(1)
+        log_staged_trade(workspace_root, side, reasoning)
         return
 
     if len(sys.argv) >= 7:
@@ -122,7 +189,11 @@ def main():
         log_trade(workspace_root, market_id, question, side, odds, reasoning)
         return
 
-    print("usage: fetch mode (no args) or log mode: workspace_root market_id question side odds reasoning", file=sys.stderr)
+    print(
+        "usage: fetch mode: [workspace_root], staged log mode: workspace_root side reasoning, "
+        "or full log mode: workspace_root market_id side odds reasoning question",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 

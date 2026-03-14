@@ -4,6 +4,7 @@ Polymarket resolve: check unresolved trades against API, append results.
 Stdlib only. Called from polymarket-resolve.sh.
 """
 import json
+import math
 import os
 import sys
 import urllib.error
@@ -27,28 +28,47 @@ def fetch_market(market_id):
         raise
 
 
-def is_resolved(market):
-    return market.get("closed") is True
+def parse_prices(raw_prices):
+    prices = raw_prices or ["0.5", "0.5"]
+    if isinstance(prices, str):
+        prices = json.loads(prices) if prices.strip().startswith("[") else [prices, "0.5"]
+    return [float(price) for price in prices]
+
+
+def get_winning_index(market):
+    prices = parse_prices(market.get("outcomePrices") or market.get("prices"))
+    if len(prices) < 2:
+        return None
+    if prices[0] >= 0.999 and prices[1] <= 0.001:
+        return 0
+    if prices[1] >= 0.999 and prices[0] <= 0.001:
+        return 1
+    return None
+
+
+def market_is_resolved(market):
+    return market.get("closed") is True and get_winning_index(market) is not None
 
 
 def get_winning_side(market):
-    """Return 'YES' or 'NO' based on outcomePrices. Winning outcome has price ~1."""
-    prices = market.get("outcomePrices") or market.get("prices") or ["0.5", "0.5"]
-    if isinstance(prices, str):
-        prices = json.loads(prices) if prices.strip().startswith("[") else ["0.5", "0.5"]
-    if len(prices) < 2:
-        return None
-    p0 = float(prices[0])
-    p1 = float(prices[1])
-    if p0 > 0.9:
+    winning_index = get_winning_index(market)
+    if winning_index == 0:
         return "YES"
-    if p1 > 0.9:
+    if winning_index == 1:
         return "NO"
     return None
 
 
-def pnl(odds, side, won):
+def validate_odds(odds):
+    value = float(odds)
+    if not math.isfinite(value) or value <= 0 or value > 1:
+        raise ValueError("odds must be a finite float in (0, 1]")
+    return value
+
+
+def pnl(odds, won):
     """WIN = (1/odds - 1) units; LOSS = -1 unit."""
+    odds = validate_odds(odds)
     if won:
         return (1.0 / odds) - 1.0
     return -1.0
@@ -86,7 +106,7 @@ def main():
             continue
         market_id = t.get("market_id")
         market = fetch_market(market_id)
-        if not market or not is_resolved(market):
+        if not market or not market_is_resolved(market):
             updated_trades.append(t)
             continue
         winning = get_winning_side(market)
@@ -94,13 +114,20 @@ def main():
             updated_trades.append(t)
             continue
         side = t.get("side", "YES")
-        odds = float(t.get("odds", 0.5))
+        try:
+            odds = validate_odds(t.get("odds", 0.5))
+        except (TypeError, ValueError) as exc:
+            print(f"Skipping trade with invalid odds for market {market_id}: {exc}", file=sys.stderr)
+            updated_trades.append(t)
+            continue
         won = side == winning
-        pnl_val = pnl(odds, side, won)
+        pnl_val = pnl(odds, won)
         t["resolved"] = True
+        t["resolved_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         updated_trades.append(t)
         result = {
             "date": t.get("date"),
+            "resolved_at": t["resolved_at"],
             "market_id": market_id,
             "question": t.get("question"),
             "side": side,

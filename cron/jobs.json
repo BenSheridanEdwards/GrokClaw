@@ -22,66 +22,6 @@
       "createdAtMs": 1773474867484,
       "updatedAtMs": 1773474867484,
       "deleteAfterRun": false
-    },
-    {
-      "id": "polymarket-daily-trade",
-      "name": "polymarket-daily-trade",
-      "enabled": true,
-      "schedule": {
-        "kind": "cron",
-        "expr": "30 23 * * *"
-      },
-      "payload": {
-        "kind": "agent_turn",
-        "message": "Run tools/polymarket-trade.sh with no args to fetch the top Polymarket market. If not already traded today, decide your side (YES/NO) and one-sentence reasoning, then run: tools/polymarket-trade.sh <market_id> <side> <odds> <reasoning> <question>",
-        "deliver": false,
-        "channel": "slack",
-        "to": "C0ALE1S0LSF"
-      },
-      "state": {},
-      "createdAtMs": 0,
-      "updatedAtMs": 0,
-      "deleteAfterRun": false
-    },
-    {
-      "id": "polymarket-daily-resolve",
-      "name": "polymarket-daily-resolve",
-      "enabled": true,
-      "schedule": {
-        "kind": "cron",
-        "expr": "45 23 * * *"
-      },
-      "payload": {
-        "kind": "agent_turn",
-        "message": "Run tools/polymarket-resolve.sh to check unresolved trades against the Polymarket API and append results.",
-        "deliver": false,
-        "channel": "slack",
-        "to": "C0ALE1S0LSF"
-      },
-      "state": {},
-      "createdAtMs": 0,
-      "updatedAtMs": 0,
-      "deleteAfterRun": false
-    },
-    {
-      "id": "polymarket-weekly-digest",
-      "name": "polymarket-weekly-digest",
-      "enabled": true,
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 1 * * 1"
-      },
-      "payload": {
-        "kind": "agent_turn",
-        "message": "Run tools/polymarket-digest.sh to aggregate past 7 days of results, post Slack digest, and append self-improvement note to memory/MEMORY.md.",
-        "deliver": false,
-        "channel": "slack",
-        "to": "C0ALE1S0LSF"
-      },
-      "state": {},
-      "createdAtMs": 0,
-      "updatedAtMs": 0,
-      "deleteAfterRun": false
     }
   ]
 }

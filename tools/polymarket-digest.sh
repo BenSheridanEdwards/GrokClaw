@@ -7,29 +7,11 @@ set -eu
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
-# Load .env for Slack
-if [ -f "$WORKSPACE_ROOT/.env" ]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$WORKSPACE_ROOT/.env"
-  set +a
-fi
-
 OUTPUT=$(python3 "$SCRIPT_DIR/_polymarket_digest.py" "$WORKSPACE_ROOT")
 
-SLACK_MSG=""
-IMPROVEMENT=""
-MEMORY_PATH=""
-
-while IFS= read -r line; do
-  case "$line" in
-    SLACK_MSG:*) SLACK_MSG="${line#SLACK_MSG:}" ;;
-    IMPROVEMENT:*) IMPROVEMENT="${line#IMPROVEMENT:}" ;;
-    MEMORY_PATH:*) MEMORY_PATH="${line#MEMORY_PATH:}" ;;
-  esac
-done <<EOF
-$OUTPUT
-EOF
+PAYLOAD="${OUTPUT#DIGEST_JSON:}"
+SLACK_MSG=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["slack_msg"])' "$PAYLOAD")
+IMPROVEMENT=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["improvement"])' "$PAYLOAD")
 
 SLACK_CHANNEL="${SLACK_CHANNEL_ID:-C0ALE1S0LSF}"
 
@@ -37,8 +19,27 @@ if [ -n "$SLACK_MSG" ]; then
   "$WORKSPACE_ROOT/tools/slack-post.sh" "$SLACK_CHANNEL" "$SLACK_MSG" || true
 fi
 
-if [ -n "$IMPROVEMENT" ] && [ -n "$MEMORY_PATH" ] && [ -f "$MEMORY_PATH" ]; then
+MEMORY_PATH="$WORKSPACE_ROOT/memory/MEMORY.md"
+
+if [ -n "$IMPROVEMENT" ] && [ -f "$MEMORY_PATH" ]; then
   TODAY=$(date -u +%Y-%m-%d)
-  echo "" >> "$MEMORY_PATH"
-  echo "- **$TODAY** — $IMPROVEMENT" >> "$MEMORY_PATH"
+  python3 - "$MEMORY_PATH" "$TODAY" "$IMPROVEMENT" <<'PY'
+import pathlib
+import sys
+
+memory_path = pathlib.Path(sys.argv[1])
+today = sys.argv[2]
+improvement = sys.argv[3]
+section_header = "## Polymarket calibration notes"
+entry = f"- **{today}** — {improvement}"
+
+content = memory_path.read_text(encoding="utf-8")
+if section_header not in content:
+    content = content.rstrip() + f"\n\n---\n\n{section_header}\n\n{entry}\n"
+else:
+    marker = f"{section_header}\n\n"
+    content = content.replace(marker, f"{marker}{entry}\n", 1)
+
+memory_path.write_text(content, encoding="utf-8")
+PY
 fi
