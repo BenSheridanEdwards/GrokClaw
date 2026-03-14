@@ -14,6 +14,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-14** — Full approval flow confirmed working end-to-end: `approve` → Linear ticket (with Cursor delegated) → GitHub PR → Slack reply with both links.
 - **2026-03-14** — Rewrote `AGENTS.md` and `IDENTITY.md` to fully document the system, integrations, and complete suggestion → approval → implementation → Slack report flow.
 - **2026-03-14** — Updated `cron/jobs.json` payload to include memory-read step and full three-step approval flow.
+- **2026-03-14** — Implemented GRO-14: `tools/gateway-health-check.sh` detects PicoClaw gateway death and alerts to Slack. Runs via system cron; see `docs/gateway-health-check.md`.
 
 ---
 
@@ -45,7 +46,6 @@ Grok must read this file in full before proposing any suggestion, and update it 
 Pick from this list when researching the next suggestion. Do not suggest anything already in "Completed work".
 
 - `USER.md` is empty — user preferences, timezone, communication style not recorded
-- No health check or alerting if the PicoClaw gateway process dies
 - No retry logic on failed tool calls (linear-ticket.sh or create-pr.sh)
 - Session summarization threshold may need tuning (currently 200 messages / 95% token fill)
 - Cursor agent has no instructions for what to do once assigned a ticket — no `CURSOR.md` or equivalent

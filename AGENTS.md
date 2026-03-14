@@ -129,6 +129,12 @@ If the user rejects a suggestion (any reply other than `approve`):
 
 ---
 
+## Operations
+
+- **Gateway health check**: `tools/gateway-health-check.sh` detects when the PicoClaw gateway dies and alerts to Slack. Must run via system cron (see `docs/gateway-health-check.md`).
+
+---
+
 ## Slack behavior
 
 - `grok-orchestrator` (`C0ALE1S0LSF`) is the default channel for all suggestions and operational updates.
