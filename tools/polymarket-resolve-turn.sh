@@ -11,14 +11,36 @@ WORKSPACE_ROOT="/Users/jarvis/.picoclaw/workspace"
 REPORT_JSON=$("$SCRIPT_DIR/polymarket-report.sh")
 printf '%s\n' "$REPORT_JSON"
 
-if python3 - "$REPORT_JSON" <<'PY'
+if python3 - "$WORKSPACE_ROOT" "$REPORT_JSON" <<'PY'
 import json
 import sys
 
-report = json.loads(sys.argv[1])
-sys.exit(0 if report.get("promotion_gate", {}).get("eligible") else 1)
+workspace_root = sys.argv[1]
+report = json.loads(sys.argv[2])
+
+if workspace_root not in sys.path:
+    sys.path.insert(0, workspace_root)
+
+from tools import _polymarket_metrics as metrics
+
+eligible = report.get("promotion_gate", {}).get("eligible")
+should_alert = metrics.should_send_promotion_alert(workspace_root, eligible)
+if not eligible:
+    metrics.mark_promotion_alert_state(workspace_root, False)
+sys.exit(0 if should_alert else 1)
 PY
 then
   "$WORKSPACE_ROOT/tools/slack-post.sh" "C0ALE1S0LSF" "Polymarket promotion gate passed.
 $REPORT_JSON"
+  python3 - "$WORKSPACE_ROOT" <<'PY'
+import sys
+
+workspace_root = sys.argv[1]
+if workspace_root not in sys.path:
+    sys.path.insert(0, workspace_root)
+
+from tools import _polymarket_metrics as metrics
+
+metrics.mark_promotion_alert_state(workspace_root, True)
+PY
 fi

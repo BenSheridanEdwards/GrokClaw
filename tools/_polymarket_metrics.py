@@ -13,6 +13,7 @@ RESULTS_FILE = "data/polymarket-results.json"
 DECISIONS_FILE = "data/polymarket-decisions.json"
 SKIPS_FILE = "data/polymarket-skips.json"
 TRADES_FILE = "data/polymarket-trades.json"
+PROMOTION_ALERT_STATE_FILE = "data/polymarket-promotion-alert.json"
 
 PROMOTION_BANKROLL_TARGET = 100000.0
 PROMOTION_MIN_RESOLVED_TRADES = 200
@@ -207,3 +208,32 @@ def check_promotion_gate(summary):
         "eligible": not blocked_on,
         "blocked_on": blocked_on,
     }
+
+
+def load_promotion_alert_state(workspace_root):
+    state_path = jsonl_path(workspace_root, PROMOTION_ALERT_STATE_FILE)
+    if not os.path.exists(state_path):
+        return {"eligible": False}
+    try:
+        with open(state_path, encoding="utf-8") as handle:
+            return json.load(handle)
+    except (json.JSONDecodeError, OSError):
+        return {"eligible": False}
+
+
+def should_send_promotion_alert(workspace_root, eligible):
+    state = load_promotion_alert_state(workspace_root)
+    return bool(eligible) and not bool(state.get("eligible"))
+
+
+def mark_promotion_alert_state(workspace_root, eligible):
+    state_path = jsonl_path(workspace_root, PROMOTION_ALERT_STATE_FILE)
+    os.makedirs(os.path.dirname(state_path), exist_ok=True)
+    with open(state_path, "w", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "eligible": bool(eligible),
+                "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            },
+            handle,
+        )

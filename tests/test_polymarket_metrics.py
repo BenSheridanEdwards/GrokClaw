@@ -67,6 +67,14 @@ class PolymarketMetricsTests(unittest.TestCase):
 
             self.assertEqual(summary["max_drawdown"], 0.0)
 
+    def test_promotion_alert_only_fires_on_transition(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self.assertTrue(metrics.should_send_promotion_alert(tmpdir, True))
+            metrics.mark_promotion_alert_state(tmpdir, True)
+            self.assertFalse(metrics.should_send_promotion_alert(tmpdir, True))
+            metrics.mark_promotion_alert_state(tmpdir, False)
+            self.assertTrue(metrics.should_send_promotion_alert(tmpdir, True))
+
 
 if __name__ == "__main__":
     unittest.main()
