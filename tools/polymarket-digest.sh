@@ -36,7 +36,7 @@ if [ -n "$SLACK_MSG" ]; then
   if [ "$DRY_RUN" = "1" ]; then
     printf '%s\n' "$SLACK_MSG"
   else
-    "$WORKSPACE_ROOT/tools/slack-post.sh" "$SLACK_CHANNEL" "$SLACK_MSG" || true
+    "$WORKSPACE_ROOT/tools/slack-post.sh" "$SLACK_CHANNEL" "$SLACK_MSG"
   fi
 fi
 
