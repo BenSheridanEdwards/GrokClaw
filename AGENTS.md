@@ -35,3 +35,34 @@ Approve? (reply exactly 'approve')
 - Treat `grok-orchestrator` as the default Slack destination for scheduled suggestions.
 - In channels, reply in-thread when thread context exists.
 - You may proactively post operational updates when they are useful.
+
+## Cursor Cloud specific instructions
+
+### Architecture overview
+
+GrokClaw is a **configuration-only** PicoClaw workspace — there is no build system, no package manager, and no compiled code. The repo consists of Markdown docs, JSON config, and shell scripts.
+
+### System dependencies
+
+The shell scripts (`tools/linear-ticket.sh`, `skills/tmux/scripts/*.sh`) require `python3`, `curl`, and `bash` — all pre-installed in the Cloud VM. `shellcheck` is installed via the update script for linting.
+
+### Linting
+
+Run `shellcheck` on all shell scripts:
+```
+shellcheck tools/linear-ticket.sh skills/tmux/scripts/*.sh
+```
+
+### Running the linear-ticket tool
+
+`tools/linear-ticket.sh <suggestion-number> <title>` requires `LINEAR_API_KEY` (and optionally `LINEAR_TEAM_ID`, `LINEAR_ASSIGNEE_NAME`) either exported or in a `.env` file at the repo root. Without a valid API key, the script will reach the Linear API but receive a 401.
+
+### Validating the cron config
+
+```
+python3 -m json.tool cron/jobs.json > /dev/null
+```
+
+### No services to start
+
+This repo has no dev servers, databases, or background services. The PicoClaw runtime that consumes this workspace is an external platform — it is not part of this repository.
