@@ -53,14 +53,16 @@ Before writing a suggestion:
 
 ### Step 2 — Post to Slack
 
-Send exactly one message to `C0ALE1S0LSF` in this format, nothing else:
+Run the following, substituting your suggestion text:
 
 ```
-Daily Suggestion #N: [title]
+/Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF "Daily Suggestion #N: [title]
 Reasoning: [1-2 sentences]
 Expected impact: [benefit]
-Approve? (reply exactly 'approve')
+Approve? (reply exactly 'approve')"
 ```
+
+Do NOT use the `message` tool for Slack posts — it only works when triggered by the real Slack cron, not via CLI. Always use `slack-post.sh` to guarantee delivery.
 
 ---
 
@@ -97,13 +99,13 @@ This script:
 
 ### Step 3 — Report in Slack
 
-Reply in the same Slack thread with exactly:
+Post to the same channel (and thread if a thread_ts is available):
 
 ```
-✅ Suggestion #N approved.
+/Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF "✅ Suggestion #N approved.
 Linear: <linear-url>
 PR: <pr-url>
-Cursor is on it.
+Cursor is on it."
 ```
 
 ### Step 4 — Update memory
