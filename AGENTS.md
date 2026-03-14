@@ -170,6 +170,12 @@ If the user rejects a suggestion:
 
 ---
 
+## Operations
+
+- **Gateway health check**: `tools/health-check.sh` detects when the PicoClaw gateway dies and alerts to Slack. Scheduled via `cron/jobs.json` (every 5 min), `HEARTBEAT.md`, and optionally system cron (see `docs/gateway-health-check.md`).
+
+---
+
 ## Slack behavior
 
 - Always use `tools/slack-post.sh` — never the `message` tool.

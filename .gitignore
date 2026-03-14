@@ -2,3 +2,4 @@
 sessions/
 state/
 .cursor
+.gateway-health-state

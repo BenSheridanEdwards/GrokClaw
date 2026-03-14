@@ -21,6 +21,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-14** — Created `tools/review-pr.sh`: fetches PR details, changed files, and diff for Grok to review.
 - **2026-03-14** — Rewrote `AGENTS.md`: added PM ticket writing standards, PR review workflow, and explicit instruction to never use the message tool.
 - **2026-03-14** — Updated `cron/jobs.json` payload to include memory-read step and full three-step approval flow.
+- **2026-03-14** — Implemented GRO-14: `tools/health-check.sh` detects PicoClaw gateway death and alerts to Slack. Scheduled via cron/jobs.json, HEARTBEAT.md, and system cron; see `docs/gateway-health-check.md`.
 
 ---
 
@@ -53,7 +54,6 @@ Grok must read this file in full before proposing any suggestion, and update it 
 Pick from this list when researching the next suggestion. Do not suggest anything already in "Completed work".
 
 - `USER.md` is empty — user preferences, timezone, communication style not recorded
-- Health check alerting (GRO-14, PR #5) — assigned to Cursor, pending implementation
 - No retry logic on failed tool calls (linear-ticket.sh or create-pr.sh)
 - Session summarization threshold may need tuning (currently 200 messages / 95% token fill)
 - No automated tests for the approval flow scripts

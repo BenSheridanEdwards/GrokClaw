@@ -2,6 +2,26 @@
   "version": 1,
   "jobs": [
     {
+      "id": "gateway-health-check",
+      "name": "gateway-health-check",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/5 * * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "Run ./tools/health-check.sh. If it exits non-zero, the script will have already alerted to Slack.",
+        "deliver": false,
+        "channel": "slack",
+        "to": "C0ALE1S0LSF"
+      },
+      "state": {},
+      "createdAtMs": 1773481000000,
+      "updatedAtMs": 1773481000000,
+      "deleteAfterRun": false
+    },
+    {
       "id": "4978a69dab9ec327",
       "name": "daily-grokclaw-suggestion",
       "enabled": true,
