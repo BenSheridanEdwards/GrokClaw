@@ -16,19 +16,11 @@ The intended PicoClaw scheduler should contain these jobs:
 
 These jobs are also represented in `cron/jobs.json`.
 
-Because the current PicoClaw gateway is reverting cron state back to the default single-job file, GrokClaw also installs resilient local system cron wrappers:
+Manual fallback wrappers exist if you ever need to trigger the loop outside PicoClaw cron:
 
 - `./tools/polymarket-daily-turn.sh`
 - `./tools/polymarket-resolve-turn.sh`
 - `./tools/polymarket-digest.sh`
-
-Install them with:
-
-```sh
-./tools/install-polymarket-cron.sh
-```
-
-This preserves the actual daily loop even while the internal PicoClaw cron persistence bug exists.
 
 ## Daily trade flow
 
@@ -97,13 +89,6 @@ Alias:
 
 ```sh
 ./tools/polymarket-dry-run.sh
-```
-
-Live cron installation:
-
-```sh
-./tools/install-polymarket-cron.sh
-crontab -l | rg polymarket
 ```
 
 Current verification also includes:
