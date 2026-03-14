@@ -13,6 +13,8 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-14** — Created `tools/create-pr.sh`: creates a `grok/<issue-id>` branch off main, pushes it, and opens a draft GitHub PR linked to the Linear issue. Verified working (produced PR #2).
 - **2026-03-14** — Full approval flow confirmed working end-to-end: `approve` → Linear ticket (with Cursor delegated) → GitHub PR → Slack reply with both links.
 - **2026-03-14** — Rewrote `AGENTS.md` and `IDENTITY.md` to fully document the system, integrations, and complete suggestion → approval → implementation → Slack report flow.
+- **2026-03-14** — Created `tools/slack-post.sh` + `tools/_slack_post.py`: posts to Slack via API directly, works from any context. Fixed quoting bug that caused approval Slack posts to fail.
+- **2026-03-14** — Suggestion #4 (health check alerting) approved: Linear GRO-14 created, PR #5 opened, Slack thread reply posted successfully.
 - **2026-03-14** — Updated `cron/jobs.json` payload to include memory-read step and full three-step approval flow.
 
 ---
@@ -35,8 +37,9 @@ Grok must read this file in full before proposing any suggestion, and update it 
 | 1 | (unknown — pre-memory) | Unknown |
 | 2 | Install and integrate Linear skill for automated ticket creation | Approved → GRO-8 |
 | 3 | Slack thread reply parsing for automatic approval handling | Rejected (already partially handled by CLI trigger) |
+| 4 | Add health check alerting if PicoClaw gateway dies | Approved → GRO-14, PR #5 |
 
-**Next suggestion number: 4**
+**Next suggestion number: 5**
 
 ---
 
