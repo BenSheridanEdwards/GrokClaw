@@ -12,14 +12,18 @@ The `tools/gateway-health-check.sh` script detects when the PicoClaw gateway pro
 
 The health check must run via **system cron**, not PicoClaw's agent cron, because the agent depends on the gateway being up.
 
-Add to crontab (`crontab -e`):
+**This is already installed.** The following entry was added to the system crontab as part of this PR:
 
 ```
-# PicoClaw gateway health check — every 5 minutes
-*/5 * * * * /Users/jarvis/.picoclaw/workspace/tools/gateway-health-check.sh
+*/5 * * * * /Users/jarvis/.picoclaw/workspace/tools/gateway-health-check.sh >> /tmp/picoclaw-health.log 2>&1
 ```
 
-Adjust the path if your workspace is elsewhere. Ensure `SLACK_BOT_TOKEN` is set in `.env` so alerts can be posted.
+Verify it is active:
+```sh
+crontab -l | grep gateway-health-check
+```
+
+Logs are written to `/tmp/picoclaw-health.log`.
 
 ## Environment variables
 
