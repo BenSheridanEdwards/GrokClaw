@@ -3,3 +3,4 @@ sessions/
 state/
 .cursor
 .gateway-health-state
+data/

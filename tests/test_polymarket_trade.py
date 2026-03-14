@@ -1,0 +1,107 @@
+import json
+import math
+import tempfile
+import unittest
+from unittest import mock
+from pathlib import Path
+
+from tools import _polymarket_metrics as metrics
+from tools import _polymarket_trade as trade
+
+
+class PolymarketTradeTests(unittest.TestCase):
+    def test_validate_odds_rejects_non_finite_or_out_of_range_values(self):
+        for bad_value in ("0", "-0.1", "1.5", "nan", "abc"):
+            with self.assertRaises(ValueError):
+                trade.validate_odds(bad_value)
+
+        self.assertTrue(math.isclose(trade.validate_odds("0.72"), 0.72))
+
+    def test_stage_then_record_trade_uses_pending_candidate(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            candidate = {
+                "date": "2026-03-14",
+                "market_id": "123",
+                "question": "Will X happen?",
+                "odds_yes": 0.72,
+                "odds_no": 0.28,
+            }
+
+            trade.stage_candidate(workspace, candidate)
+            trade.log_staged_trade(workspace, "YES", "high conviction")
+
+            trades_path = workspace / "data" / "polymarket-trades.json"
+            pending_path = workspace / "data" / "polymarket-pending-trade.json"
+
+            with trades_path.open(encoding="utf-8") as handle:
+                entries = [json.loads(line) for line in handle if line.strip()]
+
+            self.assertEqual(len(entries), 1)
+            self.assertEqual(entries[0]["market_id"], "123")
+            self.assertEqual(entries[0]["side"], "YES")
+            self.assertEqual(entries[0]["odds"], 0.72)
+            self.assertFalse(pending_path.exists())
+
+    def test_fetch_mode_uses_explicit_workspace_argument(self):
+        self.assertEqual(
+            trade.resolve_workspace_root(["prog", "/tmp/custom-workspace"]),
+            "/tmp/custom-workspace",
+        )
+
+    def test_already_decided_today_detects_prior_skip_or_trade(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            metrics.append_jsonl(
+                workspace / "data" / "polymarket-decisions.json",
+                {"date": "2026-03-14", "action": "skip"},
+            )
+
+            original_datetime = trade.datetime
+            class FixedDateTime:
+                @staticmethod
+                def now(_tz):
+                    return original_datetime(2026, 3, 14, tzinfo=_tz)
+            trade.datetime = FixedDateTime
+            try:
+                self.assertTrue(trade.already_decided_today(workspace))
+            finally:
+                trade.datetime = original_datetime
+
+    def test_fetch_markets_pages_until_empty_result(self):
+        responses = [
+            [{"id": "page-1"}],
+            [{"id": "page-2"}],
+            [],
+        ]
+
+        class FakeResponse:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        call_urls = []
+
+        def fake_urlopen(request, timeout):
+            self.assertEqual(timeout, 30)
+            call_urls.append(request.full_url)
+            payload = responses[len(call_urls) - 1]
+            return FakeResponse(json.dumps(payload).encode("utf-8"))
+
+        with mock.patch.object(trade.urllib.request, "urlopen", side_effect=fake_urlopen):
+            with mock.patch.object(trade.json, "load", side_effect=lambda resp: json.loads(resp.payload.decode("utf-8"))):
+                markets = trade.fetch_markets(page_size=1, max_pages=5)
+
+        self.assertEqual([market["id"] for market in markets], ["page-1", "page-2"])
+        self.assertIn("offset=0", call_urls[0])
+        self.assertIn("offset=1", call_urls[1])
+        self.assertIn("offset=2", call_urls[2])
+
+
+if __name__ == "__main__":
+    unittest.main()
