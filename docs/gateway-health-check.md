@@ -4,7 +4,7 @@ The `tools/gateway-health-check.sh` script detects when the PicoClaw gateway pro
 
 ## How it works
 
-- **Detection**: Checks for a running `picoclaw` process; if none found, optionally probes `http://127.0.0.1:18790/` (default gateway port).
+- **Detection**: Checks for a running `picoclaw` process; if none found, optionally probes `http://127.0.0.1:18800/` (gateway port from `config.json`).
 - **Alerting**: Posts to Slack only when status *changes* from alive → dead (avoids repeated alerts).
 - **State**: Uses `.gateway-health-state` in the workspace root to track previous status.
 

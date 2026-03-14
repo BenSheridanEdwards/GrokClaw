@@ -29,7 +29,7 @@ gateway_alive() {
   # Optional: try HTTP health probe if gateway listens on default port
   if command -v curl >/dev/null 2>&1; then
     # Any response (including 404) means gateway is listening
-    if curl -s --connect-timeout 3 -o /dev/null "http://127.0.0.1:18790/" 2>/dev/null; then
+    if curl -s --connect-timeout 3 -o /dev/null "http://127.0.0.1:18800/" 2>/dev/null; then
       return 0
     fi
   fi
