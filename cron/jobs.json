@@ -55,7 +55,7 @@
       },
       "payload": {
         "kind": "agent_turn",
-        "message": "Run ./tools/polymarket-resolve.sh to resolve closed paper trades and update the bankroll ledger. Then run ./tools/polymarket-report.sh and only post to Slack if the promotion gate is eligible.",
+        "message": "Run ./tools/polymarket-resolve-turn.sh to resolve paper trades, print the latest report, and only alert Slack if the promotion gate has just transitioned to eligible.",
         "deliver": false,
         "channel": "slack",
         "to": "C0ALE1S0LSF"
