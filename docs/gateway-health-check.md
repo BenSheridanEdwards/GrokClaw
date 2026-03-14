@@ -15,14 +15,19 @@ The `tools/health-check.sh` script detects when the PicoClaw gateway process has
 
 **HEARTBEAT** (`HEARTBEAT.md`): Includes the health check in periodic agent tasks (~every 30 min).
 
-**System cron** (recommended for detecting gateway death): When the gateway is down, PicoClaw cron and HEARTBEAT cannot run. Add to crontab (`crontab -e`):
+**System cron** (required for detecting gateway death): When the gateway is down, PicoClaw cron and HEARTBEAT cannot run. Add to crontab (`crontab -e`):
 
 ```
 # PicoClaw gateway health check — every 5 minutes
-*/5 * * * * /Users/jarvis/.picoclaw/workspace/tools/health-check.sh
+*/5 * * * * /Users/jarvis/.picoclaw/workspace/tools/health-check.sh >> /tmp/picoclaw-health.log 2>&1
 ```
 
-Adjust the path if your workspace is elsewhere. Ensure `SLACK_BOT_TOKEN` is set in `.env` so alerts can be posted.
+Verify it is active:
+```sh
+crontab -l | grep health-check
+```
+
+Logs are written to `/tmp/picoclaw-health.log`.
 
 ## Environment variables
 
