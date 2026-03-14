@@ -1,4 +1,6 @@
 import json
+import os
+import subprocess
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -53,6 +55,39 @@ class PolymarketDigestTests(unittest.TestCase):
             digest.mark_digest_recorded(workspace, now)
             self.assertTrue(digest.digest_already_recorded(workspace, now))
             self.assertFalse(digest.digest_already_recorded(workspace, datetime(2026, 3, 23, tzinfo=timezone.utc)))
+
+    def test_digest_dry_run_does_not_mutate_memory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            memory_dir = workspace / "memory"
+            results_dir = workspace / "data"
+            memory_dir.mkdir(parents=True, exist_ok=True)
+            results_dir.mkdir(parents=True, exist_ok=True)
+
+            memory_path = memory_dir / "MEMORY.md"
+            memory_path.write_text("# Memory\n", encoding="utf-8")
+
+            with (results_dir / "polymarket-results.json").open("w", encoding="utf-8") as handle:
+                handle.write(json.dumps({
+                    "date": "2026-03-14",
+                    "resolved_at": "2026-03-14",
+                    "question": "Dry run",
+                    "won": True,
+                    "winning_side": "YES",
+                    "pnl": 1.0,
+                    "pnl_amount": 10.0,
+                    "probability_yes": 0.6,
+                }) + "\n")
+
+            script_path = "/Users/jarvis/.picoclaw/workspace/tools/polymarket-digest.sh"
+            env = os.environ.copy()
+            env["PICOCLAW_WORKSPACE"] = str(workspace)
+            env["POLYMARKET_SLACK_DRY_RUN"] = "1"
+            env["PYTHONPATH"] = f"/Users/jarvis/.picoclaw/workspace:{env.get('PYTHONPATH', '')}".rstrip(":")
+
+            subprocess.run(["sh", script_path], check=True, env=env, capture_output=True, text=True)
+
+            self.assertEqual(memory_path.read_text(encoding="utf-8"), "# Memory\n")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from tools import _polymarket_metrics as metrics
@@ -44,6 +45,27 @@ class PolymarketMetricsTests(unittest.TestCase):
 
         self.assertFalse(result["eligible"])
         self.assertIn("resolved_count", result["blocked_on"])
+
+    def test_summarize_scopes_drawdown_to_requested_window(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bankroll_path = Path(tmpdir) / "data" / "polymarket-bankroll.json"
+            bankroll_path.parent.mkdir(parents=True, exist_ok=True)
+            rows = [
+                {"date": "2026-03-01", "bankroll_after": 700.0},
+                {"date": "2026-03-10", "bankroll_after": 900.0},
+                {"date": "2026-03-14", "bankroll_after": 1100.0},
+            ]
+            with bankroll_path.open("w", encoding="utf-8") as handle:
+                for row in rows:
+                    handle.write(json.dumps(row) + "\n")
+
+            summary = metrics.summarize(
+                tmpdir,
+                days=7,
+                now=datetime(2026, 3, 14, tzinfo=timezone.utc),
+            )
+
+            self.assertEqual(summary["max_drawdown"], 0.0)
 
 
 if __name__ == "__main__":

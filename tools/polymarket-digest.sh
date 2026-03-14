@@ -42,7 +42,7 @@ fi
 
 MEMORY_PATH="$WORKSPACE_ROOT/memory/MEMORY.md"
 
-if [ -n "$IMPROVEMENT" ] && [ -f "$MEMORY_PATH" ]; then
+if [ "$DRY_RUN" != "1" ] && [ -n "$IMPROVEMENT" ] && [ -f "$MEMORY_PATH" ]; then
   TODAY=$(date -u +%Y-%m-%d)
   python3 - "$MEMORY_PATH" "$TODAY" "$IMPROVEMENT" <<'PY'
 import pathlib

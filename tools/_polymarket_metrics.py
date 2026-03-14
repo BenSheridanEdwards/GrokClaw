@@ -87,14 +87,31 @@ def parse_date(value):
     return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
 
-def filter_recent(rows, days, date_key):
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+def filter_recent(rows, days, date_key, now):
+    cutoff = now - timedelta(days=days)
     recent = []
     for row in rows:
         parsed = parse_date(row.get(date_key))
         if parsed is not None and parsed >= cutoff:
             recent.append(row)
     return recent
+
+
+def scoped_bankroll_rows(rows, days, now):
+    cutoff = now - timedelta(days=days)
+    prior_balance = STARTING_BANKROLL
+    recent = []
+
+    for row in rows:
+        parsed = parse_date(row.get("date"))
+        if parsed is None:
+            continue
+        if parsed < cutoff:
+            prior_balance = float(row.get("bankroll_after", prior_balance))
+            continue
+        recent.append(row)
+
+    return recent, prior_balance
 
 
 def calculate_brier(results):
@@ -110,8 +127,8 @@ def calculate_brier(results):
     return sum(scored) / len(scored)
 
 
-def calculate_max_drawdown(bankroll_rows):
-    peak = STARTING_BANKROLL
+def calculate_max_drawdown(bankroll_rows, starting_peak=STARTING_BANKROLL):
+    peak = starting_peak
     max_drawdown = 0.0
     for row in bankroll_rows:
         balance = float(row.get("bankroll_after", STARTING_BANKROLL))
@@ -124,14 +141,17 @@ def calculate_max_drawdown(bankroll_rows):
     return max_drawdown
 
 
-def summarize(workspace_root, days=None):
+def summarize(workspace_root, days=None, now=None):
+    now = now or datetime.now(timezone.utc)
     results = load_jsonl(jsonl_path(workspace_root, RESULTS_FILE))
     decisions = load_jsonl(jsonl_path(workspace_root, DECISIONS_FILE))
     bankroll_rows = load_jsonl(jsonl_path(workspace_root, BANKROLL_FILE))
+    drawdown_peak = STARTING_BANKROLL
 
     if days is not None:
-        results = filter_recent(results, days, "resolved_at")
-        decisions = filter_recent(decisions, days, "date")
+        results = filter_recent(results, days, "resolved_at", now)
+        decisions = filter_recent(decisions, days, "date", now)
+        bankroll_rows, drawdown_peak = scoped_bankroll_rows(bankroll_rows, days, now)
 
     total_pnl = round(sum(float(result.get("pnl_amount", 0.0)) for result in results), 2)
     wins = sum(1 for result in results if result.get("won"))
@@ -159,7 +179,7 @@ def summarize(workspace_root, days=None):
         "average_edge": average_edge,
         "skip_count": len(skips),
         "brier_score": calculate_brier(results),
-        "max_drawdown": calculate_max_drawdown(bankroll_rows),
+        "max_drawdown": calculate_max_drawdown(bankroll_rows, starting_peak=drawdown_peak),
         "last100_expectancy": last100_expectancy,
         "results": results,
         "decisions": decisions,

@@ -19,7 +19,7 @@ These jobs are also represented in `cron/jobs.json`.
 Because the current PicoClaw gateway is reverting cron state back to the default single-job file, GrokClaw also installs resilient local system cron wrappers:
 
 - `./tools/polymarket-daily-turn.sh`
-- `./tools/polymarket-resolve.sh`
+- `./tools/polymarket-resolve-turn.sh`
 - `./tools/polymarket-digest.sh`
 
 Install them with:
