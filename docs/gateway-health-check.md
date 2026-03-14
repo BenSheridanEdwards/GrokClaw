@@ -1,33 +1,30 @@
-# PicoClaw Gateway Health Check
+# GrokClaw Gateway Health Check
 
-The `tools/health-check.sh` script detects when the PicoClaw gateway process has died and posts an alert to the `grok-orchestrator` Slack channel.
+`tools/health-check.sh` monitors the PicoClaw gateway process and posts a Slack alert if it dies.
 
 ## How it works
 
-- **Detection**: Checks for `picoclaw gateway` process and probes `http://127.0.0.1:18800/health` (configurable via `PICOCLAW_GATEWAY_PORT`).
-- **Alerting**: Posts to Slack only when status *changes* from alive → dead (avoids repeated alerts).
-- **State**: Uses `.gateway-health-state` in the workspace root to track previous status.
-- **Exit**: 0 if healthy, 1 if unhealthy.
+- Checks for a running `picoclaw gateway` process
+- Falls back to HTTP probe on `http://127.0.0.1:18800/health`
+- Uses `.gateway-health-state` to track status — only alerts once on transition alive → dead, not on every check
+- Exit 0 if healthy, exit 1 if not
+- No LLM involved — pure shell
 
-## Scheduling
+## Trigger: system crontab only
 
-**PicoClaw cron** (`cron/jobs.json`): Runs every 5 minutes when the gateway is up. The agent executes the script.
+This runs via **system crontab**, not PicoClaw's agent cron or heartbeat. PicoClaw cron requires the gateway to be alive — it cannot detect its own death.
 
-**HEARTBEAT** (`HEARTBEAT.md`): Includes the health check in periodic agent tasks (~every 30 min).
-
-**System cron** (required for detecting gateway death): When the gateway is down, PicoClaw cron and HEARTBEAT cannot run. Add to crontab (`crontab -e`):
-
+Current crontab entry (already installed):
 ```
-# PicoClaw gateway health check — every 5 minutes
 */5 * * * * /Users/jarvis/.picoclaw/workspace/tools/health-check.sh >> /tmp/picoclaw-health.log 2>&1
 ```
 
-Verify it is active:
+Verify:
 ```sh
 crontab -l | grep health-check
 ```
 
-Logs are written to `/tmp/picoclaw-health.log`.
+Logs: `/tmp/picoclaw-health.log`
 
 ## Environment variables
 

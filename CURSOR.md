@@ -19,6 +19,7 @@ You are a Cursor agent assigned to implement work in the GrokClaw repository.
    ```
 9. **Commit** — clear messages referencing the issue (e.g. `feat: add health check GRO-14`).
 10. **Push and mark ready** — `gh pr ready <number> --repo BenSheridanEdwards/GrokClaw`
+    **Never merge your own PR.** Merging is Ben's decision. Mark ready and post to Slack — that's where your job ends.
 11. **Post to Slack**:
     ```
     /Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF "🤖 GRO-XX complete. PR: <pr-url>"
