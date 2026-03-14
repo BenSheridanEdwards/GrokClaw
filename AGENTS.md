@@ -77,6 +77,7 @@ A good ticket has:
 - **Problem**: 2-3 sentences on what is broken or missing and why it matters.
 - **Acceptance criteria**: a numbered list of verifiable conditions. Each one must be independently testable.
 - **Implementation notes**: concrete guidance on files to create/modify, commands to run, APIs to use, edge cases to handle. Enough detail that a developer with no context can execute it.
+- **Trigger**: explicitly state how the feature will run — system crontab, PicoClaw cron (`cron/jobs.json`), or a documented manual step. Never leave this unspecified. If the feature is a script, say exactly what calls it and how often.
 - **Out of scope**: what Cursor should NOT do in this ticket.
 
 Write this description fully, then run:
