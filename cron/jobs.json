@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "4978a69dab9ec327",
+      "name": "daily-grokclaw-suggestion",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 6 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "You are Grok, the sole agent of GrokClaw. Research exactly one high-leverage improvement for this system. Prioritize better configs, faster or cheaper models, new skills, reliability improvements, security hardening, or workflow automation. Then send exactly one Slack message in exactly this format and nothing else:\n\nDaily Suggestion #N: [title]\nReasoning: [1-2 sentences]\nExpected impact: [benefit]\nApprove? (reply exactly 'approve')\n\nUse the existing thread or session context to keep N increasing over time. If a user later replies with exactly 'approve', do not implement the change yourself. Instead run ./tools/linear-ticket.sh with the suggestion number and title, then reply in the same Slack thread with the resulting Linear ticket URL.",
+        "deliver": false,
+        "channel": "slack",
+        "to": "C0ALE1S0LSF"
+      },
+      "state": {
+        "nextRunAtMs": 1773525600000
+      },
+      "createdAtMs": 1773474867484,
+      "updatedAtMs": 1773474867484,
+      "deleteAfterRun": false
+    }
+  ]
+}
