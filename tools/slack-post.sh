@@ -27,5 +27,6 @@ else
   MESSAGE=$(cat)
 fi
 
-python3 /Users/jarvis/.picoclaw/workspace/tools/_slack_post.py \
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+python3 "$SCRIPT_DIR/_slack_post.py" \
   "$SLACK_BOT_TOKEN" "$CHANNEL" "$THREAD_TS" "$MESSAGE"
