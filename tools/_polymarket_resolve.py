@@ -11,6 +11,12 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
+WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if WORKSPACE_ROOT not in sys.path:
+    sys.path.insert(0, WORKSPACE_ROOT)
+
+from tools import _polymarket_metrics as metrics
+
 API_BASE = "https://gamma-api.polymarket.com/markets"
 TRADES_FILE = "data/polymarket-trades.json"
 RESULTS_FILE = "data/polymarket-results.json"
@@ -124,6 +130,18 @@ def main():
         pnl_val = pnl(odds, won)
         t["resolved"] = True
         t["resolved_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        stake_amount = round(float(t.get("stake_amount", 1.0)), 2)
+        pnl_amount = round(stake_amount * pnl_val, 2)
+        bankroll_entry = metrics.record_bankroll_event(
+            workspace_root,
+            {
+                "date": t["resolved_at"],
+                "kind": "resolved_trade",
+                "market_id": market_id,
+                "question": t.get("question", ""),
+                "delta": pnl_amount,
+            },
+        )
         updated_trades.append(t)
         result = {
             "date": t.get("date"),
@@ -133,12 +151,24 @@ def main():
             "side": side,
             "odds": odds,
             "won": won,
+            "winning_side": winning,
             "pnl": round(pnl_val, 4),
+            "stake_amount": stake_amount,
+            "pnl_amount": pnl_amount,
+            "probability_yes": t.get("probability_yes"),
+            "model_probability": t.get("model_probability"),
+            "market_probability": t.get("market_probability"),
+            "edge": t.get("edge"),
+            "bankroll_before": bankroll_entry["bankroll_before"],
+            "bankroll_after": bankroll_entry["bankroll_after"],
         }
         with open(results_path, "a") as f:
             f.write(json.dumps(result) + "\n")
         resolved_count += 1
-        print(f"Resolved: {t.get('question', '')[:50]}... {'WIN' if won else 'LOSS'} (P&L: {pnl_val:+.2f})")
+        print(
+            f"Resolved: {t.get('question', '')[:50]}... "
+            f"{'WIN' if won else 'LOSS'} (P&L: {pnl_amount:+.2f}, bankroll: {bankroll_entry['bankroll_after']:+.2f})"
+        )
 
     # Write back updated trades (with resolved=True)
     with open(trades_path, "w") as f:

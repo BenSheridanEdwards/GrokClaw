@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tools import _polymarket_metrics as metrics
 from tools import _polymarket_trade as trade
 
 
@@ -46,6 +47,25 @@ class PolymarketTradeTests(unittest.TestCase):
             trade.resolve_workspace_root(["prog", "/tmp/custom-workspace"]),
             "/tmp/custom-workspace",
         )
+
+    def test_already_decided_today_detects_prior_skip_or_trade(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            metrics.append_jsonl(
+                workspace / "data" / "polymarket-decisions.json",
+                {"date": "2026-03-14", "action": "skip"},
+            )
+
+            original_datetime = trade.datetime
+            class FixedDateTime:
+                @staticmethod
+                def now(_tz):
+                    return original_datetime(2026, 3, 14, tzinfo=_tz)
+            trade.datetime = FixedDateTime
+            try:
+                self.assertTrue(trade.already_decided_today(workspace))
+            finally:
+                trade.datetime = original_datetime
 
 
 if __name__ == "__main__":

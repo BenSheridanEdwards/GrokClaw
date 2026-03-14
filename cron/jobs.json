@@ -22,6 +22,72 @@
       "createdAtMs": 1773474867484,
       "updatedAtMs": 1773474867484,
       "deleteAfterRun": false
+    },
+    {
+      "id": "983b5187b5727cee",
+      "name": "polymarket-daily-trade",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "30 23 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "Run ./tools/polymarket-trade.sh to fetch and stage today's Polymarket candidate. Research the market using your web tools if needed. If you do not have a clear edge, run ./tools/polymarket-decide.sh SKIP \"\u003creason\u003e\". If you do have an edge, choose YES or NO, estimate the probability for that chosen side as a decimal in (0,1), estimate confidence as a decimal in (0,1), and run ./tools/polymarket-decide.sh \u003cside\u003e \u003cprobability\u003e \u003cconfidence\u003e \"\u003cone sentence reasoning\u003e\". Do not place a trade if the script tells you to skip.",
+        "deliver": false,
+        "channel": "slack",
+        "to": "C0ALE1S0LSF"
+      },
+      "state": {
+        "nextRunAtMs": 1773502200000
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
+    },
+    {
+      "id": "03a58dc58cec4832",
+      "name": "polymarket-daily-resolve",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "45 23 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "Run ./tools/polymarket-resolve.sh to resolve closed paper trades and update the bankroll ledger. Then run ./tools/polymarket-report.sh and only post to Slack if the promotion gate is eligible.",
+        "deliver": false,
+        "channel": "slack",
+        "to": "C0ALE1S0LSF"
+      },
+      "state": {
+        "nextRunAtMs": 1773503100000
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
+    },
+    {
+      "id": "c1aeff28188137f8",
+      "name": "polymarket-weekly-digest",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 1 * * 1"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "Run ./tools/polymarket-digest.sh to post the weekly Polymarket digest to Slack and append a calibration note to memory/MEMORY.md.",
+        "deliver": false,
+        "channel": "slack",
+        "to": "C0ALE1S0LSF"
+      },
+      "state": {
+        "nextRunAtMs": 1773594000000
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
     }
   ]
 }

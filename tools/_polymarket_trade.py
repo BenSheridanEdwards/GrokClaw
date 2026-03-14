@@ -10,9 +10,16 @@ import sys
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if WORKSPACE_ROOT not in sys.path:
+    sys.path.insert(0, WORKSPACE_ROOT)
+
+from tools import _polymarket_metrics as metrics
+
 API_URL = "https://gamma-api.polymarket.com/markets"
 TRADES_FILE = "data/polymarket-trades.json"
 PENDING_FILE = "data/polymarket-pending-trade.json"
+DECISIONS_FILE = "data/polymarket-decisions.json"
 
 
 def fetch_markets():
@@ -56,7 +63,7 @@ def validate_odds(odds):
     return value
 
 
-def log_trade(workspace_root, market_id, question, side, odds, reasoning):
+def log_trade(workspace_root, market_id, question, side, odds, reasoning, metadata=None):
     trades_path = os.path.join(workspace_root, TRADES_FILE)
     os.makedirs(os.path.dirname(trades_path), exist_ok=True)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -70,6 +77,8 @@ def log_trade(workspace_root, market_id, question, side, odds, reasoning):
         "reasoning": reasoning,
         "resolved": False,
     }
+    if metadata:
+        entry.update(metadata)
     line = json.dumps(entry) + "\n"
     with open(trades_path, "a") as f:
         f.write(line)
@@ -133,12 +142,23 @@ def already_traded_today(workspace_root):
     return False
 
 
+def already_decided_today(workspace_root):
+    decisions_path = os.path.join(workspace_root, DECISIONS_FILE)
+    if not os.path.exists(decisions_path):
+        return False
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    for entry in metrics.load_jsonl(decisions_path):
+        if entry.get("date") == today:
+            return True
+    return False
+
+
 def main():
     if len(sys.argv) <= 2:
         # Fetch and select
         workspace_root = resolve_workspace_root(sys.argv)
-        if already_traded_today(workspace_root):
-            print("Already traded today, skipping.", file=sys.stderr)
+        if already_traded_today(workspace_root) or already_decided_today(workspace_root):
+            print("Already processed today's candidate, skipping.", file=sys.stderr)
             sys.exit(0)
         markets = fetch_markets()
         best = select_market(markets)

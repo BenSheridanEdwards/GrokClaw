@@ -8,6 +8,12 @@ import os
 import sys
 from datetime import datetime, timedelta, timezone
 
+WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if WORKSPACE_ROOT not in sys.path:
+    sys.path.insert(0, WORKSPACE_ROOT)
+
+from tools import _polymarket_metrics as metrics
+
 RESULTS_FILE = "data/polymarket-results.json"
 
 
@@ -52,38 +58,55 @@ def main():
 
     now = datetime.now(timezone.utc)
     results = load_recent_results(results_path, now)
+    summary = metrics.summarize(workspace_root, days=7)
+    promotion = metrics.check_promotion_gate(metrics.summarize(workspace_root))
 
     if not results:
         msg = (
             "📊 *Polymarket Weekly Digest* (past 7 days)\n"
-            "No resolved trades in this period."
+            f"• Bankroll: ${summary['current_bankroll']:.2f}\n"
+            "• No resolved trades in this period."
         )
         print(build_payload(msg, "No trades to analyze this week."))
         return
 
-    wins = sum(1 for r in results if r.get("won"))
-    total = len(results)
-    accuracy = (100.0 * wins / total) if total else 0
-    total_pnl = sum(r.get("pnl", 0) for r in results)
+    wins = summary["wins"]
+    total = summary["resolved_count"]
+    accuracy = 100.0 * summary["accuracy"]
+    total_pnl = summary["total_pnl"]
     best = max(results, key=lambda r: r.get("pnl", -999))
     worst = min(results, key=lambda r: r.get("pnl", 999))
+    brier = summary["brier_score"]
+    drawdown = summary["max_drawdown"] * 100.0
 
     msg = (
         f"📊 *Polymarket Weekly Digest* (past 7 days)\n"
+        f"• Bankroll: ${summary['current_bankroll']:.2f}\n"
         f"• Accuracy: {wins}/{total} ({accuracy:.0f}%)\n"
-        f"• Total paper P&L: {total_pnl:+.2f} units\n"
-        f"• Best call: {best.get('question', '')[:60]}... ({'WIN' if best.get('won') else 'LOSS'}, {best.get('pnl', 0):+.2f})\n"
-        f"• Worst call: {worst.get('question', '')[:60]}... ({'WIN' if worst.get('won') else 'LOSS'}, {worst.get('pnl', 0):+.2f})"
+        f"• Total paper P&L: ${total_pnl:+.2f}\n"
+        f"• Skip count: {summary['skip_count']}\n"
+        f"• Max drawdown: {drawdown:.1f}%\n"
+        f"• Brier score: {'n/a' if brier is None else f'{brier:.3f}'}\n"
+        f"• Best call: {best.get('question', '')[:60]}... ({'WIN' if best.get('won') else 'LOSS'}, ${best.get('pnl_amount', 0):+.2f})\n"
+        f"• Worst call: {worst.get('question', '')[:60]}... ({'WIN' if worst.get('won') else 'LOSS'}, ${worst.get('pnl_amount', 0):+.2f})\n"
+        f"• Promotion gate: {'PASS' if promotion['eligible'] else 'BLOCKED'}"
     )
-    print("SLACK_MSG:" + msg)
 
     # Self-improvement note
-    if accuracy >= 70:
+    if brier is not None and brier <= 0.10 and total_pnl > 0:
+        improvement = "Polymarket: Calibrated and profitable week. Keep the same gates and sizing."
+    elif accuracy >= 70:
         improvement = f"Polymarket: Strong week ({accuracy:.0f}% accuracy). Continue current approach."
-    elif accuracy >= 50:
-        improvement = f"Polymarket: Moderate week ({accuracy:.0f}% accuracy). Review worst call for calibration."
+    elif accuracy >= 50 or total_pnl >= 0:
+        improvement = (
+            f"Polymarket: Mixed week ({accuracy:.0f}% accuracy, ${total_pnl:+.2f}). "
+            "Review the worst call and skipped edges for calibration."
+        )
     else:
-        improvement = f"Polymarket: Tough week ({accuracy:.0f}% accuracy). Revisit reasoning on high-conviction bets."
+        improvement = (
+            f"Polymarket: Tough week ({accuracy:.0f}% accuracy, ${total_pnl:+.2f}). "
+            "Tighten confidence thresholds and reduce aggressive estimates."
+        )
     print(build_payload(msg, improvement))
 
 

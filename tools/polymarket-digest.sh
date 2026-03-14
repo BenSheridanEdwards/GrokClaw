@@ -16,7 +16,11 @@ IMPROVEMENT=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["improv
 SLACK_CHANNEL="${SLACK_CHANNEL_ID:-C0ALE1S0LSF}"
 
 if [ -n "$SLACK_MSG" ]; then
-  "$WORKSPACE_ROOT/tools/slack-post.sh" "$SLACK_CHANNEL" "$SLACK_MSG" || true
+  if [ "${POLYMARKET_SLACK_DRY_RUN:-0}" = "1" ]; then
+    printf '%s\n' "$SLACK_MSG"
+  else
+    "$WORKSPACE_ROOT/tools/slack-post.sh" "$SLACK_CHANNEL" "$SLACK_MSG" || true
+  fi
 fi
 
 MEMORY_PATH="$WORKSPACE_ROOT/memory/MEMORY.md"

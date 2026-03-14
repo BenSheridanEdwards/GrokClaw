@@ -22,6 +22,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-14** — Rewrote `AGENTS.md`: added PM ticket writing standards, PR review workflow, and explicit instruction to never use the message tool.
 - **2026-03-14** — Updated `cron/jobs.json` payload to include memory-read step and full three-step approval flow.
 - **2026-03-14** — Implemented GRO-14: `tools/health-check.sh` detects PicoClaw gateway death and alerts to Slack. Scheduled via cron/jobs.json, HEARTBEAT.md, and system cron; see `docs/gateway-health-check.md`.
+- **2026-03-14** — Implemented the Polymarket paper-trading loop: staged candidate fetch, Grok decision engine with hard gates, skip/trade/result/bankroll ledgers, weekly digest/reporting, deterministic smoke test, stable PicoClaw cron jobs (`polymarket-daily-trade`, `polymarket-daily-resolve`, `polymarket-weekly-digest`), and a system-cron fallback via `tools/install-polymarket-cron.sh`. Verified with unit tests, `tools/polymarket-smoke.sh`, `tools/polymarket-daily-turn.sh`, and live `picoclaw cron list` output.
 
 ---
 
