@@ -13,9 +13,13 @@ You are a Cursor agent assigned to implement work in the GrokClaw repository.
 5. **Implement the work** — write real code, config, or documentation. No placeholders.
 6. **Wire it up** — see "Every feature must be triggered" below.
 7. **Test it** — run the thing and verify it works. See "Testing requirements" below.
-8. **Commit** — clear messages referencing the issue (e.g. `feat: add health check GRO-14`).
-9. **Push and mark ready** — `gh pr ready <number> --repo BenSheridanEdwards/GrokClaw`
-10. **Post to Slack**:
+8. **Update `memory/MEMORY.md`** — before committing, append a dated bullet under "Completed work" describing exactly what you built and how it runs. Example:
+   ```
+   - **2026-03-14** — GRO-14: added tools/gateway-health-check.sh; detects picoclaw process death and alerts Slack. Wired to system crontab (*/5 * * * *).
+   ```
+9. **Commit** — clear messages referencing the issue (e.g. `feat: add health check GRO-14`).
+10. **Push and mark ready** — `gh pr ready <number> --repo BenSheridanEdwards/GrokClaw`
+11. **Post to Slack**:
     ```
     /Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF "🤖 GRO-XX complete. PR: <pr-url>"
     ```
@@ -133,6 +137,7 @@ Include the test output in your PR description under a **Verification** section.
 - [ ] It is wired to a trigger (system cron, PicoClaw cron, or documented workflow step)
 - [ ] The trigger has been verified to fire
 - [ ] Real file changes in the PR (not just the scaffold commit)
+- [ ] `memory/MEMORY.md` updated with a dated bullet describing what was built and how it runs
 - [ ] Verification output included in PR description
 - [ ] PR marked ready for review
 - [ ] Completion posted to Slack
