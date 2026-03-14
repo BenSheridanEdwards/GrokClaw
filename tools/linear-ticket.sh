@@ -1,118 +1,30 @@
 #!/bin/sh
+# Create a Linear ticket for an approved Grok suggestion.
+# Usage: linear-ticket.sh <suggestion-number> <title> [description]
+#
+# Description is the PM-quality ticket body written by Grok.
+# Always delegates to the Cursor agent.
+# Prints the Linear issue URL on success.
 set -eu
 
-if [ -f ".env" ]; then
+if [ -f "/Users/jarvis/.picoclaw/workspace/.env" ]; then
   set -a
   # shellcheck disable=SC1091
-  . ./.env
+  . /Users/jarvis/.picoclaw/workspace/.env
   set +a
 fi
 
 if [ "$#" -lt 2 ]; then
-  echo "usage: $0 <suggestion-number> <title>" >&2
+  echo "usage: $0 <suggestion-number> <title> [description]" >&2
   exit 1
 fi
 
-SUGGESTION_NUMBER="$1"
-shift
-SUGGESTION_TITLE="$*"
+SUGGESTION_NUMBER="$1"; shift
+SUGGESTION_TITLE="$1"; shift
+DESCRIPTION="${1:-}"
 
-LINEAR_API_KEY="${LINEAR_API_KEY:-}"
-LINEAR_TEAM_ID="${LINEAR_TEAM_ID:-3f1b1054-07c6-4aad-a02c-89c78a43946b}"
-LINEAR_ASSIGNEE_NAME="${LINEAR_ASSIGNEE_NAME:-}"
-# Cursor agent user ID — always delegate to Cursor
-CURSOR_DELEGATE_ID="ca233eb8-8630-49c9-8f7c-3708c1bd1c4b"
-
-if [ -z "$LINEAR_API_KEY" ]; then
-  echo "LINEAR_API_KEY is not configured" >&2
-  exit 1
-fi
-
-if [ -z "$LINEAR_TEAM_ID" ]; then
-  echo "LINEAR_TEAM_ID is not configured" >&2
-  exit 1
-fi
-
-query() {
-  curl -fsS https://api.linear.app/graphql \
-    -H "Content-Type: application/json" \
-    -H "Authorization: $LINEAR_API_KEY" \
-    --data-binary "$1"
-}
-
-json_escape() {
-  python3 - <<'PY' "$1"
-import json, sys
-print(json.dumps(sys.argv[1]))
-PY
-}
-
-assignee_id=""
-if [ -n "$LINEAR_ASSIGNEE_NAME" ]; then
-  lookup_user_payload=$(cat <<EOF
-{"query":"query LookupUser(\$name: String!) { users(filter: { name: { eq: \$name } }) { nodes { id name } } }","variables":{"name":$(
-  json_escape "$LINEAR_ASSIGNEE_NAME"
-)}} 
-EOF
-)
-
-  user_response=$(query "$lookup_user_payload" || true)
-  assignee_id=$(
-    python3 - <<'PY' "$user_response"
-import json, sys
-raw = sys.argv[1]
-if not raw:
-    print("")
-    raise SystemExit
-data = json.loads(raw)
-nodes = (((data.get("data") or {}).get("users") or {}).get("nodes") or [])
-print(nodes[0]["id"] if nodes else "")
-PY
-  )
-fi
-
-title="Implement Grok Suggestion #$SUGGESTION_NUMBER - $SUGGESTION_TITLE"
-
-if [ -n "$assignee_id" ]; then
-  create_payload=$(cat <<EOF
-{"query":"mutation CreateIssue(\$teamId: String!, \$title: String!, \$assigneeId: String!, \$delegateId: String!) { issueCreate(input: { teamId: \$teamId, title: \$title, assigneeId: \$assigneeId, delegateId: \$delegateId }) { success issue { id identifier title url } } }","variables":{"teamId":$(
-  json_escape "$LINEAR_TEAM_ID"
-),"title":$(
-  json_escape "$title"
-),"assigneeId":$(
-  json_escape "$assignee_id"
-),"delegateId":$(
-  json_escape "$CURSOR_DELEGATE_ID"
-)}} 
-EOF
-)
-else
-  create_payload=$(cat <<EOF
-{"query":"mutation CreateIssue(\$teamId: String!, \$title: String!, \$delegateId: String!) { issueCreate(input: { teamId: \$teamId, title: \$title, delegateId: \$delegateId }) { success issue { id identifier title url } } }","variables":{"teamId":$(
-  json_escape "$LINEAR_TEAM_ID"
-),"title":$(
-  json_escape "$title"
-),"delegateId":$(
-  json_escape "$CURSOR_DELEGATE_ID"
-)}} 
-EOF
-)
-fi
-
-create_response=$(query "$create_payload")
-
-python3 - <<'PY' "$create_response"
-import json, sys
-data = json.loads(sys.argv[1])
-errors = data.get("errors") or []
-if errors:
-    raise SystemExit(errors[0].get("message", "Linear issueCreate failed"))
-result = ((data.get("data") or {}).get("issueCreate") or {})
-if not result.get("success"):
-    raise SystemExit("Linear issueCreate returned success=false")
-issue = result.get("issue") or {}
-url = issue.get("url", "")
-if not url:
-    raise SystemExit("Linear issue URL missing from response")
-print(url)
-PY
+python3 /Users/jarvis/.picoclaw/workspace/tools/_linear_ticket.py \
+  "$LINEAR_API_KEY" \
+  "$SUGGESTION_NUMBER" \
+  "$SUGGESTION_TITLE" \
+  "$DESCRIPTION"

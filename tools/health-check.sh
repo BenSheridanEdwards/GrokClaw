@@ -1,17 +1,18 @@
 #!/bin/sh
-# Health check for PicoClaw gateway process. Alerts to Slack if the gateway dies.
-# Run via system cron (e.g. */5 * * * *) — not via PicoClaw's agent cron, since
-# the agent requires the gateway to be running.
+# Health check for PicoClaw gateway. Alerts to Slack if the gateway dies.
+# Run via system cron, PicoClaw cron, or HEARTBEAT.
 #
-# Usage: gateway-health-check.sh
+# Usage: health-check.sh
 # Env:   PICOCLAW_WORKSPACE — workspace root (default: derived from script path)
 #        SLACK_CHANNEL_ID   — Slack channel for alerts (default: C0ALE1S0LSF)
+# Exit:  0 if healthy, 1 if unhealthy
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 STATE_FILE="$WORKSPACE_ROOT/.gateway-health-state"
 SLACK_CHANNEL="${SLACK_CHANNEL_ID:-C0ALE1S0LSF}"
+GATEWAY_PORT="${PICOCLAW_GATEWAY_PORT:-18800}"
 
 # Load .env for SLACK_BOT_TOKEN
 if [ -f "$WORKSPACE_ROOT/.env" ]; then
@@ -22,14 +23,13 @@ if [ -f "$WORKSPACE_ROOT/.env" ]; then
 fi
 
 gateway_alive() {
-  # Check if any picoclaw process is running (gateway is the main long-running process)
-  if pgrep -f "picoclaw" >/dev/null 2>&1; then
+  # Check if picoclaw gateway process is running
+  if pgrep -f "picoclaw gateway" >/dev/null 2>&1; then
     return 0
   fi
-  # Optional: try HTTP health probe if gateway listens on default port
+  # Check gateway HTTP health endpoint
   if command -v curl >/dev/null 2>&1; then
-    # Any response (including 404) means gateway is listening
-    if curl -s --connect-timeout 3 -o /dev/null "http://127.0.0.1:18790/" 2>/dev/null; then
+    if curl -sf --connect-timeout 3 "http://127.0.0.1:${GATEWAY_PORT}/health" >/dev/null 2>&1; then
       return 0
     fi
   fi
@@ -46,7 +46,7 @@ write_state() {
 
 alert_slack() {
   "$WORKSPACE_ROOT/tools/slack-post.sh" "$SLACK_CHANNEL" \
-    "PicoClaw gateway process is not running. Check the server and restart with \`picoclaw gateway\`."
+    "🚨 GrokClaw gateway is down — restart required."
 }
 
 alive=$(gateway_alive && echo "alive" || echo "dead")
@@ -57,6 +57,8 @@ if [ "$alive" = "dead" ]; then
     alert_slack
   fi
   write_state "dead"
-else
-  write_state "alive"
+  exit 1
 fi
+
+write_state "alive"
+exit 0
