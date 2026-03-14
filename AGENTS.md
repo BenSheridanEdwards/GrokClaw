@@ -24,10 +24,19 @@ Approve? (reply exactly 'approve')
 
 ## Approval workflow
 
-- If a user replies with exactly `approve`, do not implement code changes yourself.
-- Instead, use the OpenClaw `linear` skill and the official `plugin-linear-linear` MCP tools to create a Linear ticket.
-- Use the title format `Implement Grok Suggestion #N - <title>` unless the user explicitly asks for a different title.
-- After the issue is created, reply in the same Slack thread with the ticket link.
+When a user replies with exactly `approve`, execute these steps in order:
+
+1. **Create Linear ticket** — run `/Users/jarvis/.picoclaw/workspace/tools/linear-ticket.sh <N> "<title>"`. This creates the issue, delegates it to Cursor, and returns the Linear URL.
+2. **Create GitHub branch and PR** — run `/Users/jarvis/.picoclaw/workspace/tools/create-pr.sh <linear-issue-id> "<title>"`. This creates a feature branch named after the Linear issue, opens a draft PR linked to the ticket, and returns the PR URL.
+3. **Post in Slack** — reply in the same Slack thread with both links in this exact format:
+   ```
+   ✅ Suggestion #N approved.
+   Linear: <linear-url>
+   PR: <pr-url>
+   Cursor is on it.
+   ```
+4. Use the title format `Implement Grok Suggestion #N - <title>` unless the user explicitly requests a different title.
+5. If any step fails, report exactly what failed with the error message before stopping.
 - If the Linear integration is not authenticated or the target team cannot be determined, explain exactly what is missing.
 
 ## Slack behavior

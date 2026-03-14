@@ -20,6 +20,8 @@ SUGGESTION_TITLE="$*"
 LINEAR_API_KEY="${LINEAR_API_KEY:-}"
 LINEAR_TEAM_ID="${LINEAR_TEAM_ID:-3f1b1054-07c6-4aad-a02c-89c78a43946b}"
 LINEAR_ASSIGNEE_NAME="${LINEAR_ASSIGNEE_NAME:-}"
+# Cursor agent user ID — always delegate to Cursor
+CURSOR_DELEGATE_ID="ca233eb8-8630-49c9-8f7c-3708c1bd1c4b"
 
 if [ -z "$LINEAR_API_KEY" ]; then
   echo "LINEAR_API_KEY is not configured" >&2
@@ -73,21 +75,25 @@ title="Implement Grok Suggestion #$SUGGESTION_NUMBER - $SUGGESTION_TITLE"
 
 if [ -n "$assignee_id" ]; then
   create_payload=$(cat <<EOF
-{"query":"mutation CreateIssue(\$teamId: String!, \$title: String!, \$assigneeId: String!) { issueCreate(input: { teamId: \$teamId, title: \$title, assigneeId: \$assigneeId }) { success issue { id identifier title url } } }","variables":{"teamId":$(
+{"query":"mutation CreateIssue(\$teamId: String!, \$title: String!, \$assigneeId: String!, \$delegateId: String!) { issueCreate(input: { teamId: \$teamId, title: \$title, assigneeId: \$assigneeId, delegateId: \$delegateId }) { success issue { id identifier title url } } }","variables":{"teamId":$(
   json_escape "$LINEAR_TEAM_ID"
 ),"title":$(
   json_escape "$title"
 ),"assigneeId":$(
   json_escape "$assignee_id"
+),"delegateId":$(
+  json_escape "$CURSOR_DELEGATE_ID"
 )}} 
 EOF
 )
 else
   create_payload=$(cat <<EOF
-{"query":"mutation CreateIssue(\$teamId: String!, \$title: String!) { issueCreate(input: { teamId: \$teamId, title: \$title }) { success issue { id identifier title url } } }","variables":{"teamId":$(
+{"query":"mutation CreateIssue(\$teamId: String!, \$title: String!, \$delegateId: String!) { issueCreate(input: { teamId: \$teamId, title: \$title, delegateId: \$delegateId }) { success issue { id identifier title url } } }","variables":{"teamId":$(
   json_escape "$LINEAR_TEAM_ID"
 ),"title":$(
   json_escape "$title"
+),"delegateId":$(
+  json_escape "$CURSOR_DELEGATE_ID"
 )}} 
 EOF
 )
