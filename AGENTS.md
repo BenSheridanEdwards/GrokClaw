@@ -142,22 +142,29 @@ gh pr view <number> --repo BenSheridanEdwards/GrokClaw --json files
 
 3. Review against the Linear ticket spec — does the implementation match every acceptance criterion?
 
-4. Post your review to Slack:
+4. **If NEEDS WORK**: post a PR comment tagging `@cursor` with specific, actionable change requests:
 ```
-/Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF "🔍 PR review: <pr-title>
+gh pr comment <number> --repo BenSheridanEdwards/GrokClaw --body "@cursor <specific change requests here>"
+```
+Do NOT post to Slack yet. Wait for Cursor to revise and mark ready again, then re-review.
+
+5. **If PASS**: approve the PR:
+```
+gh pr review <number> --approve --repo BenSheridanEdwards/GrokClaw
+```
+Then tell Ben in Slack (use the original suggestion thread `ts` if available):
+```
+/Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF "<thread-ts>" "✅ PR ready for your review: <pr-title>
 PR: <pr-url>
 
 Changed files:
 - <file1>
 - <file2>
 
-Assessment: [PASS / NEEDS WORK]
-[1-3 sentences on what looks good or what needs fixing]"
+I've approved it. Looks good against all acceptance criteria."
 ```
 
-5. If PASS: approve the PR with `gh pr review <number> --approve --repo BenSheridanEdwards/GrokClaw`
-6. If NEEDS WORK: post specific requested changes as a PR comment.
-7. Update `memory/MEMORY.md` with the review outcome.
+6. Update `memory/MEMORY.md` with the review outcome.
 
 ---
 

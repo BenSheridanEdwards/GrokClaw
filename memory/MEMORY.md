@@ -23,6 +23,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-14** — Updated `cron/jobs.json` payload to include memory-read step and full three-step approval flow.
 - **2026-03-14** — Implemented GRO-14: `tools/health-check.sh` detects PicoClaw gateway death and alerts to Slack. Scheduled via cron/jobs.json, HEARTBEAT.md, and system cron; see `docs/gateway-health-check.md`.
 - **2026-03-14** — Implemented the Polymarket paper-trading loop: staged candidate fetch, Grok decision engine with hard gates, skip/trade/result/bankroll ledgers, weekly digest/reporting, deterministic smoke test, stable PicoClaw cron jobs (`polymarket-daily-trade`, `polymarket-daily-resolve`, `polymarket-weekly-digest`), and manual fallback wrappers for direct runs. Verified with unit tests, `tools/polymarket-smoke.sh`, `tools/polymarket-daily-turn.sh`, and live `picoclaw cron list` output.
+- **2026-03-14** — Populated `USER.md` with real profile data sourced from bensheridanedwards.co.uk: timezone (WIB UTC+7), role (Fractional CTO/AI Engineering Lead at CodeWalnut), stack (React/TypeScript/AI), communication preferences, and working style.
 
 ---
 
@@ -45,8 +46,10 @@ Grok must read this file in full before proposing any suggestion, and update it 
 | 2 | Install and integrate Linear skill for automated ticket creation | Approved → GRO-8 |
 | 3 | Slack thread reply parsing for automatic approval handling | Rejected (already partially handled by CLI trigger) |
 | 4 | Add health check alerting if PicoClaw gateway dies | Approved → GRO-14, PR #5 |
+| 5 | Populate USER.md with Ben's preferences | Cancelled — USER.md is a user action, not a Cursor ticket. Filled directly. |
+| 6 | Add Polymarket paper trading agent for daily prediction and P&L tracking | Approved → GRO-16, PR #8 |
 
-**Next suggestion number: 5**
+**Next suggestion number: 7**
 
 ---
 
@@ -54,11 +57,12 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 Pick from this list when researching the next suggestion. Do not suggest anything already in "Completed work".
 
-- `USER.md` is empty — user preferences, timezone, communication style not recorded
 - No retry logic on failed tool calls (linear-ticket.sh or create-pr.sh)
 - Session summarization threshold may need tuning (currently 200 messages / 95% token fill)
 - No automated tests for the approval flow scripts
 - PicoClaw changelog / release notes not yet regularly checked — need to confirm how to fetch these
+- **Polymarket paper trader**: Grok fetches open markets, picks a position, logs it with reasoning, tracks resolution, reports P&L to Slack — no real money, pure signal generation and self-improvement
+- **Self-improvement loop**: After each approved suggestion + PR, Grok reviews its own accuracy (did the implementation match the spec? was the estimate right?) and appends a lessons-learned bullet to MEMORY.md automatically
 
 ---
 
