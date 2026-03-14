@@ -15,6 +15,7 @@ if WORKSPACE_ROOT not in sys.path:
 from tools import _polymarket_metrics as metrics
 
 RESULTS_FILE = "data/polymarket-results.json"
+DIGEST_STATE_FILE = "data/polymarket-digest-state.json"
 
 
 def parse_result_date(result):
@@ -47,6 +48,29 @@ def build_payload(slack_msg, improvement):
         {"slack_msg": slack_msg, "improvement": improvement},
         separators=(",", ":"),
     )
+
+
+def digest_week_key(now):
+    return now.strftime("%G-W%V")
+
+
+def digest_already_recorded(workspace_root, now):
+    state_path = os.path.join(workspace_root, DIGEST_STATE_FILE)
+    if not os.path.exists(state_path):
+        return False
+    try:
+        with open(state_path, encoding="utf-8") as handle:
+            state = json.load(handle)
+    except (json.JSONDecodeError, OSError):
+        return False
+    return state.get("week_key") == digest_week_key(now)
+
+
+def mark_digest_recorded(workspace_root, now):
+    state_path = os.path.join(workspace_root, DIGEST_STATE_FILE)
+    os.makedirs(os.path.dirname(state_path), exist_ok=True)
+    with open(state_path, "w", encoding="utf-8") as handle:
+        json.dump({"week_key": digest_week_key(now), "recorded_at": now.strftime("%Y-%m-%d")}, handle)
 
 
 def main():

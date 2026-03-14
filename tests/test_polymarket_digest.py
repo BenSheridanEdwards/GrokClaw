@@ -44,6 +44,16 @@ class PolymarketDigestTests(unittest.TestCase):
 
             self.assertEqual([result["question"] for result in results], ["Recent resolution"])
 
+    def test_digest_state_prevents_duplicate_weekly_emission(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            now = datetime(2026, 3, 16, tzinfo=timezone.utc)
+
+            self.assertFalse(digest.digest_already_recorded(workspace, now))
+            digest.mark_digest_recorded(workspace, now)
+            self.assertTrue(digest.digest_already_recorded(workspace, now))
+            self.assertFalse(digest.digest_already_recorded(workspace, datetime(2026, 3, 23, tzinfo=timezone.utc)))
+
 
 if __name__ == "__main__":
     unittest.main()

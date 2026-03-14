@@ -20,10 +20,25 @@ API_URL = "https://gamma-api.polymarket.com/markets"
 TRADES_FILE = "data/polymarket-trades.json"
 PENDING_FILE = "data/polymarket-pending-trade.json"
 DECISIONS_FILE = "data/polymarket-decisions.json"
+MARKET_PAGE_SIZE = 50
+MARKET_MAX_PAGES = 10
 
 
-def fetch_markets():
-    url = f"{API_URL}?active=true&closed=false&limit=20&order=volume&ascending=false"
+def fetch_markets(page_size=MARKET_PAGE_SIZE, max_pages=MARKET_MAX_PAGES):
+    markets = []
+    for page_idx in range(max_pages):
+        offset = page_idx * page_size
+        page = fetch_markets_page(page_size=page_size, offset=offset)
+        if not page:
+            break
+        markets.extend(page)
+        if len(page) < page_size:
+            break
+    return markets
+
+
+def fetch_markets_page(page_size, offset):
+    url = f"{API_URL}?active=true&closed=false&limit={page_size}&offset={offset}&order=volume&ascending=false"
     req = urllib.request.Request(url, headers={"User-Agent": "GrokClaw/1.0"})
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.load(resp)

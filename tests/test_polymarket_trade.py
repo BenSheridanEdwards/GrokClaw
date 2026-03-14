@@ -2,6 +2,7 @@ import json
 import math
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from tools import _polymarket_metrics as metrics
@@ -66,6 +67,40 @@ class PolymarketTradeTests(unittest.TestCase):
                 self.assertTrue(trade.already_decided_today(workspace))
             finally:
                 trade.datetime = original_datetime
+
+    def test_fetch_markets_pages_until_empty_result(self):
+        responses = [
+            [{"id": "page-1"}],
+            [{"id": "page-2"}],
+            [],
+        ]
+
+        class FakeResponse:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        call_urls = []
+
+        def fake_urlopen(request, timeout):
+            self.assertEqual(timeout, 30)
+            call_urls.append(request.full_url)
+            payload = responses[len(call_urls) - 1]
+            return FakeResponse(json.dumps(payload).encode("utf-8"))
+
+        with mock.patch.object(trade.urllib.request, "urlopen", side_effect=fake_urlopen):
+            with mock.patch.object(trade.json, "load", side_effect=lambda resp: json.loads(resp.payload.decode("utf-8"))):
+                markets = trade.fetch_markets(page_size=1, max_pages=5)
+
+        self.assertEqual([market["id"] for market in markets], ["page-1", "page-2"])
+        self.assertIn("offset=0", call_urls[0])
+        self.assertIn("offset=1", call_urls[1])
+        self.assertIn("offset=2", call_urls[2])
 
 
 if __name__ == "__main__":

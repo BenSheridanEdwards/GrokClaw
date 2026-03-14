@@ -6,6 +6,23 @@ set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+DRY_RUN="${POLYMARKET_SLACK_DRY_RUN:-0}"
+
+if [ "$DRY_RUN" != "1" ] && python3 - "$WORKSPACE_ROOT" <<'PY'
+import sys
+from datetime import datetime, timezone
+
+workspace_root = sys.argv[1]
+if workspace_root not in sys.path:
+    sys.path.insert(0, workspace_root)
+
+from tools import _polymarket_digest as digest
+
+sys.exit(0 if digest.digest_already_recorded(workspace_root, datetime.now(timezone.utc)) else 1)
+PY
+then
+  exit 0
+fi
 
 OUTPUT=$(python3 "$SCRIPT_DIR/_polymarket_digest.py" "$WORKSPACE_ROOT")
 
@@ -16,7 +33,7 @@ IMPROVEMENT=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["improv
 SLACK_CHANNEL="${SLACK_CHANNEL_ID:-C0ALE1S0LSF}"
 
 if [ -n "$SLACK_MSG" ]; then
-  if [ "${POLYMARKET_SLACK_DRY_RUN:-0}" = "1" ]; then
+  if [ "$DRY_RUN" = "1" ]; then
     printf '%s\n' "$SLACK_MSG"
   else
     "$WORKSPACE_ROOT/tools/slack-post.sh" "$SLACK_CHANNEL" "$SLACK_MSG" || true
@@ -45,5 +62,20 @@ else:
     content = content.replace(marker, f"{marker}{entry}\n", 1)
 
 memory_path.write_text(content, encoding="utf-8")
+PY
+fi
+
+if [ "$DRY_RUN" != "1" ]; then
+  python3 - "$WORKSPACE_ROOT" <<'PY'
+import sys
+from datetime import datetime, timezone
+
+workspace_root = sys.argv[1]
+if workspace_root not in sys.path:
+    sys.path.insert(0, workspace_root)
+
+from tools import _polymarket_digest as digest
+
+digest.mark_digest_recorded(workspace_root, datetime.now(timezone.utc))
 PY
 fi
