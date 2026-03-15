@@ -164,7 +164,14 @@ Changed files:
 I've approved it. Looks good against all acceptance criteria."
 ```
 
-6. Update `memory/MEMORY.md` with the review outcome.
+6. Update `memory/MEMORY.md` with the review outcome and run the self-improvement loop:
+   - Add completed work bullet and update suggestion history row.
+   - **Accuracy review**: Reflect on (1) did the implementation match the spec? (2) was the estimate right?
+   - Append a lessons-learned bullet:
+     ```
+     ./tools/append-lesson-learned.sh <GRO-XX> "<assessment and lesson>"
+     ```
+     Example: `./tools/append-lesson-learned.sh GRO-17 "Implementation matched spec. Clear acceptance criteria reduced back-and-forth."`
 
 ---
 
