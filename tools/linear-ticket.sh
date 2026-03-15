@@ -5,12 +5,16 @@
 # Description is the PM-quality ticket body written by Grok.
 # Always delegates to the Cursor agent.
 # Prints the Linear issue URL on success.
+# Env:   PICOCLAW_WORKSPACE — workspace root (default: derived from script path)
 set -eu
 
-if [ -f "/Users/jarvis/.picoclaw/workspace/.env" ]; then
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+
+if [ -f "$WORKSPACE_ROOT/.env" ]; then
   set -a
   # shellcheck disable=SC1091
-  . /Users/jarvis/.picoclaw/workspace/.env
+  . "$WORKSPACE_ROOT/.env"
   set +a
 fi
 
@@ -23,7 +27,7 @@ SUGGESTION_NUMBER="$1"; shift
 SUGGESTION_TITLE="$1"; shift
 DESCRIPTION="${1:-}"
 
-python3 /Users/jarvis/.picoclaw/workspace/tools/_linear_ticket.py \
+python3 "$WORKSPACE_ROOT/tools/_linear_ticket.py" \
   "$LINEAR_API_KEY" \
   "$SUGGESTION_NUMBER" \
   "$SUGGESTION_TITLE" \

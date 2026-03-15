@@ -5,9 +5,20 @@
 #   slack-post.sh <channel> <thread-ts> <message>
 #   echo "text" | slack-post.sh <channel>
 #   echo "text" | slack-post.sh <channel> <thread-ts>
+# Env:   PICOCLAW_WORKSPACE — workspace root (default: derived from script path)
 set -eu
 
-SLACK_BOT_TOKEN="xoxb-9365256667362-10728703443568-8NQZqo8Ha88s91LiTnj16EOY"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+
+# Token from .env or fallback (for backwards compatibility)
+if [ -f "$WORKSPACE_ROOT/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . "$WORKSPACE_ROOT/.env"
+  set +a
+fi
+SLACK_BOT_TOKEN="${SLACK_BOT_TOKEN:-xoxb-9365256667362-10728703443568-8NQZqo8Ha88s91LiTnj16EOY}"
 
 if [ "$#" -lt 1 ]; then
   echo "usage: slack-post.sh <channel> [thread-ts] [message]" >&2
@@ -27,5 +38,5 @@ else
   MESSAGE=$(cat)
 fi
 
-python3 /Users/jarvis/.picoclaw/workspace/tools/_slack_post.py \
+python3 "$WORKSPACE_ROOT/tools/_slack_post.py" \
   "$SLACK_BOT_TOKEN" "$CHANNEL" "$THREAD_TS" "$MESSAGE"
