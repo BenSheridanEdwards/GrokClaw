@@ -25,6 +25,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-14** — Implemented the Polymarket paper-trading loop: staged candidate fetch, Grok decision engine with hard gates, skip/trade/result/bankroll ledgers, weekly digest/reporting, deterministic smoke test, stable PicoClaw cron jobs (`polymarket-daily-trade`, `polymarket-daily-resolve`, `polymarket-weekly-digest`), and manual fallback wrappers for direct runs. Verified with unit tests, `tools/polymarket-smoke.sh`, `tools/polymarket-daily-turn.sh`, and live `picoclaw cron list` output.
 - **2026-03-14** — Populated `USER.md` with real profile data sourced from bensheridanedwards.co.uk: timezone (WIB UTC+7), role (Fractional CTO/AI Engineering Lead at CodeWalnut), stack (React/TypeScript/AI), communication preferences, and working style.
 - **2026-03-15** — Implemented GRO-17: self-improvement loop for suggestion accuracy review. Added `tools/append-lesson-learned.sh`, updated AGENTS.md PR review workflow step 6, and `docs/self-improvement-loop.md`. Grok runs the script after approving a PR to append lessons-learned bullets to MEMORY.md.
+- **2026-03-15** — Implemented GRO-18: `tools/approve-suggestion.sh` orchestrates full approval flow (Linear ticket → create PR → Slack reply). `tools/approval-smoke.sh` validates the flow in dry-run. Updated linear-ticket.sh, create-pr.sh, slack-post.sh to use PICOCLAW_WORKSPACE for portability. AGENTS.md and cron/jobs.json now use approve-suggestion.sh. See `docs/approval-workflow.md`.
 
 ---
 
@@ -52,6 +53,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 | 7 | Implement self-improvement loop for suggestion accuracy review | Approved → GRO-17 |
 
 **Next suggestion number: 8**
+| 8 | Test approval workflow reliability | Approved → GRO-18 |
 
 ---
 
@@ -61,7 +63,6 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 
 - No retry logic on failed tool calls (linear-ticket.sh or create-pr.sh)
 - Session summarization threshold may need tuning (currently 200 messages / 95% token fill)
-- No automated tests for the approval flow scripts
 - PicoClaw changelog / release notes not yet regularly checked — need to confirm how to fetch these
 - **Polymarket paper trader**: Grok fetches open markets, picks a position, logs it with reasoning, tracks resolution, reports P&L to Slack — no real money, pure signal generation and self-improvement
 

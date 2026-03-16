@@ -83,36 +83,19 @@ A good ticket has:
 Write this description fully, then run:
 
 ```
-/Users/jarvis/.picoclaw/workspace/tools/linear-ticket.sh <N> "<title>" "<description>"
+tools/approve-suggestion.sh <N> "<title>" "<thread-ts>" "<description>"
 ```
 
-The script creates the issue, sets Cursor as delegate, and returns the Linear URL + issue identifier (e.g. `GRO-XX`).
+The script creates the Linear issue, scaffolds the draft PR, and posts both links to the Slack thread. On failure it posts the error to the thread. Use the Slack message's `ts` as `<thread-ts>`.
 
-### Step 2 — Scaffold the GitHub PR
-
-```
-/Users/jarvis/.picoclaw/workspace/tools/create-pr.sh <GRO-XX> "<title>"
-```
-
-Creates `grok/GRO-XX` branch, pushes it, opens a draft PR. Returns the PR URL.
-
-### Step 3 — Report in Slack
-
-```
-/Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF "<thread-ts>" "✅ Suggestion #N approved.
-Linear: <linear-url>
-PR: <pr-url>
-Cursor is on it."
-```
-
-### Step 4 — Update memory
+### Step 2 — Update memory
 
 - Add completed work bullet to `memory/MEMORY.md`
 - Update suggestion history row: `Approved → GRO-XX, PR #N`
 
 ### On failure
 
-Post exact error + which step failed to Slack. Do not silently stop.
+`approve-suggestion.sh` posts the exact error to the Slack thread automatically. Do not silently stop — if the script fails, check the thread and retry or escalate.
 
 ---
 

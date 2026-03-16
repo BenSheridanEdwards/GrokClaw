@@ -3,12 +3,16 @@
 # Usage: create-pr.sh <linear-issue-id> <title>
 #
 # The PR body instructs Cursor exactly what to implement.
+# Env:   PICOCLAW_WORKSPACE — workspace root (default: derived from script path)
 set -eu
 
-if [ -f "/Users/jarvis/.picoclaw/workspace/.env" ]; then
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+
+if [ -f "$WORKSPACE_ROOT/.env" ]; then
   set -a
   # shellcheck disable=SC1091
-  . /Users/jarvis/.picoclaw/workspace/.env
+  . "$WORKSPACE_ROOT/.env"
   set +a
 fi
 
@@ -25,7 +29,7 @@ REPO="${GITHUB_REPO:-BenSheridanEdwards/GrokClaw}"
 BRANCH="grok/${LINEAR_ISSUE_ID}"
 LINEAR_URL="https://linear.app/grokclaw/issue/${LINEAR_ISSUE_ID}"
 
-cd /Users/jarvis/.picoclaw/workspace
+cd "$WORKSPACE_ROOT"
 
 git fetch origin main --quiet
 git checkout -B "$BRANCH" origin/main --quiet
@@ -57,7 +61,7 @@ Read the Linear ticket description for the full spec before starting.
 3. Implement the feature with real code/config/scripts in this branch.
 4. Commit with a message referencing \`${LINEAR_ISSUE_ID}\`.
 5. When done, run \`gh pr ready <pr-number> --repo ${REPO}\` to mark ready for review.
-6. Post to Slack: \`/Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF \"🤖 ${LINEAR_ISSUE_ID} complete. PR: <url>\"\`
+6. Post to Slack: \`tools/slack-post.sh C0ALE1S0LSF \"🤖 ${LINEAR_ISSUE_ID} complete. PR: <url>\"\`
 
 ## Acceptance criteria
 
