@@ -84,3 +84,9 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 ## Lessons learned
 
 - **2026-03-15** — GRO-17: Implementation matched spec. Clear acceptance criteria reduced back-and-forth.
+
+---
+
+## Polymarket calibration notes
+
+- **2026-03-15** — No trades to analyze this week.

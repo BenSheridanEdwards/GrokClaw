@@ -56,7 +56,7 @@ Triggered every day at 06:00 by the cron job `daily-grokclaw-suggestion`.
 Use `tools/slack-post.sh` — never the `message` tool:
 
 ```
-/Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF "Daily Suggestion #N: [title]
+./tools/slack-post.sh C0ALE1S0LSF "Daily Suggestion #N: [title]
 Reasoning: [1-2 sentences]
 Expected impact: [benefit]
 Approve? (reply exactly 'approve')"
@@ -67,6 +67,17 @@ Approve? (reply exactly 'approve')"
 ## Approval workflow
 
 When the user replies `approve`, execute these steps in order. Do not skip any.
+
+### Fast path (required)
+
+From the workspace root, run:
+
+```
+./tools/approve-suggestion.sh [thread-ts]
+```
+
+This script performs the full approval flow (Linear ticket, PR scaffold, Slack report) deterministically.
+Use `thread-ts` when available so the confirmation posts in-thread.
 
 ### Step 1 — Write the Linear ticket
 
@@ -137,7 +148,7 @@ gh pr review <number> --approve --repo BenSheridanEdwards/GrokClaw
 ```
 Then tell Ben in Slack (use the original suggestion thread `ts` if available):
 ```
-/Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF "<thread-ts>" "✅ PR ready for your review: <pr-title>
+./tools/slack-post.sh C0ALE1S0LSF "<thread-ts>" "✅ PR ready for your review: <pr-title>
 PR: <pr-url>
 
 Changed files:
