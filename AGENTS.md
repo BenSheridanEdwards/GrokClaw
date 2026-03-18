@@ -181,6 +181,7 @@ If the user rejects a suggestion:
 ## Operations
 
 - **Gateway health check**: `tools/health-check.sh` detects when the PicoClaw gateway dies and alerts to Slack. Runs via system crontab (`*/5 * * * *`) — no LLM involved, no API cost. See `docs/gateway-health-check.md`.
+- **Changelog monitoring**: `tools/changelog-check.sh` monitors PicoClaw and OpenClaw GitHub releases, posts to Slack when new versions are detected. Runs via PicoClaw cron (`picoclaw-changelog-check`, Sunday 07:00). See `docs/changelog-monitoring.md`.
 
 ---
 

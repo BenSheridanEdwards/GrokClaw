@@ -74,6 +74,30 @@
       "deleteAfterRun": false
     },
     {
+      "id": "a7f3c2e91b4d5f6a",
+      "name": "picoclaw-changelog-check",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 7 * * 0"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "Run ./tools/changelog-check.sh to check for new PicoClaw and OpenClaw releases. If it posts to Slack, new releases were detected.",
+        "deliver": false,
+        "channel": "slack",
+        "to": "C0ALE1S0LSF"
+      },
+      "state": {
+        "nextRunAtMs": 1774198800000,
+        "lastRunAtMs": 0,
+        "lastStatus": "pending"
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
+    },
+    {
       "id": "c1aeff28188137f8",
       "name": "polymarket-weekly-digest",
       "enabled": true,

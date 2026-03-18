@@ -3,4 +3,5 @@ sessions/
 state/
 .cursor
 .gateway-health-state
+.changelog-check-state
 data/
