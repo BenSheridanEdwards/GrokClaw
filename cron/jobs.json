@@ -96,6 +96,30 @@
       "createdAtMs": 0,
       "updatedAtMs": 1773594007038,
       "deleteAfterRun": false
+    },
+    {
+      "id": "a19e9f2b3c4d5e6f",
+      "name": "changelog-weekly-check",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 7 * * 1"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "Run ./tools/changelog-check.sh and capture the output. If the output contains NEW_VERSION_JSON:, extract the JSON after that prefix, parse the slack_message field, and post it to Slack channel C0ALE1S0LSF using ./tools/slack-post.sh. If the output does not contain NEW_VERSION_JSON: (no new version detected), do nothing and exit silently.",
+        "deliver": false,
+        "channel": "slack",
+        "to": "C0ALE1S0LSF"
+      },
+      "state": {
+        "nextRunAtMs": 1774285200000,
+        "lastRunAtMs": 0,
+        "lastStatus": "pending"
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
     }
   ]
 }
