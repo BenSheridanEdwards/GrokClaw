@@ -109,6 +109,7 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 
 ## Polymarket calibration notes
 
+- **2026-03-19** — Fixed gateway auth: added `gateway.remote.token` to ~/.openclaw/openclaw.json and `OPENCLAW_GATEWAY_TOKEN` to .env so `openclaw agent` can connect. polymarket-daily-turn.sh now loads .env and forces OPENCLAW_CONFIG_PATH for correct config.
 - **2026-03-19** — Polymarket runs every 4h (`0 */4 * * *`). Session learning via `polymarket-context.sh` (recent decisions/results). Bias toward trading; gates relaxed (MIN_EDGE 0.05, MIN_CONFIDENCE 0.55). Each session posts summary to Telegram polymarket topic.
 - **2026-03-19** — No trades to analyze this week.
 - **2026-03-15** — No trades to analyze this week.
