@@ -2,7 +2,7 @@
 
 GrokClaw is an OpenClaw-powered autonomous engineering operator.
 
-Grok (primary) and Kimi (Polymarket/reliability) run as agents. Grok handles:
+Grok runs as PM + coordinator:
 - researches and proposes one daily improvement
 - creates PM-quality Linear tickets on approval
 - delegates implementation to Cursor
@@ -61,9 +61,13 @@ Decision path:
 - resolve/results: `tools/polymarket-resolve-turn.sh`
 - digest/reporting: `tools/polymarket-digest.sh`, `tools/polymarket-report.sh`
 
+## Multi-Agent Setup
+
+Grok (xAI) handles suggestions, PR review, and Paperclip. Kimi (Ollama cloud, free) handles Polymarket and reliability reports. Alpha (OpenRouter Trinity, free) available for long-context research. See `docs/multi-agent-setup.md`.
+
 ## Key Agent Docs
 
-- `AGENTS.md` - Grok operating instructions
+- `AGENTS.md` - Grok operating instructions and multi-agent layout
 - `CURSOR.md` - Cursor implementation contract
 - `IDENTITY.md` - mission and operating stance
 - `SOUL.md` - values

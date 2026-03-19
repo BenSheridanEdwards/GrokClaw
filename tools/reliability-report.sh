@@ -36,7 +36,9 @@ trap 'rm -f "$TMP_REPORT"' EXIT INT TERM
 
 log() {
   echo "$(date '+%Y-%m-%dT%H:%M:%S%z') $*" >>"$LOG_FILE"
-  [ "$DRY_RUN" -eq 1 ] && echo "$*"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "$*"
+  fi
 }
 
 # --- Gateway status ---

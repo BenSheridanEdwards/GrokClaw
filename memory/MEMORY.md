@@ -14,6 +14,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-03-19** — Created Linear GRO-28: verify Cursor cloud agent can post to Telegram when done. Delegated to Cursor; acceptance criteria: run `telegram-post.sh suggestions` and confirm message appears.
 - **2026-03-19** — Hardened Telegram single-poller reliability: removed callback poller path, added `tools/telegram-poller-guard.sh`, integrated guard into `tools/health-check.sh`, and made `tools/dispatch-telegram-action.sh` idempotent via persisted token dedupe state.
 - **2026-03-19** — Upgraded Polymarket selection to include top-trader copy strategy: `tools/_polymarket_trade.py` now builds `copy_strategy` from leaderboard + live positions and prefers trader-backed candidate selection with volume fallback.
 - **2026-03-19** — Updated agent documentation set for OpenClaw + Telegram + persistent memory contract: `README.md`, `AGENTS.md`, `CURSOR.md`, `IDENTITY.md`, `USER.md`.
@@ -42,6 +43,10 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-19** — Migrated runtime to OpenClaw v2026.3.13. Migrated comms from Slack to Telegram forum group with per-topic sessions (daily-suggestions, polymarket, health-alerts, pr-reviews). Updated all tools, cron jobs, AGENTS.md, and MEMORY.md. Created `tools/telegram-post.sh` + `tools/_telegram_post.py`. Created `tools/run-openclaw-agent.sh`.
 - **2026-03-19** — Wired Paperclip board to OpenClaw gateway: updated Grok agent from `picoclaw` to `openclaw_gateway` adapter, fixed duplicate dep in `server/package.json`, created `tools/paperclip-api.sh` helper and `tools/paperclip-sync.sh` sync tool, claimed API key, configured 6h heartbeat, added `paperclip-sync` cron job. Verified end-to-end: Paperclip creates issue → wakes Grok → Grok executes task → marks done. Created launchd service `com.grokclaw.paperclip.plist`.
 - **2026-03-19** — Multi-agent setup: added Kimi (ollama/kimi-k2.5) and Alpha (openrouter/hunter-alpha) agents to `~/.openclaw/openclaw.json`. Configured Ollama provider. Added `tools/run-openclaw-agent-kimi.sh` and `OPENCLAW_AGENT_ID` support in `run-openclaw-agent.sh`. Routed polymarket-daily-trade, polymarket-daily-resolve, polymarket-weekly-digest, and reliability-report cron jobs to Kimi via `agentId`.
+- **2026-03-19** — Hunter Alpha deprecated (replaced by paid MiMo-V2-Pro). Switched Alpha agent to `openrouter/arcee-ai/trinity-large-preview:free` (Trinity Large Preview, free, agentic). Kimi primary set to `ollama/kimi-k2.5:cloud` (verified working).
+- **2026-03-19** — Added Alpha daily research cron job `alpha-daily-research` (07:30 daily): researches Known gaps, new free models, OpenClaw features, or agentic trends; posts condensed summary to Telegram health topic.
+- **2026-03-19** — Alpha research priority order: (1) Polymarket discovery, (2) free models, (3) OpenClaw, (4) retry/reliability, (5) agentic tools. Created `docs/agent-tasks.md` with full task breakdown by agent.
+- **2026-03-19** — Reporting chain: Kimi and Alpha report to Grok via `tools/agent-report.sh`; Grok runs `grok-daily-brief` (08:00) to synthesize and post to user. Reliability and Alpha research no longer post directly to Telegram. Polymarket keeps real-time posts + agent-report. Created `tools/agent-report.sh`, `tools/grok-daily-brief.sh`.
 
 ---
 
@@ -94,7 +99,7 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 | Runtime | OpenClaw v2026.3.13 |
 | Grok model | `xai/grok-4-1-fast-non-reasoning` (alias: `grok-fast`) |
 | Kimi model | `ollama/kimi-k2.5` (Ollama, local, free) |
-| Alpha model | `openrouter/hunter-alpha` (OpenRouter, requires `OPENROUTER_API_KEY`) |
+| Alpha model | `openrouter/arcee-ai/trinity-large-preview:free` (OpenRouter free, requires `OPENROUTER_API_KEY`) |
 | Workspace | `/Users/jarvis/Engineering/Projects/GrokClaw` |
 | Config | `~/.openclaw/openclaw.json` |
 | Cron job | `daily-grokclaw-suggestion`, runs 06:00 daily, job ID `4978a69dab9ec327` |

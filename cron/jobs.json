@@ -36,7 +36,7 @@
       "payload": {
         "kind": "agent_turn",
         "agentId": "kimi",
-        "message": "Polymarket session (runs every 4h). Goal: make a bet every session. First read memory/MEMORY.md Polymarket section and run ./tools/polymarket-context.sh to load recent decisions and results. Use this to calibrate. Loop until you place a bet or exhaust options: (1) Run ./tools/polymarket-trade.sh to fetch and stage the next candidate. If it returns no candidate, stop and post that to Telegram. (2) Read copy_strategy from the output. Run web_search with at least 2 queries to validate. (3) Prefer to trade: only SKIP when evidence strongly conflicts or no tradeable market exists. When there is a marginal edge, choose YES or NO with your best estimate. Run ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<reasoning>\". (4) If you SKIP, go back to step 1 — the skipped market is excluded, so the next run returns a different whale-backed or volume candidate. Keep iterating through markets until you place a bet. After placing a bet (or exhausting options), run ./tools/polymarket-report.sh. Then post to Telegram: ./tools/telegram-post.sh polymarket \"Session: [traded YES/NO on <question> | no bet: <reason>]. Why: [one sentence]. Bankroll: $X, accuracy: Y%.\"",
+        "message": "Polymarket session (runs every 4h). Goal: make a bet every session. First read memory/MEMORY.md Polymarket section and run ./tools/polymarket-context.sh to load recent decisions and results. Use this to calibrate. Loop until you place a bet or exhaust options: (1) Run ./tools/polymarket-trade.sh to fetch and stage the next candidate. If it returns no candidate, stop and post that to Telegram. (2) Read copy_strategy from the output. Run web_search with at least 2 queries to validate. (3) Prefer to trade: only SKIP when evidence strongly conflicts or no tradeable market exists. When there is a marginal edge, choose YES or NO with your best estimate. Run ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<reasoning>\". (4) If you SKIP, go back to step 1 — the skipped market is excluded, so the next run returns a different whale-backed or volume candidate. Keep iterating through markets until you place a bet. After placing a bet (or exhausting options), run ./tools/polymarket-report.sh. Post to Telegram: ./tools/telegram-post.sh polymarket \"Session: [traded YES/NO on <question> | no bet: <reason>]. Why: [one sentence]. Bankroll: $X, accuracy: Y%.\" Also run ./tools/agent-report.sh kimi polymarket-daily-trade \"<same session summary>\" to report to Grok.",
         "deliver": false,
         "channel": "telegram",
         "to": "-1003831656556"
@@ -61,7 +61,7 @@
       "payload": {
         "kind": "agent_turn",
         "agentId": "kimi",
-        "message": "Run ./tools/polymarket-resolve-turn.sh to resolve paper trades, print the latest report, and only alert Telegram if the promotion gate has just transitioned to eligible.",
+        "message": "Run ./tools/polymarket-resolve-turn.sh to resolve paper trades, print the latest report, and only alert Telegram if the promotion gate has just transitioned to eligible. Then run ./tools/agent-report.sh kimi polymarket-daily-resolve \"<report summary>\" to report to Grok.",
         "deliver": false,
         "channel": "telegram",
         "to": "-1003831656556"
@@ -86,7 +86,7 @@
       "payload": {
         "kind": "agent_turn",
         "agentId": "kimi",
-        "message": "Run ./tools/polymarket-digest.sh to post the weekly Polymarket digest to Telegram and append a calibration note to memory/MEMORY.md.",
+        "message": "Run ./tools/polymarket-digest.sh to post the weekly Polymarket digest to Telegram and append a calibration note to memory/MEMORY.md. Then run ./tools/agent-report.sh kimi polymarket-weekly-digest \"<digest summary>\" to report to Grok.",
         "deliver": false,
         "channel": "telegram",
         "to": "-1003831656556"
@@ -111,7 +111,7 @@
       "payload": {
         "kind": "agent_turn",
         "agentId": "kimi",
-        "message": "Run ./tools/reliability-report.sh to post the nightly reliability report to Telegram health-alerts.",
+        "message": "Run ./tools/reliability-report.sh --dry-run and capture the Report/Summary output. Then run ./tools/agent-report.sh kimi reliability-report \"<paste the summary>\". Report to Grok only — do not post to Telegram.",
         "deliver": false,
         "channel": "telegram",
         "to": "-1003831656556"
@@ -144,6 +144,55 @@
         "nextRunAtMs": 0,
         "lastRunAtMs": 0,
         "lastStatus": "ok"
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
+    },
+    {
+      "id": "b8c4d5e6f7a89012",
+      "name": "alpha-daily-research",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "30 7 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "agentId": "alpha",
+        "message": "You are Alpha, GrokClaw's research agent. Read memory/MEMORY.md. Research one topic in this priority order: (1) Polymarket market discovery — API filters, tag_id, categories, pagination, multi-page fetch, whale/volume scoring, alternative data; (2) free AI models — new OpenRouter/Ollama models, tool-calling support, deprecations; (3) OpenClaw — changelog, multi-agent patterns, session/compaction; (4) retry/reliability — API retry patterns, idempotency; (5) agentic tool use. Use web_search. Produce 3–5 bullet summary. Run ./tools/agent-report.sh alpha alpha-daily-research \"<topic>: <one-line>. Findings: <bullets>. Next: <action>.\" Report to Grok only — do not post to Telegram.",
+        "deliver": false,
+        "channel": "telegram",
+        "to": "-1003831656556"
+      },
+      "state": {
+        "nextRunAtMs": 0,
+        "lastRunAtMs": 0,
+        "lastStatus": null
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
+    },
+    {
+      "id": "c9d5e6f7a8b90123",
+      "name": "grok-daily-brief",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 8 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "You are Grok. Kimi and Alpha report to you; you report to Ben. Run ./tools/grok-daily-brief.sh to read today's agent reports. If there are reports, synthesize them into a concise daily brief (one paragraph per agent, key points only). Post to suggestions: ./tools/telegram-post.sh suggestions \"Daily brief: <synthesis of Kimi + Alpha reports>. — Grok\"",
+        "deliver": false,
+        "channel": "telegram",
+        "to": "-1003831656556"
+      },
+      "state": {
+        "nextRunAtMs": 0,
+        "lastRunAtMs": 0,
+        "lastStatus": null
       },
       "createdAtMs": 0,
       "updatedAtMs": 0,
