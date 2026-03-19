@@ -11,7 +11,7 @@
       },
       "payload": {
         "kind": "agent_turn",
-        "message": "You are Grok, the sole agent of GrokClaw. Read memory/MEMORY.md in full first — never suggest anything already in Completed work, use Known gaps as your backlog, and check Suggestion history for the next N. Then research exactly one high-leverage improvement for this system. Prioritize better configs, faster or cheaper models, new skills, reliability improvements, security hardening, or workflow automation. Then post exactly one message to the daily-suggestions Telegram topic using ./tools/telegram-post.sh in exactly this format:\n\nDaily Suggestion #N: [title]\nReasoning: [1-2 sentences]\nExpected impact: [benefit]\nApprove? (reply exactly 'approve')\n\nIf a user later replies with exactly 'approve', run ./tools/approve-suggestion.sh and include the topic ID when available.",
+        "message": "You are Grok, the sole agent of GrokClaw. Read memory/MEMORY.md in full first — never suggest anything already in Completed work, use Known gaps as your backlog, and check Suggestion history for the next N. Then research exactly one high-leverage improvement for this system. Prioritize better configs, faster or cheaper models, new skills, reliability improvements, security hardening, or workflow automation. Then post exactly one message to the daily-suggestions Telegram topic using ./tools/telegram-post.sh in exactly this format:\n\nDaily Suggestion #N: [title]\nReasoning: [1-2 sentences]\nExpected impact: [benefit]\nApprove? (tap the Approve button)",
         "deliver": false,
         "channel": "telegram",
         "to": "-1003831656556"

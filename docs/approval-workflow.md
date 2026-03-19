@@ -1,6 +1,6 @@
 # GrokClaw Approval Workflow
 
-When Ben approves a daily suggestion in Telegram, Grok runs `tools/approve-suggestion.sh` to create a Linear ticket and post the result to the suggestions topic.
+When Ben taps the Telegram **Approve** button on a daily suggestion, Grok runs `tools/approve-suggestion.sh` to create a Linear ticket and post the result to the suggestions topic.
 
 ## How it works
 
@@ -49,4 +49,4 @@ Verifies that `approve-suggestion.sh --dry-run` runs correctly and prints the ex
 
 ## Trigger
 
-The approval workflow is triggered by Grok when the user approves in Telegram. Documented in `AGENTS.md` and `cron/jobs.json` (daily suggestion job).
+The approval workflow is triggered by Grok when the user approves via Telegram action button. Documented in `AGENTS.md` and `cron/jobs.json` (daily suggestion job).

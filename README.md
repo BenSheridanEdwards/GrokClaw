@@ -23,6 +23,8 @@ Grok runs as PM + coordinator:
 - `health` (topic 4): incidents, watchdog, deploy alerts
 - `pr-reviews` (topic 5): review summaries and merge actions
 
+Approvals and merge decisions are action-button driven (single-poller mode), not free-text commands.
+
 ## Persistent Memory (Required)
 
 Memory persistence is not optional.

@@ -78,7 +78,7 @@ Cron: `daily-grokclaw-suggestion` at 06:00.
 Daily Suggestion #N: [title]
 Reasoning: [1-2 sentences]
 Expected impact: [benefit]
-Approve? (tap the Approve button or send `approve_idea:<N>:GRO-XX`)
+Approve? (tap the Approve button)
 ```
 
 ---
@@ -101,7 +101,7 @@ When Ben sends ideas in General:
 
 ## Approval workflow
 
-On approval action message from Telegram button (or exact reply `approve`):
+On approval action message from Telegram button:
 
 1. Run `tools/approve-suggestion.sh <N> "<title>" suggestions "<description>"`
 2. Transition issue to In Progress:
