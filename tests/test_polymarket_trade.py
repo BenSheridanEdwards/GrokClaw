@@ -137,7 +137,7 @@ class PolymarketTradeTests(unittest.TestCase):
             {
                 "id": "m1",
                 "conditionId": "0xabc",
-                "question": "Will event A happen?",
+                "question": "Will Bitcoin reach $100k by end of 2026?",
                 "endDate": soon,
                 "outcomePrices": ["0.55", "0.45"],
                 "volume": "100000",
@@ -145,7 +145,7 @@ class PolymarketTradeTests(unittest.TestCase):
             {
                 "id": "m2",
                 "conditionId": "0xdef",
-                "question": "Will event B happen?",
+                "question": "Will Russia-Ukraine ceasefire happen in 2026?",
                 "endDate": soon,
                 "outcomePrices": ["0.40", "0.60"],
                 "volume": "120000",

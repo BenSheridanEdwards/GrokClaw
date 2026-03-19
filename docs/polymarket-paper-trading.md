@@ -22,11 +22,17 @@ Manual fallback wrappers exist if you ever need to trigger the loop outside Open
 - `./tools/polymarket-resolve-turn.sh`
 - `./tools/polymarket-digest.sh`
 
+## Market selection
+
+Only **geopolitical** and **crypto** markets are considered. Sports, entertainment, and other categories are excluded. Markets already evaluated (traded or skipped) in the last 2 days are excluded to avoid repeat evaluation.
+
+Candidate selection focuses on **whale top traders** (leaderboard top 5). The system prefers markets where these traders have active positions, then falls back to highest-volume within 7 days.
+
 ## Trade flow (every 4 hours)
 
 1. Grok reads `memory/MEMORY.md` Polymarket section and runs `./tools/polymarket-context.sh` to load recent decisions and results for calibration.
 2. `./tools/polymarket-trade.sh`
-   Fetches and stages a candidate, preferring top-trader copy-backed markets and falling back to highest-volume within 7 days.
+   Fetches and stages a candidate, preferring top-trader copy-backed markets and falling back to highest-volume within 7 days (subject to category and no-repeat filters above).
 3. Grok researches the market and chooses one of:
    - `./tools/polymarket-decide.sh YES <probability> <confidence> "<reasoning>"`
    - `./tools/polymarket-decide.sh NO <probability> <confidence> "<reasoning>"`

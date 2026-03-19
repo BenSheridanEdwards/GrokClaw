@@ -14,7 +14,8 @@ if [ -f "$WORKSPACE_ROOT/.env" ]; then
   . "$WORKSPACE_ROOT/.env"
   set +a
 fi
-CONFIG_PATH="${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}"
+# Always use GrokClaw config (port 18800, XAI); ignore OPENCLAW_CONFIG_PATH from env
+CONFIG_PATH="$HOME/.openclaw/openclaw.json"
 # Agent needs gateway token to connect; extract from config if not set
 if [ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ] && [ -f "$CONFIG_PATH" ]; then
   OPENCLAW_GATEWAY_TOKEN=$(node -p "try{require('$CONFIG_PATH').gateway.auth.token}catch(e){''}" 2>/dev/null) || true

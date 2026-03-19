@@ -6,6 +6,7 @@ Stdlib only. Called from polymarket-trade.sh.
 import json
 import math
 import os
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -24,8 +25,51 @@ PENDING_FILE = "data/polymarket-pending-trade.json"
 DECISIONS_FILE = "data/polymarket-decisions.json"
 MARKET_PAGE_SIZE = 50
 MARKET_MAX_PAGES = 10
-LEADERBOARD_LIMIT = 12
+LEADERBOARD_LIMIT = 5  # Whale focus: top 5 traders by PNL
 POSITIONS_PAGE_SIZE = 100
+
+# Category keywords: only geopolitical and crypto bets
+CRYPTO_KEYWORDS = (
+    "bitcoin", "btc", "ethereum", "crypto", "solana", "defi",
+    "blockchain", "etf", "halving", "mining", "sec approval", "sec etf",
+)
+GEOPOLITICAL_KEYWORDS = (
+    "russia", "ukraine", "china", "iran", "israel", "election", "trump", "biden",
+    "congress", "senate", " fed ", "rate cut", "inflation", "ceasefire", "war",
+    "sanctions", "nato", "tariff", "trade war", "geopolit", "putin",
+    "nuclear", "military", "invasion", "gaza", "taiwan", "hong kong",
+)
+
+
+def get_already_evaluated_ids(workspace_root, days=2):
+    """Return set of market_id we've already decided/traded in last N days (avoids repeat)."""
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    cutoff = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+    excluded = set()
+    for path in [
+        os.path.join(workspace_root, DECISIONS_FILE),
+        os.path.join(workspace_root, TRADES_FILE),
+    ]:
+        for row in metrics.load_jsonl(path):
+            if (row.get("date") or "") < cutoff:
+                continue
+            mid = row.get("market_id")
+            if mid:
+                excluded.add(str(mid).lower())
+    return excluded
+
+
+def market_matches_categories(market):
+    """True if market question/description matches geopolitical or crypto (word-boundary)."""
+    text = " ".join(
+        str(market.get(k, "")) for k in ("question", "description", "groupItemTitle")
+    ).lower()
+    keywords = CRYPTO_KEYWORDS + GEOPOLITICAL_KEYWORDS
+    for kw in keywords:
+        if re.search(r"\b" + re.escape(kw) + r"\b", text):
+            return True
+    return False
 
 
 def fetch_markets(page_size=MARKET_PAGE_SIZE, max_pages=MARKET_MAX_PAGES):
@@ -54,12 +98,20 @@ def fetch_json(url, timeout=30):
         return json.load(resp)
 
 
-def select_market(markets):
+def select_market(markets, excluded_ids=None):
+    """Volume fallback: highest-volume geopolitical/crypto market closing within 7 days."""
+    excluded_ids = excluded_ids or set()
     now = datetime.now(timezone.utc)
     cutoff = now + timedelta(days=7)
     best = None
     best_volume = 0
     for m in markets:
+        if not market_matches_categories(m):
+            continue
+        cid = str(m.get("conditionId") or "").lower()
+        mid = str(m.get("id") or m.get("conditionId") or "").lower()
+        if cid in excluded_ids or mid in excluded_ids:
+            continue
         end_str = m.get("endDate") or m.get("end_date_iso")
         if not end_str:
             continue
@@ -333,7 +385,9 @@ def build_signal_from_aggregate(aggregate, top_traders_considered):
     }
 
 
-def select_copy_candidate(markets):
+def select_copy_candidate(markets, excluded_ids=None):
+    """Select best market from whale top traders' positions. Only geopolitical + crypto."""
+    excluded_ids = excluded_ids or set()
     try:
         top_traders = fetch_top_traders()
     except Exception:
@@ -352,8 +406,13 @@ def select_copy_candidate(markets):
     for market in markets:
         if not market_is_within_window(market):
             continue
+        if not market_matches_categories(market):
+            continue
         condition_id = str(market.get("conditionId") or "").strip().lower()
+        market_id = str(market.get("id") or market.get("conditionId") or "").lower()
         if not condition_id:
+            continue
+        if condition_id in excluded_ids or market_id in excluded_ids:
             continue
         aggregate = aggregates.get(condition_id)
         if not aggregate:
@@ -479,16 +538,21 @@ def already_decided_today(workspace_root):
 
 def main():
     if len(sys.argv) <= 2:
-        # Fetch and select (runs every 4h; no per-day limit)
+        # Fetch and select (runs every 4h; geopolitical + crypto only; whale traders)
         workspace_root = resolve_workspace_root(sys.argv)
+        excluded_ids = get_already_evaluated_ids(workspace_root, days=2)
         markets = fetch_markets()
-        best, copy_signal = select_copy_candidate(markets)
-        selection_source = "top_trader_copy"
+        best, copy_signal = select_copy_candidate(markets, excluded_ids=excluded_ids)
+        selection_source = "whale_top_trader_copy"
         if not best:
-            best = select_market(markets)
+            best = select_market(markets, excluded_ids=excluded_ids)
             selection_source = "volume_fallback"
         if not best:
-            print("No suitable market found (volume, closing within 7 days)", file=sys.stderr)
+            print(
+                "No suitable geopolitical/crypto market found (whale positions, volume, closing within 7 days). "
+                "Already evaluated in last 24h are excluded.",
+                file=sys.stderr,
+            )
             sys.exit(1)
         # outcomePrices: ["0.72","0.28"] for YES, NO (may be JSON string)
         prices = best.get("outcomePrices") or best.get("prices") or ["0.5", "0.5"]
