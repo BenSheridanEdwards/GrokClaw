@@ -30,8 +30,12 @@ fi
 
 mkdir -p "$LOG_DIR"
 
+# Use a unique temp file; clean up on any exit
+TMP_REPORT=$(mktemp)
+trap 'rm -f "$TMP_REPORT"' EXIT INT TERM
+
 log() {
-  echo "$(date -Iseconds) $*" >>"$LOG_FILE"
+  echo "$(date '+%Y-%m-%dT%H:%M:%S%z') $*" >>"$LOG_FILE"
   [ "$DRY_RUN" -eq 1 ] && echo "$*"
 }
 
@@ -61,13 +65,14 @@ get_gateway_status() {
   echo "down"
 }
 
-# --- Failed retries / error count from logs ---
+# --- Failed retries / error count from last 10k lines of each log ---
 get_failed_retries() {
   COUNT=0
   if [ -d "${OPENCLAW_LOGS}" ]; then
     for f in "${OPENCLAW_LOGS}"/*.log; do
       [ -f "$f" ] || continue
-      N=$(tail -n 10000 "$f" 2>/dev/null | grep -ciE 'retry|fail|error' || echo 0)
+      N=$(tail -n 10000 "$f" 2>/dev/null | grep -ciE 'retry|fail|error' || true)
+      N="${N:-0}"
       COUNT=$((COUNT + N))
     done
   fi
@@ -79,7 +84,7 @@ get_merged_prs() {
   # 24h ago in ISO format for comparison
   CUTOFF=$(date -d '24 hours ago' +%s 2>/dev/null) || \
   CUTOFF=$(date -v-24H +%s 2>/dev/null) || \
-  CUTOFF=$(date +%s)
+  CUTOFF=$(( $(date +%s) - 86400 ))
 
   if ! command -v gh >/dev/null 2>&1; then
     return
@@ -119,7 +124,7 @@ main() {
     echo "📊 *Nightly Reliability Report* — $(date +%Y-%m-%d)"
     echo ""
     echo "🔌 *Gateway:* ${GATEWAY}"
-    echo "⚠️ *Log errors/retries (24h):* ${RETRIES}"
+    echo "⚠️ *Log errors/retries (recent):* ${RETRIES}"
     echo ""
 
     if [ -n "$PRS" ]; then
@@ -128,7 +133,7 @@ main() {
     else
       echo "🔀 *Merged PRs (24h):* None"
     fi
-  } >"$WORKSPACE_ROOT/.reliability-report-tmp"
+  } >"$TMP_REPORT"
 
   # Graceful no-data: if all healthy, say so
   if [ "$GATEWAY" = "up" ] && [ "$RETRIES" = "0" ] && [ -z "$PRS" ]; then
@@ -136,7 +141,7 @@ main() {
       echo "📊 *Nightly Reliability Report* — $(date +%Y-%m-%d)"
       echo ""
       echo "✅ All healthy. No merged PRs in last 24h."
-    } >"$WORKSPACE_ROOT/.reliability-report-tmp"
+    } >"$TMP_REPORT"
   fi
 
   log "Report generated. Gateway=$GATEWAY Retries=$RETRIES"
@@ -144,19 +149,16 @@ main() {
   if [ "$DRY_RUN" -eq 1 ]; then
     echo ""
     echo "--- Dry run: would post to health topic ---"
-    cat "$WORKSPACE_ROOT/.reliability-report-tmp"
+    cat "$TMP_REPORT"
     echo "---"
-    rm -f "$WORKSPACE_ROOT/.reliability-report-tmp"
     return 0
   fi
 
   # Post to Telegram health topic (4)
-  if "$WORKSPACE_ROOT/tools/telegram-post.sh" health <"$WORKSPACE_ROOT/.reliability-report-tmp"; then
+  if "$WORKSPACE_ROOT/tools/telegram-post.sh" health <"$TMP_REPORT"; then
     log "Posted to Telegram health topic"
-    rm -f "$WORKSPACE_ROOT/.reliability-report-tmp"
   else
     log "ERROR: Failed to post to Telegram"
-    rm -f "$WORKSPACE_ROOT/.reliability-report-tmp"
     exit 1
   fi
 }
