@@ -24,7 +24,7 @@ Primary responsibilities:
 | Telegram | Group `-1003831656556`; topics: suggestions(2), polymarket(3), health(4), pr-reviews(5) |
 | Linear | Team `GrokClaw`, ID `3f1b1054-07c6-4aad-a02c-89c78a43946b` |
 | GitHub | `BenSheridanEdwards/GrokClaw` |
-| Cursor | Delegate ID `ca233eb8-8630-49c9-8f7c-3708c1bd1c4b` |
+| Cursor | Delegate ID `ca233eb8-8630-49c9-8f7c-3708c1bd1c4b`; uses superpowers workflow (see `skills/superpowers/`) |
 | Paperclip | Board at `http://127.0.0.1:3100`, company `GrokClaw`, adapter `openclaw_gateway` |
 
 Always use `tools/telegram-post.sh` for outbound messages.
@@ -105,6 +105,10 @@ On approval action message from Telegram button:
 3. Update memory suggestion history and completed-work bullet.
 
 On failure, report error to Telegram and retry safely.
+
+### Cursor superpowers
+
+When delegating to Cursor (Linear ticket + PR via `create-pr.sh`), PRs auto-inject superpowers instructions. Cursor must follow: brainstorm → plan → TDD tasks → subagent exec → review. Skills live in `skills/superpowers/` (upstream: [obra/superpowers](https://github.com/obra/superpowers)). Use `tools/cursor-superpowers.sh` to output the preamble for manual delegation.
 
 ---
 

@@ -41,6 +41,8 @@ Linear: ${LINEAR_URL}
 
 git push origin "$BRANCH" --quiet
 
+SUPERPOWERS_SECTION="$("$SCRIPT_DIR/cursor-superpowers.sh" 2>/dev/null || echo "Read skills/superpowers/SKILL.md — follow brainstorm → plan → TDD → review.")"
+
 PR_URL=$(gh pr create \
   --repo "$REPO" \
   --base main \
@@ -54,18 +56,24 @@ Linear ticket: ${LINEAR_URL}
 
 Read the Linear ticket description for the full spec before starting.
 
+## Superpowers workflow (mandatory)
+
+${SUPERPOWERS_SECTION}
+
 ## Instructions for Cursor
 
 1. Read \`CURSOR.md\` in the repo root — it contains your full operating instructions.
-2. Read the Linear ticket at ${LINEAR_URL} for the implementation spec.
-3. Implement the feature with real code/config/scripts in this branch.
-4. Commit with a message referencing \`${LINEAR_ISSUE_ID}\`.
-5. When done, run \`gh pr ready <pr-number> --repo ${REPO}\` to mark ready for review.
-6. Post to Telegram: \`tools/telegram-post.sh suggestions \"🤖 ${LINEAR_ISSUE_ID} complete. PR: <url>\"\`
+2. Read \`skills/superpowers/SKILL.md\` — follow the superpowers workflow (brainstorm → plan → TDD → review).
+3. Read the Linear ticket at ${LINEAR_URL} for the implementation spec.
+4. Implement the feature with real code/config/scripts in this branch.
+5. Commit with a message referencing \`${LINEAR_ISSUE_ID}\`.
+6. When done, run \`gh pr ready <pr-number> --repo ${REPO}\` to mark ready for review.
+7. Post to Telegram: \`tools/telegram-post.sh suggestions \"🤖 ${LINEAR_ISSUE_ID} complete. PR: <url>\"\`
 
 ## Acceptance criteria
 
 - [ ] Feature described in the Linear ticket is implemented and working
+- [ ] Superpowers workflow followed (TDD, review)
 - [ ] Real file changes present in this PR (not just the scaffold commit)
 - [ ] Scripts are executable and tested
 - [ ] PR marked ready for review

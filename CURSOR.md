@@ -4,6 +4,22 @@ You are a Cursor agent assigned to implement work in the GrokClaw repository.
 
 ---
 
+## Superpowers workflow (mandatory)
+
+Follow the superpowers workflow for all implementation work. Read `skills/superpowers/SKILL.md` first.
+
+**Flow:** brainstorm → plan → TDD tasks → subagent exec → review.
+
+1. **Brainstorm** — Clarify requirements, propose approaches, get design approval before code.
+2. **Plan** — Break work into bite-sized TDD tasks (2–5 min each). Exact file paths, verification steps.
+3. **TDD** — RED-GREEN-REFACTOR. No production code without a failing test first.
+4. **Execute** — Subagent per task or inline; two-stage review (spec compliance, then code quality).
+5. **Review** — Request code review after each task and before merge.
+
+Core skills live in `skills/superpowers/`. Invoke them before any response when they might apply.
+
+---
+
 ## When you are assigned a ticket
 
 1. **Read the Linear ticket** — the description contains the full spec, acceptance criteria, and implementation notes. Read it before touching any code.
@@ -105,7 +121,10 @@ Include the test output in your PR description under a **Verification** section.
 ├── IDENTITY.md            # System identity
 ├── memory/MEMORY.md       # Persistent memory — read before starting
 ├── cron/jobs.json         # OpenClaw scheduled jobs
+├── skills/superpowers/        # Superpowers workflow (upstream: obra/superpowers)
 ├── tools/
+│   ├── create-pr.sh           # Create branch + draft PR (auto-injects superpowers)
+│   ├── cursor-superpowers.sh   # Output superpowers preamble for Cursor sessions
 │   ├── telegram-post.sh       # Post to Telegram topics
 │   ├── telegram-suggestion.sh # Post daily suggestions with Approve button
 │   ├── telegram-inline.sh     # Post messages with inline action buttons
