@@ -1,10 +1,10 @@
 #!/bin/sh
-# Resolve paper trades, print the latest report, and alert Slack when promotion becomes eligible.
+# Resolve paper trades, print the latest report, and alert Telegram when promotion becomes eligible.
 # Usage: polymarket-resolve-turn.sh
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_ROOT="/Users/jarvis/.picoclaw/workspace"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 "$SCRIPT_DIR/polymarket-resolve.sh"
 
@@ -30,7 +30,7 @@ if not eligible:
 sys.exit(0 if should_alert else 1)
 PY
 then
-  "$WORKSPACE_ROOT/tools/slack-post.sh" "C0ALE1S0LSF" "Polymarket promotion gate passed.
+  "$WORKSPACE_ROOT/tools/telegram-post.sh" polymarket "Polymarket promotion gate passed.
 $REPORT_JSON"
   python3 - "$WORKSPACE_ROOT" <<'PY'
 import sys

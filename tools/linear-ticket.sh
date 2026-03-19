@@ -5,11 +5,11 @@
 # Description is the PM-quality ticket body written by Grok.
 # Always delegates to the Cursor agent.
 # Prints the Linear issue URL on success.
-# Env:   PICOCLAW_WORKSPACE — workspace root (default: derived from script path)
+# Env:   WORKSPACE_ROOT — workspace root (default: derived from script path)
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 if [ -f "$WORKSPACE_ROOT/.env" ]; then
   set -a

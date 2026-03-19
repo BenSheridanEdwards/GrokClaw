@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Create a Linear ticket for an approved Grok suggestion."""
-import json, sys, urllib.request
+import json
+import sys
+import time
+import urllib.error
+import urllib.request
 
 api_key          = sys.argv[1]
 suggestion_num   = sys.argv[2]
@@ -24,7 +28,7 @@ if not description:
 2. Implement the feature described in the title.
 3. Commit with a message referencing the issue identifier.
 4. Mark the PR ready for review when done.
-5. Post completion to Slack: `tools/slack-post.sh C0ALE1S0LSF "🤖 <issue-id> complete. PR: <url>"`
+5. Post completion to Telegram: `tools/telegram-post.sh suggestions "🤖 <issue-id> complete. PR: <url>"`
 """
 
 mutation = """
@@ -61,8 +65,25 @@ req = urllib.request.Request(
     method="POST",
 )
 
-with urllib.request.urlopen(req) as resp:
-    data = json.load(resp)
+data = None
+last_error = ""
+for attempt in range(1, 4):
+    try:
+        with urllib.request.urlopen(req) as resp:
+            data = json.load(resp)
+        break
+    except urllib.error.URLError as exc:
+        last_error = str(exc)
+    except urllib.error.HTTPError as exc:
+        last_error = str(exc)
+    except json.JSONDecodeError as exc:
+        last_error = str(exc)
+    if attempt < 3:
+        time.sleep(2 ** (attempt - 1))
+
+if data is None:
+    print(f"ERROR: Linear API request failed after retries: {last_error}", file=sys.stderr)
+    sys.exit(1)
 
 errors = data.get("errors") or []
 if errors:

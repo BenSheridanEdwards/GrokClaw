@@ -11,7 +11,7 @@
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 if [ "$#" -eq 0 ]; then
   exec python3 "$SCRIPT_DIR/_polymarket_trade.py" "$WORKSPACE_ROOT"

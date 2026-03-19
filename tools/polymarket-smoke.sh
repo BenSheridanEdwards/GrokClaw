@@ -4,7 +4,7 @@
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
@@ -32,7 +32,7 @@ trade.stage_candidate(
 )
 PY
 
-PICOCLAW_WORKSPACE="$TMPDIR" "$SCRIPT_DIR/polymarket-decide.sh" YES 0.66 0.82 "Smoke test edge from deterministic fixture"
+WORKSPACE_ROOT="$TMPDIR" "$SCRIPT_DIR/polymarket-decide.sh" YES 0.66 0.82 "Smoke test edge from deterministic fixture"
 
 python3 - "$TMPDIR" <<'PY'
 import json
@@ -89,7 +89,7 @@ with open(results_path, "a", encoding="utf-8") as handle:
 PY
 
 printf '\n== Digest ==\n'
-PICOCLAW_WORKSPACE="$TMPDIR" POLYMARKET_SLACK_DRY_RUN=1 "$SCRIPT_DIR/polymarket-digest.sh"
+WORKSPACE_ROOT="$TMPDIR" POLYMARKET_DRY_RUN=1 "$SCRIPT_DIR/polymarket-digest.sh"
 printf '\n== Report ==\n'
-PICOCLAW_WORKSPACE="$TMPDIR" "$SCRIPT_DIR/polymarket-report.sh"
+WORKSPACE_ROOT="$TMPDIR" "$SCRIPT_DIR/polymarket-report.sh"
 printf '\nSmoke workspace: %s\n' "$TMPDIR"

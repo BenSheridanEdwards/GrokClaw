@@ -1,12 +1,12 @@
 #!/bin/sh
-# Polymarket digest: aggregate past 7 days, post Slack digest, append to MEMORY.md.
+# Polymarket digest: aggregate past 7 days, post Telegram digest, append to MEMORY.md.
 # Usage: polymarket-digest.sh
 # Run via cron (agent_turn) every Monday at 01:00 UTC.
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-DRY_RUN="${POLYMARKET_SLACK_DRY_RUN:-0}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+DRY_RUN="${POLYMARKET_DRY_RUN:-0}"
 
 if [ "$DRY_RUN" != "1" ] && python3 - "$WORKSPACE_ROOT" <<'PY'
 import sys
@@ -27,16 +27,14 @@ fi
 OUTPUT=$(python3 "$SCRIPT_DIR/_polymarket_digest.py" "$WORKSPACE_ROOT")
 
 PAYLOAD="${OUTPUT#DIGEST_JSON:}"
-SLACK_MSG=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["slack_msg"])' "$PAYLOAD")
+DIGEST_MSG=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["msg"])' "$PAYLOAD")
 IMPROVEMENT=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["improvement"])' "$PAYLOAD")
 
-SLACK_CHANNEL="${SLACK_CHANNEL_ID:-C0ALE1S0LSF}"
-
-if [ -n "$SLACK_MSG" ]; then
+if [ -n "$DIGEST_MSG" ]; then
   if [ "$DRY_RUN" = "1" ]; then
-    printf '%s\n' "$SLACK_MSG"
+    printf '%s\n' "$DIGEST_MSG"
   else
-    "$WORKSPACE_ROOT/tools/slack-post.sh" "$SLACK_CHANNEL" "$SLACK_MSG"
+    "$WORKSPACE_ROOT/tools/telegram-post.sh" polymarket "$DIGEST_MSG"
   fi
 fi
 

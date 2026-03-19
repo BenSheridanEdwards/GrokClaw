@@ -3,11 +3,11 @@
 # Usage: create-pr.sh <linear-issue-id> <title>
 #
 # The PR body instructs Cursor exactly what to implement.
-# Env:   PICOCLAW_WORKSPACE — workspace root (default: derived from script path)
+# Env:   WORKSPACE_ROOT — workspace root (default: derived from script path)
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 if [ -f "$WORKSPACE_ROOT/.env" ]; then
   set -a
@@ -61,7 +61,7 @@ Read the Linear ticket description for the full spec before starting.
 3. Implement the feature with real code/config/scripts in this branch.
 4. Commit with a message referencing \`${LINEAR_ISSUE_ID}\`.
 5. When done, run \`gh pr ready <pr-number> --repo ${REPO}\` to mark ready for review.
-6. Post to Slack: \`tools/slack-post.sh C0ALE1S0LSF \"🤖 ${LINEAR_ISSUE_ID} complete. PR: <url>\"\`
+6. Post to Telegram: \`tools/telegram-post.sh suggestions \"🤖 ${LINEAR_ISSUE_ID} complete. PR: <url>\"\`
 
 ## Acceptance criteria
 
@@ -69,7 +69,7 @@ Read the Linear ticket description for the full spec before starting.
 - [ ] Real file changes present in this PR (not just the scaffold commit)
 - [ ] Scripts are executable and tested
 - [ ] PR marked ready for review
-- [ ] Completion posted to Slack" \
+- [ ] Completion posted to Telegram" \
   --draft 2>&1)
 
 echo "$PR_URL"

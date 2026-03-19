@@ -1,5 +1,5 @@
 #!/bin/sh
-# Trigger the Grok Polymarket decision loop without relying on PicoClaw cron persistence.
+# Trigger the Grok Polymarket decision loop without relying on OpenClaw cron persistence.
 # Usage: polymarket-daily-turn.sh
 set -eu
 

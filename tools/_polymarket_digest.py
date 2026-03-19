@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Polymarket digest: aggregate past 7 days, format Slack message, suggest improvement.
+Polymarket digest: aggregate past 7 days, format message, suggest improvement.
 Stdlib only. Called from polymarket-digest.sh.
 """
 import json
@@ -43,9 +43,9 @@ def load_recent_results(results_path, now):
     return results
 
 
-def build_payload(slack_msg, improvement):
+def build_payload(msg, improvement):
     return "DIGEST_JSON:" + json.dumps(
-        {"slack_msg": slack_msg, "improvement": improvement},
+        {"msg": msg, "improvement": improvement},
         separators=(",", ":"),
     )
 

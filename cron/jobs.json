@@ -11,18 +11,18 @@
       },
       "payload": {
         "kind": "agent_turn",
-        "message": "You are Grok, the sole agent of GrokClaw. Read memory/MEMORY.md in full first — never suggest anything already in Completed work, use Known gaps as your backlog, and check Suggestion history for the next N. Then research exactly one high-leverage improvement for this system. Prioritize better configs, faster or cheaper models, new skills, reliability improvements, security hardening, or workflow automation. Then post exactly one Slack message to channel C0ALE1S0LSF using ./tools/slack-post.sh in exactly this format:\n\nDaily Suggestion #N: [title]\nReasoning: [1-2 sentences]\nExpected impact: [benefit]\nApprove? (reply exactly 'approve')\n\nIf a user later replies with exactly 'approve', run ./tools/approve-suggestion.sh and include the thread ts when available.",
-        "deliver": true,
-        "channel": "slack",
-        "to": "C0ALE1S0LSF"
+        "message": "You are Grok, the sole agent of GrokClaw. Read memory/MEMORY.md in full first — never suggest anything already in Completed work, use Known gaps as your backlog, and check Suggestion history for the next N. Then research exactly one high-leverage improvement for this system. Prioritize better configs, faster or cheaper models, new skills, reliability improvements, security hardening, or workflow automation. Then post exactly one message to the daily-suggestions Telegram topic using ./tools/telegram-post.sh in exactly this format:\n\nDaily Suggestion #N: [title]\nReasoning: [1-2 sentences]\nExpected impact: [benefit]\nApprove? (reply exactly 'approve')\n\nIf a user later replies with exactly 'approve', run ./tools/approve-suggestion.sh and include the topic ID when available.",
+        "deliver": false,
+        "channel": "telegram",
+        "to": "-1003831656556"
       },
       "state": {
-        "nextRunAtMs": 1773698400000,
-        "lastRunAtMs": 1773612000093,
+        "nextRunAtMs": 1773957600000,
+        "lastRunAtMs": 1773871200015,
         "lastStatus": "ok"
       },
       "createdAtMs": 1773474867484,
-      "updatedAtMs": 1773612008586,
+      "updatedAtMs": 1773871200015,
       "deleteAfterRun": false
     },
     {
@@ -35,18 +35,18 @@
       },
       "payload": {
         "kind": "agent_turn",
-        "message": "Run ./tools/polymarket-trade.sh to fetch and stage today's Polymarket candidate. Then ALWAYS use web_search to research the market question thoroughly — search for recent news, data, and analysis relevant to the question. Use at least 2 different search queries. Based on your research, if you do not have a clear edge, run ./tools/polymarket-decide.sh SKIP \"\u003creason\u003e\". If you do have an edge, choose YES or NO, estimate the probability for that chosen side as a decimal in (0,1), estimate confidence as a decimal in (0,1), and run ./tools/polymarket-decide.sh \u003cside\u003e \u003cprobability\u003e \u003cconfidence\u003e \"\u003cone sentence reasoning\u003e\". After the decision, run ./tools/polymarket-report.sh and print the final JSON report.",
+        "message": "Run ./tools/polymarket-trade.sh to fetch and stage today's Polymarket candidate. Then ALWAYS use web_search to research the market question thoroughly — search for recent news, data, and analysis relevant to the question. Use at least 2 different search queries. Based on your research, if you do not have a clear edge, run ./tools/polymarket-decide.sh SKIP \"<reason>\". If you do have an edge, choose YES or NO, estimate the probability for that chosen side as a decimal in (0,1), estimate confidence as a decimal in (0,1), and run ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<one sentence reasoning>\". After the decision, run ./tools/polymarket-report.sh and print the final JSON report.",
         "deliver": false,
-        "channel": "slack",
-        "to": "C0ALE1S0LSF"
+        "channel": "telegram",
+        "to": "-1003831656556"
       },
       "state": {
-        "nextRunAtMs": 1773675000000,
-        "lastRunAtMs": 1773588600974,
+        "nextRunAtMs": 1773934200000,
+        "lastRunAtMs": 1773847800897,
         "lastStatus": "ok"
       },
       "createdAtMs": 0,
-      "updatedAtMs": 1773588606497,
+      "updatedAtMs": 1773847824509,
       "deleteAfterRun": false
     },
     {
@@ -59,18 +59,18 @@
       },
       "payload": {
         "kind": "agent_turn",
-        "message": "Run ./tools/polymarket-resolve-turn.sh to resolve paper trades, print the latest report, and only alert Slack if the promotion gate has just transitioned to eligible.",
+        "message": "Run ./tools/polymarket-resolve-turn.sh to resolve paper trades, print the latest report, and only alert Telegram if the promotion gate has just transitioned to eligible.",
         "deliver": false,
-        "channel": "slack",
-        "to": "C0ALE1S0LSF"
+        "channel": "telegram",
+        "to": "-1003831656556"
       },
       "state": {
-        "nextRunAtMs": 1773675900000,
-        "lastRunAtMs": 1773589500980,
+        "nextRunAtMs": 1773935100000,
+        "lastRunAtMs": 1773848700901,
         "lastStatus": "ok"
       },
       "createdAtMs": 0,
-      "updatedAtMs": 1773589504864,
+      "updatedAtMs": 1773848706752,
       "deleteAfterRun": false
     },
     {
@@ -83,10 +83,10 @@
       },
       "payload": {
         "kind": "agent_turn",
-        "message": "Run ./tools/polymarket-digest.sh to post the weekly Polymarket digest to Slack and append a calibration note to memory/MEMORY.md.",
+        "message": "Run ./tools/polymarket-digest.sh to post the weekly Polymarket digest to Telegram and append a calibration note to memory/MEMORY.md.",
         "deliver": false,
-        "channel": "slack",
-        "to": "C0ALE1S0LSF"
+        "channel": "telegram",
+        "to": "-1003831656556"
       },
       "state": {
         "nextRunAtMs": 1774198800000,
@@ -95,6 +95,30 @@
       },
       "createdAtMs": 0,
       "updatedAtMs": 1773594007038,
+      "deleteAfterRun": false
+    },
+    {
+      "id": "0f9f35e8f4ad61ac",
+      "name": "pr-watch",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/10 * * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "You are Grok. Run proactive PR monitoring: (1) list ready PRs with gh pr list --repo BenSheridanEdwards/GrokClaw --state open --json number,title,isDraft,headRefName and review any non-draft grok/* PR against its Linear ticket; (2) if PR passes, post a concise review summary to pr-reviews topic and send inline merge/reject buttons using ./tools/telegram-inline.sh with callback_data merge:<pr>:<issue> and reject:<pr>:<issue>; (3) reconcile merged PRs by transitioning matching Linear issues to Done; (4) if new commits were merged to main, run ./tools/self-deploy.sh and report result to health-alerts.",
+        "deliver": false,
+        "channel": "telegram",
+        "to": "-1003831656556"
+      },
+      "state": {
+        "nextRunAtMs": 0,
+        "lastRunAtMs": 0,
+        "lastStatus": "ok"
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
       "deleteAfterRun": false
     }
   ]
