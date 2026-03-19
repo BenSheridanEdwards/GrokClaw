@@ -8,7 +8,7 @@ Use Grok's reasoning to evaluate one Polymarket candidate per day, then enforce 
 
 ## Runtime jobs
 
-The intended PicoClaw scheduler should contain these jobs:
+The intended OpenClaw scheduler should contain these jobs:
 
 - `polymarket-daily-trade` at `30 23 * * *`
 - `polymarket-daily-resolve` at `45 23 * * *`
@@ -16,7 +16,7 @@ The intended PicoClaw scheduler should contain these jobs:
 
 These jobs are also represented in `cron/jobs.json`.
 
-Manual fallback wrappers exist if you ever need to trigger the loop outside PicoClaw cron:
+Manual fallback wrappers exist if you ever need to trigger the loop outside OpenClaw cron:
 
 - `./tools/polymarket-daily-turn.sh`
 - `./tools/polymarket-resolve-turn.sh`
@@ -25,7 +25,7 @@ Manual fallback wrappers exist if you ever need to trigger the loop outside Pico
 ## Daily trade flow
 
 1. `./tools/polymarket-trade.sh`
-   Fetches the highest-volume market closing within 7 days and stages it.
+   Fetches and stages a candidate, preferring top-trader copy-backed markets and falling back to highest-volume within 7 days.
 2. Grok researches the market and chooses one of:
    - `./tools/polymarket-decide.sh YES <probability> <confidence> "<reasoning>"`
    - `./tools/polymarket-decide.sh NO <probability> <confidence> "<reasoning>"`
@@ -63,7 +63,7 @@ All ledgers live under `data/` and are JSONL:
 - `./tools/polymarket-report.sh`
   prints the current bankroll, expectancy, drawdown, calibration, and promotion gate state
 - `./tools/polymarket-digest.sh`
-  posts a weekly Slack digest and appends a calibration note to `memory/MEMORY.md`
+  posts a weekly Telegram digest and appends a calibration note to `memory/MEMORY.md`
 
 ## Promotion gate
 
@@ -75,7 +75,7 @@ Live trading is blocked unless all of these pass:
 - max drawdown `<= 25%`
 - Brier score `<= 0.20`
 
-The gate is advisory only. Grok should alert Ben in Slack for manual approval rather than going live automatically.
+The gate is advisory only. Grok should alert Ben in Telegram for manual approval rather than going live automatically.
 
 ## Local verification
 

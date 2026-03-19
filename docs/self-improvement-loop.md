@@ -32,4 +32,4 @@ Example:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PICOCLAW_WORKSPACE` | Derived from script path | Workspace root |
+| `WORKSPACE_ROOT` | Derived from script path | Workspace root |

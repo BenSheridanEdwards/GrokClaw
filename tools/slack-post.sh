@@ -5,11 +5,11 @@
 #   slack-post.sh <channel> <thread-ts> <message>
 #   echo "text" | slack-post.sh <channel>
 #   echo "text" | slack-post.sh <channel> <thread-ts>
-# Env:   PICOCLAW_WORKSPACE — workspace root (default: derived from script path)
+# Env:   WORKSPACE_ROOT — workspace root (default: derived from script path)
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_ROOT="${PICOCLAW_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 # Token from .env or fallback (for backwards compatibility)
 if [ -f "$WORKSPACE_ROOT/.env" ]; then
