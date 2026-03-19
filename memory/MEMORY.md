@@ -96,4 +96,6 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 
 ## Polymarket calibration notes
 
+- **2026-03-19** — No trades to analyze this week.
 - **2026-03-15** — No trades to analyze this week.
+- **2026-03-19** — Suggestion #10 (nightly reliability report) approved: Linear GRO-21 created, PR pending. tools/reliability-report.sh + 7am cron to health-alerts topic.
