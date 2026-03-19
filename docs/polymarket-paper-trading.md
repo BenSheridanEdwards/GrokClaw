@@ -31,16 +31,15 @@ Candidate selection focuses on **whale top traders** (leaderboard top 5). The sy
 ## Trade flow (every 4 hours)
 
 1. Grok reads `memory/MEMORY.md` Polymarket section and runs `./tools/polymarket-context.sh` to load recent decisions and results for calibration.
-2. `./tools/polymarket-trade.sh`
-   Fetches and stages a candidate, preferring top-trader copy-backed markets and falling back to highest-volume within 7 days (subject to category and no-repeat filters above).
-3. Grok researches the market and chooses one of:
-   - `./tools/polymarket-decide.sh YES <probability> <confidence> "<reasoning>"`
-   - `./tools/polymarket-decide.sh NO <probability> <confidence> "<reasoning>"`
-   - `./tools/polymarket-decide.sh SKIP "<reasoning>"`
-4. The decision engine writes a structured decision record, then either:
-   - appends a trade to `data/polymarket-trades.json`, or
-   - appends a skip to `data/polymarket-skips.json`
-5. Grok posts a session summary to the polymarket Telegram topic via `./tools/telegram-post.sh polymarket "<what it did and why>"`
+2. **Loop until a bet is placed or options exhausted:**
+   - `./tools/polymarket-trade.sh` fetches and stages the next candidate (whale-backed first, then volume fallback). If no candidate is returned, stop and post to Telegram.
+   - Grok researches the market and chooses one of:
+     - `./tools/polymarket-decide.sh YES <probability> <confidence> "<reasoning>"`
+     - `./tools/polymarket-decide.sh NO <probability> <confidence> "<reasoning>"`
+     - `./tools/polymarket-decide.sh SKIP "<reasoning>"`
+   - The decision engine writes a structured decision record, then either appends a trade to `data/polymarket-trades.json` or a skip to `data/polymarket-skips.json`.
+   - If SKIP: the skipped market is excluded for the next run; go back to the previous step to fetch the next candidate. If trade: exit the loop.
+3. Grok posts a session summary to the polymarket Telegram topic via `./tools/telegram-post.sh polymarket "<what it did and why>"`
 
 ## Risk gates
 
