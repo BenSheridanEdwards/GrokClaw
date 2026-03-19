@@ -1,6 +1,8 @@
 .env
 sessions/
 state/
+logs/
+.reliability-report-tmp
 .cursor
 .gateway-health-state
 data/

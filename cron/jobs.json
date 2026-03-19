@@ -98,6 +98,30 @@
       "deleteAfterRun": false
     },
     {
+      "id": "a7b3c4d5e6f78901",
+      "name": "reliability-report",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 7 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "Run ./tools/reliability-report.sh to post the nightly reliability report to Telegram health-alerts.",
+        "deliver": false,
+        "channel": "telegram",
+        "to": "-1003831656556"
+      },
+      "state": {
+        "nextRunAtMs": 0,
+        "lastRunAtMs": 0,
+        "lastStatus": "ok"
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
+    },
+    {
       "id": "0f9f35e8f4ad61ac",
       "name": "pr-watch",
       "enabled": true,
