@@ -13,6 +13,9 @@ echo "[1/4] Shell syntax checks"
 for script in "$WORKSPACE_ROOT"/tools/*.sh; do
   sh -n "$script"
 done
+for script in "$WORKSPACE_ROOT"/skills/tmux/scripts/*.sh; do
+  bash -n "$script"
+done
 echo "OK"
 echo ""
 
