@@ -2,6 +2,14 @@
 
 When Ben taps the Telegram **Approve** button on a daily suggestion, `tools/dispatch-telegram-action.sh` handles the `approve_suggestion:N` token: it reads `data/pending-suggestion-N.json`, runs `tools/approve-suggestion.sh` to create a Linear ticket, transitions the issue to In Progress, and posts the result to the suggestions topic.
 
+## Tools
+
+| Tool | Purpose |
+|------|---------|
+| `tools/telegram-suggestion.sh` | Posts daily suggestions with an inline Approve button. Writes `data/pending-suggestion-N.json` for the approval flow. Uses plain text (no Markdown) to avoid formatting breaks. |
+| `tools/telegram-inline.sh` | Sends messages with inline action buttons. Optional 4th arg: `parse_mode` (Markdown, HTML, or plain). |
+| `tools/dispatch-telegram-action.sh` | Handles action tokens from button taps: `approve_suggestion:N`, `merge`, `reject`, etc. |
+
 ## How it works
 
 1. **Linear ticket** — Creates an issue in the GrokClaw workspace, delegates to the Cursor agent.
@@ -10,6 +18,16 @@ When Ben taps the Telegram **Approve** button on a daily suggestion, `tools/disp
 On any step failure, the script posts the error to Telegram and exits 1.
 
 ## Usage
+
+### Posting a suggestion (Grok)
+
+```
+tools/telegram-suggestion.sh <N> "<title>" "<reasoning>" "<impact>" "<description>"
+```
+
+Writes `data/pending-suggestion-N.json` and posts to the suggestions topic with an Approve button. Uses plain text to avoid Markdown formatting issues.
+
+### Running approval manually
 
 ```
 tools/approve-suggestion.sh <N> "<title>" suggestions [description]
@@ -49,4 +67,4 @@ Verifies that `approve-suggestion.sh --dry-run` runs correctly and prints the ex
 
 ## Trigger
 
-The approval workflow is triggered when Ben taps the Approve button on a daily suggestion. Grok posts suggestions using `tools/telegram-suggestion.sh`, which writes `data/pending-suggestion-N.json` and sends a message with an inline Approve button. When the button is tapped, the message `approve_suggestion:N` is sent; the poller forwards it to `tools/dispatch-telegram-action.sh`, which runs the approval flow.
+The approval workflow is triggered when Ben taps the Approve button on a daily suggestion. Grok posts suggestions using `tools/telegram-suggestion.sh`, which writes `data/pending-suggestion-N.json` and sends a message with an inline Approve button. The button displays "Approve" (no token visible). When tapped, the message `approve_suggestion:N` is sent; the poller forwards it to `tools/dispatch-telegram-action.sh`, which runs the approval flow.

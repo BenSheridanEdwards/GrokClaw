@@ -107,6 +107,8 @@ Include the test output in your PR description under a **Verification** section.
 ├── cron/jobs.json         # OpenClaw scheduled jobs
 ├── tools/
 │   ├── telegram-post.sh       # Post to Telegram topics
+│   ├── telegram-suggestion.sh # Post daily suggestions with Approve button
+│   ├── telegram-inline.sh     # Post messages with inline action buttons
 │   ├── linear-ticket.sh       # Create Linear tickets
 │   ├── review-pr.sh           # Fetch PR diff for Grok to review
 │   └── health-check.sh        # Health check for OpenClaw gateway process

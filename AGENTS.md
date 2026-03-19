@@ -130,6 +130,7 @@ Handled by `tools/dispatch-telegram-action.sh "<message text>"`:
 - `merge` → merge PR, transition Linear to Done
 - `reject` → post revision request comment
 - `approve_idea` → transition issue to In Progress
+- `approve_suggestion:N` → read `data/pending-suggestion-N.json`, run approve-suggestion.sh, transition to In Progress
 
 Idempotency rule: duplicate action tokens are ignored safely.
 
@@ -190,5 +191,7 @@ board status to the health-alerts topic.
 
 - Keep messages concise and operational.
 - Use correct topic by message type.
+- Daily suggestions: `tools/telegram-suggestion.sh` (includes Approve button).
+- Other posts: `tools/telegram-post.sh` or `tools/telegram-inline.sh` for action buttons.
 - Post proactively on failures, deploy events, and PR decisions.
 - Avoid noisy chatter.

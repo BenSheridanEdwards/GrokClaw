@@ -112,7 +112,8 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 ## Polymarket calibration notes
 
 - **2026-03-19** — Fixed gateway auth: added `gateway.remote.token` to ~/.openclaw/openclaw.json and `OPENCLAW_GATEWAY_TOKEN` to .env so `openclaw agent` can connect. polymarket-daily-turn.sh now loads .env and forces OPENCLAW_CONFIG_PATH for correct config.
-- **2026-03-19** — Daily suggestions now use telegram-suggestion.sh: posts with inline Approve button; writes data/pending-suggestion-N.json; dispatch-telegram-action.sh approve_suggestion:N runs approve-suggestion.sh and transitions to In Progress.
+- **2026-03-19** — Docs updated: approval-workflow.md (Tools table, telegram-suggestion usage), AGENTS.md (approve_suggestion action, Telegram behavior), CURSOR.md (tools list), README.md (suggestion flow), skills/linear/SKILL.md (button-based approval).
+- **2026-03-19** — Daily suggestions now use telegram-suggestion.sh: posts with inline Approve button (plain text); writes data/pending-suggestion-N.json; dispatch-telegram-action.sh approve_suggestion:N runs approve-suggestion.sh and transitions to In Progress.
 - **2026-03-19** — Polymarket: loop until bet placed — if SKIP, run polymarket-trade.sh again (skipped market excluded); iterate through whale-backed markets until trade or exhaust.
 - **2026-03-19** — Polymarket: geopolitical + crypto only; whale top 5 traders; exclude already-evaluated markets (last 2 days). No sports/entertainment.
 - **2026-03-19** — Polymarket runs every 4h (`0 */4 * * *`). Session learning via `polymarket-context.sh` (recent decisions/results). Bias toward trading; gates relaxed (MIN_EDGE 0.05, MIN_CONFIDENCE 0.55). Each session posts summary to Telegram polymarket topic.

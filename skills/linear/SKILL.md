@@ -17,15 +17,14 @@ In the OpenClaw Telegram runtime, prefer the local `./tools/linear-ticket.sh` he
 
 ## Approved Suggestion Workflow
 
-When a user replies with exactly `approve` to a daily Grok suggestion:
+When a user taps the Approve button on a daily Grok suggestion, `tools/dispatch-telegram-action.sh` runs `tools/approve-suggestion.sh`, which creates the Linear issue via `linear-ticket.sh` and posts the result to Telegram. No manual intervention needed.
+
+For manual ticket creation from an approved suggestion:
 
 1. Do not implement the approved work directly.
-2. Create a Linear issue instead.
-3. Use the title format `Implement Grok Suggestion #N - <title>`.
-4. Use the workspace default GrokClaw team unless the user explicitly requests a different team.
-5. If a sensible assignee is known, set it. If not, leave the issue unassigned instead of guessing.
-6. If labels such as `grok-suggested` or `improvement` already exist and are clearly available, attach them. Do not create new labels unless the user asks.
-7. Reply in the same Telegram topic with the resulting Linear issue URL.
+2. Use `tools/approve-suggestion.sh <N> "<title>" suggestions "<description>"` or `tools/linear-ticket.sh` with the title format `Implement Grok Suggestion #N - <title>`.
+3. Use the workspace default GrokClaw team unless the user explicitly requests a different team.
+4. Delegate to Cursor agent via the script.
 
 ## Manual Ticket Creation
 
