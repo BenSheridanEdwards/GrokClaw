@@ -115,7 +115,7 @@ Include the test output in your PR description under a **Verification** section.
 │   ├── review-pr.sh           # Fetch PR diff for Grok to review
 │   ├── health-check.sh        # Health check for OpenClaw gateway process
 │   ├── run-openclaw-agent.sh  # Run agent (Grok default; OPENCLAW_AGENT_ID for override)
-│   └── run-openclaw-agent-kimi.sh  # Run Kimi agent (ollama/kimi-k2.5)
+│   └── run-openclaw-agent-kimi.sh  # Run Kimi agent (ollama/kimi-k2.5:cloud)
 └── docs/                  # Documentation for tools and integrations
 ```
 

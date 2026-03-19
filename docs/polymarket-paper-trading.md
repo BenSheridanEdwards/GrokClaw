@@ -4,7 +4,7 @@ This document describes the GrokClaw Polymarket paper-trading loop.
 
 ## Goal
 
-Use Grok's reasoning to evaluate one Polymarket candidate per day, then enforce deterministic risk gates before recording a paper trade. The system starts with a fake bankroll of `$1000` and only flags for live trading after the promotion gate passes.
+Use Kimi's reasoning to evaluate one Polymarket candidate per session (every 4h), then enforce deterministic risk gates before recording a paper trade. The system starts with a fake bankroll of `$1000` and only flags for live trading after the promotion gate passes.
 
 ## Runtime jobs
 
@@ -30,16 +30,16 @@ Candidate selection focuses on **whale top traders** (leaderboard top 5). The sy
 
 ## Trade flow (every 4 hours)
 
-1. Grok reads `memory/MEMORY.md` Polymarket section and runs `./tools/polymarket-context.sh` to load recent decisions and results for calibration.
+1. Kimi reads `memory/MEMORY.md` Polymarket section and runs `./tools/polymarket-context.sh` to load recent decisions and results for calibration.
 2. **Loop until a bet is placed or options exhausted:**
    - `./tools/polymarket-trade.sh` fetches and stages the next candidate (whale-backed first, then volume fallback). If no candidate is returned, stop and post to Telegram.
-   - Grok researches the market and chooses one of:
+   - Kimi researches the market and chooses one of:
      - `./tools/polymarket-decide.sh YES <probability> <confidence> "<reasoning>"`
      - `./tools/polymarket-decide.sh NO <probability> <confidence> "<reasoning>"`
      - `./tools/polymarket-decide.sh SKIP "<reasoning>"`
    - The decision engine writes a structured decision record, then either appends a trade to `data/polymarket-trades.json` or a skip to `data/polymarket-skips.json`.
    - If SKIP: the skipped market is excluded for the next run; go back to the previous step to fetch the next candidate. If trade: exit the loop.
-3. Grok posts a session summary to the polymarket Telegram topic via `./tools/telegram-post.sh polymarket "<what it did and why>"`
+3. Kimi posts a session summary to the polymarket Telegram topic via `./tools/telegram-post.sh polymarket "<what it did and why>"` and reports to Grok via `./tools/agent-report.sh kimi polymarket-daily-trade "<summary>"`
 
 ## Risk gates
 
@@ -82,7 +82,7 @@ Live trading is blocked unless all of these pass:
 - max drawdown `<= 25%`
 - Brier score `<= 0.20`
 
-The gate is advisory only. Grok should alert Ben in Telegram for manual approval rather than going live automatically.
+The gate is advisory only. The system alerts Ben in Telegram for manual approval rather than going live automatically.
 
 ## Local verification
 

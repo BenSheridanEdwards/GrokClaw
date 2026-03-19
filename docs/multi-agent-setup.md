@@ -34,7 +34,7 @@ See `docs/agent-tasks.md` for the full task breakdown by agent.
 
 | Agent | Model | Cron jobs |
 |-------|-------|-----------|
-| Grok | xai/grok-4-1-fast-non-reasoning | daily-grokclaw-suggestion, pr-watch, paperclip-sync |
+| Grok | xai/grok-4-1-fast-non-reasoning | daily-grokclaw-suggestion, grok-daily-brief, pr-watch, paperclip-sync |
 | Kimi | ollama/kimi-k2.5:cloud | polymarket-daily-trade, polymarket-daily-resolve, polymarket-weekly-digest, reliability-report |
 | Alpha | openrouter/arcee-ai/trinity-large-preview:free | alpha-daily-research |
 
@@ -54,21 +54,20 @@ OPENCLAW_AGENT_ID=kimi ./tools/run-openclaw-agent.sh
 
 OpenClaw persists cron jobs at `~/.openclaw/cron/jobs.json`. The workspace `cron/jobs.json` is the source of truth for version control. After editing `cron/jobs.json` in the repo:
 
-1. Stop the gateway: `./tools/gateway-ctl.sh unload` (or ensure it is not running).
-2. Copy or merge: `cp cron/jobs.json ~/.openclaw/cron/jobs.json`
-3. Reload: `./tools/gateway-ctl.sh load`
+1. Copy: `cp cron/jobs.json ~/.openclaw/cron/jobs.json`
+2. Restart gateway: `./tools/gateway-ctl.sh restart`
 
 Or use `openclaw cron add` / `openclaw cron edit` to manage jobs via CLI.
 
 ## Verification
 
 ```bash
-# List agents
-openclaw agents list --bindings
+# List agents (use GrokClaw config)
+OPENCLAW_CONFIG_PATH=~/.openclaw/openclaw.json openclaw agents list
 
 # List models (should include ollama/kimi-k2.5:cloud)
 openclaw models list
 
 # Test Kimi manually
-openclaw agent --agent kimi --message "Hello, who are you?" --session-id test-kimi-1
+OPENCLAW_CONFIG_PATH=~/.openclaw/openclaw.json openclaw agent --agent kimi --message "Hello" --session-id test-kimi-1
 ```

@@ -63,7 +63,7 @@ Decision path:
 
 ## Multi-Agent Setup
 
-Grok (xAI) handles suggestions, PR review, and Paperclip. Kimi (Ollama cloud, free) handles Polymarket and reliability reports. Alpha (OpenRouter Trinity, free) available for long-context research. See `docs/multi-agent-setup.md`.
+Grok (xAI) handles suggestions, daily brief, PR review, and Paperclip. Kimi (Ollama cloud, free) handles Polymarket and reliability reports. Alpha (OpenRouter Trinity, free) does daily research. Kimi and Alpha report to Grok; Grok reports to you. See `docs/multi-agent-setup.md` and `docs/agent-tasks.md`.
 
 ## Key Agent Docs
 
