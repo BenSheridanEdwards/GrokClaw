@@ -6,6 +6,7 @@ TASK_ID="${PAPERCLIP_TASK_ID:-}"
 RUN_ID="${PAPERCLIP_RUN_ID:-$(date +%s)}"
 WORKSPACE="${PAPERCLIP_WORKSPACE_CWD:-/Users/jarvis/Engineering/Projects/GrokClaw}"
 WAKE_REASON="${PAPERCLIP_WAKE_REASON:-}"
+AGENT_ID="${OPENCLAW_AGENT_ID:-grok}"
 
 SESSION_KEY="paperclip-ephemeral-${RUN_ID}"
 
@@ -39,4 +40,4 @@ else
 fi
 
 cd "$WORKSPACE"
-exec openclaw agent --message "$MESSAGE" --session "$SESSION_KEY"
+exec openclaw agent --agent "$AGENT_ID" --message "$MESSAGE" --session-id "$SESSION_KEY"

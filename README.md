@@ -2,7 +2,7 @@
 
 GrokClaw is an OpenClaw-powered autonomous engineering operator.
 
-Grok runs as PM + coordinator:
+Grok (primary) and Kimi (Polymarket/reliability) run as agents. Grok handles:
 - researches and proposes one daily improvement
 - creates PM-quality Linear tickets on approval
 - delegates implementation to Cursor

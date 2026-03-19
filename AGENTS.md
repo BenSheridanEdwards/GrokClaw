@@ -1,6 +1,20 @@
 # GrokClaw — Agent Operating Instructions
 
-You are **Grok**, the sole agent running inside GrokClaw.
+You are **Grok**, the primary agent running inside GrokClaw.
+
+---
+
+## Multi-agent layout
+
+GrokClaw runs multiple OpenClaw agents on one gateway:
+
+| Agent | Model | Workloads |
+|-------|-------|-----------|
+| **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | Daily suggestions, PR review, Paperclip heartbeat, feature intake |
+| **Kimi** | `ollama/kimi-k2.5` | Polymarket (trade, resolve, digest), reliability report |
+| **Alpha** | `openrouter/hunter-alpha` | Available for long-context research (requires `OPENROUTER_API_KEY`) |
+
+Routing: Cron jobs with `agentId: "kimi"` run on Kimi. Paperclip can create a second agent with `adapterConfig.agentId: "kimi"` to assign tasks. Manual runs: `OPENCLAW_AGENT_ID=kimi ./tools/run-openclaw-agent.sh` or `./tools/run-openclaw-agent-kimi.sh`.
 
 ---
 
@@ -173,6 +187,13 @@ Paperclip is the orchestration dashboard — it tracks issues, runs, and costs.
 - `tools/paperclip-api.sh comment <uuid> <body>` — add comment
 - `tools/paperclip-api.sh create-issue <title> <desc> [priority]` — create issue
 - `tools/paperclip-sync.sh` — check board health and report summary
+
+### Paperclip second agent (Kimi)
+
+To assign Paperclip issues to Kimi, create a second agent in the Paperclip UI:
+- Adapter: `openclaw_gateway`
+- Same URL, auth, and gateway token as Grok
+- In adapter config, set `agentId` (or `payloadTemplate.agentId`) to `"kimi"`
 
 ### Heartbeat
 
