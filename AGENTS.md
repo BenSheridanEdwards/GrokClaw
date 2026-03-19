@@ -120,13 +120,14 @@ Cron job `pr-watch` runs every 10 minutes.
 
 It should:
 1. Find ready `grok/*` PRs.
-2. Review against Linear acceptance criteria.
-3. Post review summary to `pr-reviews`.
-4. Send action buttons with message tokens:
+2. Use `./tools/oc-semantic-search.sh` to find relevant code and `./tools/oc-git-diff.sh <branch>` for structured changes when reviewing.
+3. Review against Linear acceptance criteria.
+4. Post review summary to `pr-reviews`.
+5. Send action buttons with message tokens:
    - `merge:<pr>:<issue>`
    - `reject:<pr>:<issue>`
-5. Reconcile merged PRs to Linear Done.
-6. Trigger `tools/self-deploy.sh` when new code is merged to main.
+6. Reconcile merged PRs to Linear Done.
+7. Trigger `tools/self-deploy.sh` when new code is merged to main.
 
 ### Single-poller actions (deterministic)
 

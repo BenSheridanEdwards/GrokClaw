@@ -1,0 +1,12 @@
+#!/bin/sh
+# opencv-copilot: local tree-sitter semantic search (GRO-22).
+# Usage: ./tools/opencv-copilot search "query" [--limit N]
+set -eu
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+
+export WORKSPACE_ROOT
+export PYTHONPATH="${WORKSPACE_ROOT}${PYTHONPATH:+:$PYTHONPATH}"
+
+exec python3 -m tools.opencv_copilot "$@"

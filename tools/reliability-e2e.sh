@@ -14,12 +14,16 @@ echo "[1/3] Unit tests"
 python3 -m unittest discover -s "$WORKSPACE_ROOT/tests" -p "test_*.py"
 echo ""
 
-echo "[2/3] Approval smoke"
+echo "[2/4] Approval smoke"
 "$WORKSPACE_ROOT/tools/approval-smoke.sh"
 echo ""
 
-echo "[3/3] Polymarket smoke"
+echo "[3/4] Polymarket smoke"
 "$WORKSPACE_ROOT/tools/polymarket-smoke.sh"
+echo ""
+
+echo "[4/4] opencv-copilot search smoke"
+"$WORKSPACE_ROOT/tools/oc-search-smoke.sh"
 echo ""
 
 echo "PASS: reliability e2e completed"

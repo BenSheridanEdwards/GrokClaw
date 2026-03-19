@@ -40,6 +40,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-16** — Linear board management: created `tools/linear-transition.sh` + `tools/_linear_transition.py` so Grok can move issues between workflow states. Updated AGENTS.md with full issue lifecycle: `In Progress` on approval → `In Review` when Grok hands PR to Ben → `Done` only when PR is merged. Added merge reconciliation step. Cleaned up all stale issues (GRO-1–10, 12, 13, 15 canceled; GRO-17, 18 moved to Done). Linear is now the source of truth for issue status.
 - **2026-03-18** — Suggestion #9 approved: runtime changelog monitoring cron job. Linear GRO-20, PR #14. Script `tools/changelog-check.sh` + weekly cron `changelog-weekly-check` at 07:00 Mondays.
 - **2026-03-19** — Migrated runtime to OpenClaw v2026.3.13. Migrated comms from Slack to Telegram forum group with per-topic sessions (daily-suggestions, polymarket, health-alerts, pr-reviews). Updated all tools, cron jobs, AGENTS.md, and MEMORY.md. Created `tools/telegram-post.sh` + `tools/_telegram_post.py`. Created `tools/run-openclaw-agent.sh`.
+- **2026-03-19** — GRO-22: opencv-copilot semantic search. `tools/opencv-copilot` (tree-sitter, local), `tools/oc-semantic-search.sh`, `tools/oc-git-diff.sh`, `tools/oc-search-smoke.sh` (>80% accuracy). Wired to pr-watch and AGENTS.md. Cron `oc-search-daily` at 05:00. See `docs/opencv-copilot.md`. Install: `pip install -r requirements-opencv-copilot.txt`.
 
 ---
 

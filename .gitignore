@@ -4,3 +4,5 @@ state/
 .cursor
 .gateway-health-state
 data/
+__pycache__/
+*.pyc

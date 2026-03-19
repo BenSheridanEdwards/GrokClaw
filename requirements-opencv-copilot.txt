@@ -1,0 +1,6 @@
+# Dependencies for tools/opencv-copilot semantic search (GRO-22).
+# Install: pip install -r requirements-opencv-copilot.txt
+tree-sitter>=0.25.0
+tree-sitter-python>=0.25.0
+tree-sitter-bash>=0.25.0
+tree-sitter-typescript>=0.23.0

@@ -107,7 +107,31 @@
       },
       "payload": {
         "kind": "agent_turn",
-        "message": "You are Grok. Run proactive PR monitoring: (1) list ready PRs with gh pr list --repo BenSheridanEdwards/GrokClaw --state open --json number,title,isDraft,headRefName and review any non-draft grok/* PR against its Linear ticket; (2) if PR passes, post a concise review summary to pr-reviews topic and send action buttons using ./tools/telegram-inline.sh where button text includes tokens merge:<pr>:<issue> and reject:<pr>:<issue>; (3) when Ben taps a button and action text appears in chat, run ./tools/dispatch-telegram-action.sh \"<that message text>\" and post result; (4) reconcile merged PRs by transitioning matching Linear issues to Done; (5) if new commits were merged to main, run ./tools/self-deploy.sh and report result to health-alerts.",
+        "message": "You are Grok. Run proactive PR monitoring: (1) list ready PRs with gh pr list --repo BenSheridanEdwards/GrokClaw --state open --json number,title,isDraft,headRefName and review any non-draft grok/* PR against its Linear ticket; (2) use ./tools/oc-semantic-search.sh to find relevant code and ./tools/oc-git-diff.sh for structured changes when reviewing; (3) if PR passes, post a concise review summary to pr-reviews topic and send action buttons using ./tools/telegram-inline.sh where button text includes tokens merge:<pr>:<issue> and reject:<pr>:<issue>; (4) when Ben taps a button and action text appears in chat, run ./tools/dispatch-telegram-action.sh \"<that message text>\" and post result; (5) reconcile merged PRs by transitioning matching Linear issues to Done; (6) if new commits were merged to main, run ./tools/self-deploy.sh and report result to health-alerts.",
+        "deliver": false,
+        "channel": "telegram",
+        "to": "-1003831656556"
+      },
+      "state": {
+        "nextRunAtMs": 0,
+        "lastRunAtMs": 0,
+        "lastStatus": "ok"
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
+    },
+    {
+      "id": "b7e9f2a1c4d8e3f6",
+      "name": "oc-search-daily",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 5 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "Run ./tools/oc-search-smoke.sh to validate opencv-copilot semantic search. If it fails, report to health topic.",
         "deliver": false,
         "channel": "telegram",
         "to": "-1003831656556"
