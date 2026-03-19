@@ -7,6 +7,7 @@
 #   merge:<pr-number>:<issue-id>
 #   reject:<pr-number>:<issue-id>
 #   approve_idea:<n>:<issue-id>
+#   approve_suggestion:<n>   — runs approve-suggestion.sh using data/pending-suggestion-<n>.json
 #   probe:<label>:<id>
 set -eu
 
@@ -69,6 +70,24 @@ case "$ACTION" in
     "$WORKSPACE_ROOT/tools/linear-transition.sh" "$ISSUE_ID" "In Progress"
     printf '%s\n' "$TOKEN" >>"$SEEN_FILE"
     echo "Idea approved. $ISSUE_ID moved to In Progress"
+    ;;
+  approve_suggestion)
+    SUGGESTION_N="$PR_NUM"
+    PENDING_FILE="$WORKSPACE_ROOT/data/pending-suggestion-${SUGGESTION_N}.json"
+    if [ ! -f "$PENDING_FILE" ]; then
+      echo "Missing pending suggestion file: $PENDING_FILE" >&2
+      exit 1
+    fi
+    TITLE=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('title',''))" "$PENDING_FILE")
+    DESC=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('description',''))" "$PENDING_FILE")
+    OUTPUT=$("$WORKSPACE_ROOT/tools/approve-suggestion.sh" "$SUGGESTION_N" "$TITLE" "suggestions" "$DESC" 2>&1) || true
+    rm -f "$PENDING_FILE"
+    ISSUE_FROM_OUTPUT=$(echo "$OUTPUT" | sed -n 's|.*/\(GRO-[0-9]*\).*|\1|p' | head -1)
+    if [ -n "$ISSUE_FROM_OUTPUT" ]; then
+      "$WORKSPACE_ROOT/tools/linear-transition.sh" "$ISSUE_FROM_OUTPUT" "In Progress"
+    fi
+    printf '%s\n' "$TOKEN" >>"$SEEN_FILE"
+    echo "Suggestion #${SUGGESTION_N} approved. Linear: $ISSUE_FROM_OUTPUT"
     ;;
   *)
     echo "Unknown action token: $TOKEN" >&2

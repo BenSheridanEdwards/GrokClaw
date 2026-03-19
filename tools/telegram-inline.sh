@@ -1,8 +1,9 @@
 #!/bin/sh
 # Send Telegram message with single-poller action buttons.
 # Usage:
-#   telegram-inline.sh <topic-id|name> "<message>" '<button-json>'
+#   telegram-inline.sh <topic-id|name> "<message>" '<button-json>' [parse_mode]
 #
+# parse_mode: Markdown (default), HTML, or plain (no formatting)
 # button-json example:
 #   '[{"text":"Approve","callback_data":"approve:12:GRO-21"}]'
 set -eu
@@ -28,6 +29,7 @@ fi
 RAW_TOPIC="$1"
 MESSAGE="$2"
 BUTTON_JSON="$3"
+PARSE_MODE="${4:-Markdown}"
 
 case "$RAW_TOPIC" in
   suggestions|daily-suggestions) TOPIC_ID="${TELEGRAM_TOPIC_SUGGESTIONS:-2}" ;;
@@ -43,4 +45,4 @@ esac
 
 "$WORKSPACE_ROOT/tools/retry.sh" --max 3 --delay 1 --alert health -- \
   python3 "$WORKSPACE_ROOT/tools/_telegram_inline.py" \
-  "$TELEGRAM_BOT_TOKEN" "$TELEGRAM_GROUP_ID" "$TOPIC_ID" "$MESSAGE" "$BUTTON_JSON"
+  "$TELEGRAM_BOT_TOKEN" "$TELEGRAM_GROUP_ID" "$TOPIC_ID" "$MESSAGE" "$BUTTON_JSON" "$PARSE_MODE"

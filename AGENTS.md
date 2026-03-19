@@ -75,14 +75,7 @@ Cron: `daily-grokclaw-suggestion` at 06:00.
 
 1. Read memory.
 2. Research one improvement.
-3. Post to suggestions topic using exact format:
-
-```
-Daily Suggestion #N: [title]
-Reasoning: [1-2 sentences]
-Expected impact: [benefit]
-Approve? (tap the Approve button)
-```
+3. Post using `./tools/telegram-suggestion.sh N "<title>" "<reasoning>" "<impact>" "<description>"` — posts to suggestions topic with an Approve button. The description is the PM-quality ticket body for the Linear issue when approved.
 
 ---
 
