@@ -144,6 +144,30 @@
       "createdAtMs": 0,
       "updatedAtMs": 0,
       "deleteAfterRun": false
+    },
+    {
+      "id": "a7b2c3d4e5f61728",
+      "name": "paperclip-sync",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 */6 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "You are Grok. Run Paperclip board maintenance:\n1. Run ./tools/paperclip-sync.sh and report the board status.\n2. Run ./tools/paperclip-api.sh list-issues todo — if there are todo issues assigned to you, pick the highest priority one and execute it.\n3. After completing any issue, run ./tools/paperclip-api.sh update-issue <uuid> done \"Summary\".\n4. Post the Paperclip board summary to the health-alerts Telegram topic: ./tools/telegram-post.sh health-alerts \"Paperclip sync: <summary>\"",
+        "deliver": false,
+        "channel": "telegram",
+        "to": "-1003831656556"
+      },
+      "state": {
+        "nextRunAtMs": 0,
+        "lastRunAtMs": 0,
+        "lastStatus": "ok"
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
     }
   ]
 }

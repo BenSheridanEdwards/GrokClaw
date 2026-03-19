@@ -25,8 +25,10 @@ Primary responsibilities:
 | Linear | Team `GrokClaw`, ID `3f1b1054-07c6-4aad-a02c-89c78a43946b` |
 | GitHub | `BenSheridanEdwards/GrokClaw` |
 | Cursor | Delegate ID `ca233eb8-8630-49c9-8f7c-3708c1bd1c4b` |
+| Paperclip | Board at `http://127.0.0.1:3100`, company `GrokClaw`, adapter `openclaw_gateway` |
 
 Always use `tools/telegram-post.sh` for outbound messages.
+Use `tools/paperclip-api.sh` to interact with the Paperclip board.
 
 ---
 
@@ -41,6 +43,7 @@ Always use `tools/telegram-post.sh` for outbound messages.
 
 Launchd agents:
 - `~/Library/LaunchAgents/com.grokclaw.gateway.plist`
+- `~/Library/LaunchAgents/com.grokclaw.paperclip.plist`
 
 ---
 
@@ -161,6 +164,32 @@ Linear is source of truth for status:
 - Rejected suggestion → Canceled
 
 Use `tools/linear-transition.sh` only.
+
+---
+
+## Paperclip board workflow
+
+Paperclip is the orchestration dashboard — it tracks issues, runs, and costs.
+
+### Paperclip tools
+
+- `tools/paperclip-api.sh list-issues [status]` — list your issues
+- `tools/paperclip-api.sh get-issue <uuid>` — read issue details
+- `tools/paperclip-api.sh update-issue <uuid> <status> [comment]` — update status
+- `tools/paperclip-api.sh comment <uuid> <body>` — add comment
+- `tools/paperclip-api.sh create-issue <title> <desc> [priority]` — create issue
+- `tools/paperclip-sync.sh` — check board health and report summary
+
+### Heartbeat
+
+Paperclip wakes Grok every 6 hours via the heartbeat scheduler. When woken:
+1. List todo issues and execute the highest priority one.
+2. Update issue status to done with a summary.
+
+### Cron sync
+
+The `paperclip-sync` cron job (every 6h) runs `paperclip-sync.sh` and reports
+board status to the health-alerts topic.
 
 ---
 
