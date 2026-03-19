@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 from tools import _polymarket_metrics as metrics
 from tools import _polymarket_trade as trade
@@ -101,6 +102,77 @@ class PolymarketTradeTests(unittest.TestCase):
         self.assertIn("offset=0", call_urls[0])
         self.assertIn("offset=1", call_urls[1])
         self.assertIn("offset=2", call_urls[2])
+
+    def test_build_copy_signal_aggregates_top_trader_positions(self):
+        with mock.patch.object(
+            trade,
+            "fetch_top_traders",
+            return_value=[
+                {"proxyWallet": "0xaaa", "rank": "1"},
+                {"proxyWallet": "0xbbb", "rank": "2"},
+            ],
+        ):
+            def fake_positions(wallet, condition_id=None, limit=100):
+                self.assertEqual(condition_id, "0xcondition")
+                if wallet == "0xaaa":
+                    return [{"conditionId": "0xcondition", "outcome": "Yes", "currentValue": 1200}]
+                return [{"conditionId": "0xcondition", "outcome": "No", "currentValue": 800}]
+
+            with mock.patch.object(trade, "fetch_positions_for_user", side_effect=fake_positions):
+                signal = trade.build_copy_signal("0xcondition", "Will X happen?")
+
+        self.assertEqual(signal["status"], "ok")
+        self.assertEqual(signal["consensus_side"], "YES")
+        self.assertGreater(signal["consensus_probability_yes"], 0.5)
+        self.assertEqual(signal["traders_with_matching_positions"], 2)
+
+    def test_build_copy_signal_returns_unavailable_without_condition_id(self):
+        signal = trade.build_copy_signal("", "Will X happen?")
+        self.assertEqual(signal["status"], "unavailable")
+        self.assertEqual(signal["reason"], "missing_condition_id")
+
+    def test_select_copy_candidate_prefers_trader_backed_market(self):
+        soon = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        markets = [
+            {
+                "id": "m1",
+                "conditionId": "0xabc",
+                "question": "Will event A happen?",
+                "endDate": soon,
+                "outcomePrices": ["0.55", "0.45"],
+                "volume": "100000",
+            },
+            {
+                "id": "m2",
+                "conditionId": "0xdef",
+                "question": "Will event B happen?",
+                "endDate": soon,
+                "outcomePrices": ["0.40", "0.60"],
+                "volume": "120000",
+            },
+        ]
+
+        with mock.patch.object(
+            trade,
+            "fetch_top_traders",
+            return_value=[
+                {"proxyWallet": "0xaaa", "rank": "1"},
+                {"proxyWallet": "0xbbb", "rank": "2"},
+            ],
+        ):
+            def fake_positions(wallet, condition_id=None, limit=100):
+                if wallet == "0xaaa":
+                    return [{"conditionId": "0xabc", "outcome": "Yes", "currentValue": 1500}]
+                return [{"conditionId": "0xabc", "outcome": "No", "currentValue": 800}]
+
+            with mock.patch.object(trade, "fetch_positions_for_user", side_effect=fake_positions):
+                best_market, signal = trade.select_copy_candidate(markets)
+
+        self.assertIsNotNone(best_market)
+        self.assertEqual(best_market["conditionId"], "0xabc")
+        self.assertIsNotNone(signal)
+        self.assertEqual(signal["status"], "ok")
+        self.assertEqual(signal["traders_with_matching_positions"], 2)
 
 
 if __name__ == "__main__":

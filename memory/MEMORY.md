@@ -2,10 +2,21 @@
 
 Grok must read this file in full before proposing any suggestion, and update it after every verified action.
 
+## Memory operating contract
+
+- This file is the canonical long-term memory for GrokClaw.
+- Update it after every verified workflow action (suggestion, approval, PR review, deploy, reliability fix).
+- Keep `Completed work`, `Suggestion history`, and `Known gaps` synchronized with reality.
+- Never re-suggest anything already listed in `Completed work`.
+- Runtime state files (idempotency, guards) live in `~/.openclaw/state`; this file stores durable human-readable context.
+
 ---
 
 ## Completed work
 
+- **2026-03-19** — Hardened Telegram single-poller reliability: removed callback poller path, added `tools/telegram-poller-guard.sh`, integrated guard into `tools/health-check.sh`, and made `tools/dispatch-telegram-action.sh` idempotent via persisted token dedupe state.
+- **2026-03-19** — Upgraded Polymarket selection to include top-trader copy strategy: `tools/_polymarket_trade.py` now builds `copy_strategy` from leaderboard + live positions and prefers trader-backed candidate selection with volume fallback.
+- **2026-03-19** — Updated agent documentation set for OpenClaw + Telegram + persistent memory contract: `README.md`, `AGENTS.md`, `CURSOR.md`, `IDENTITY.md`, `USER.md`.
 - **2026-03-14** — Created private GitHub repo `BenSheridanEdwards/GrokClaw` and pushed the full workspace as the initial commit.
 - **2026-03-14** — Connected GitHub to the GrokClaw Linear workspace (`github` + `githubPersonal` integrations active). Commits referencing `GRO-XXX` auto-link to Linear tickets.
 - **2026-03-14** — Verified Cursor agent exists in the GrokClaw Linear workspace (ID: `ca233eb8-8630-49c9-8f7c-3708c1bd1c4b`) and can be delegated tickets via `delegateId` on `IssueCreateInput`.

@@ -14,7 +14,7 @@ class ApprovalWorkflowTests(unittest.TestCase):
     def test_approve_suggestion_dry_run_exits_zero(self):
         """approve-suggestion.sh --dry-run exits 0 with valid args."""
         env = os.environ.copy()
-        env["PICOCLAW_WORKSPACE"] = str(self.workspace)
+        env["WORKSPACE_ROOT"] = str(self.workspace)
         result = subprocess.run(
             ["sh", str(self.approve_script), "--dry-run", "8", "Test title", "1234567890.123456", "Test desc"],
             env=env,
@@ -25,9 +25,9 @@ class ApprovalWorkflowTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
 
     def test_approve_suggestion_dry_run_prints_steps(self):
-        """approve-suggestion.sh --dry-run prints linear-ticket, create-pr, slack-post."""
+        """approve-suggestion.sh --dry-run prints linear-ticket and telegram-post."""
         env = os.environ.copy()
-        env["PICOCLAW_WORKSPACE"] = str(self.workspace)
+        env["WORKSPACE_ROOT"] = str(self.workspace)
         result = subprocess.run(
             ["sh", str(self.approve_script), "--dry-run", "8", "Test title", "1234567890.123456"],
             env=env,
@@ -38,13 +38,12 @@ class ApprovalWorkflowTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         out = result.stdout + result.stderr
         self.assertIn("linear-ticket.sh", out)
-        self.assertIn("create-pr.sh", out)
-        self.assertIn("slack-post.sh", out)
+        self.assertIn("telegram-post.sh", out)
 
     def test_approve_suggestion_fails_without_args(self):
         """approve-suggestion.sh exits 1 when given insufficient args."""
         env = os.environ.copy()
-        env["PICOCLAW_WORKSPACE"] = str(self.workspace)
+        env["WORKSPACE_ROOT"] = str(self.workspace)
         result = subprocess.run(
             ["sh", str(self.approve_script)],
             env=env,
@@ -58,7 +57,7 @@ class ApprovalWorkflowTests(unittest.TestCase):
     def test_approval_smoke_passes(self):
         """approval-smoke.sh exits 0 and validates the workflow."""
         env = os.environ.copy()
-        env["PICOCLAW_WORKSPACE"] = str(self.workspace)
+        env["WORKSPACE_ROOT"] = str(self.workspace)
         result = subprocess.run(
             ["sh", str(self.smoke_script)],
             env=env,

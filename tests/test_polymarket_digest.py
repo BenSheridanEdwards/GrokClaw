@@ -15,7 +15,7 @@ class PolymarketDigestTests(unittest.TestCase):
 
         self.assertTrue(payload.startswith("DIGEST_JSON:"))
         parsed = json.loads(payload.removeprefix("DIGEST_JSON:"))
-        self.assertEqual(parsed["slack_msg"], "Line one\nLine two")
+        self.assertEqual(parsed["msg"], "Line one\nLine two")
         self.assertEqual(parsed["improvement"], "Review worst call")
 
     def test_recent_results_use_resolution_date_not_trade_date(self):
@@ -79,11 +79,11 @@ class PolymarketDigestTests(unittest.TestCase):
                     "probability_yes": 0.6,
                 }) + "\n")
 
-            script_path = "/Users/jarvis/.picoclaw/workspace/tools/polymarket-digest.sh"
+            script_path = "/Users/jarvis/Engineering/Projects/GrokClaw/tools/polymarket-digest.sh"
             env = os.environ.copy()
-            env["PICOCLAW_WORKSPACE"] = str(workspace)
-            env["POLYMARKET_SLACK_DRY_RUN"] = "1"
-            env["PYTHONPATH"] = f"/Users/jarvis/.picoclaw/workspace:{env.get('PYTHONPATH', '')}".rstrip(":")
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["POLYMARKET_DRY_RUN"] = "1"
+            env["PYTHONPATH"] = f"{workspace}:{env.get('PYTHONPATH', '')}".rstrip(":")
 
             subprocess.run(["sh", script_path], check=True, env=env, capture_output=True, text=True)
 

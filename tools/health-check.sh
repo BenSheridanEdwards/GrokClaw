@@ -21,6 +21,10 @@ if [ -f "$WORKSPACE_ROOT/.env" ]; then
   set +a
 fi
 
+# Single-poller guard: detect Telegram getUpdates conflicts and auto-disable
+# legacy callback pollers. Non-fatal for health status.
+"$WORKSPACE_ROOT/tools/telegram-poller-guard.sh" >/dev/null 2>&1 || true
+
 gateway_alive() {
   if command -v curl >/dev/null 2>&1; then
     if curl -sf --connect-timeout 3 "http://127.0.0.1:${GATEWAY_PORT}/health" >/dev/null 2>&1; then

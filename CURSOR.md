@@ -15,14 +15,14 @@ You are a Cursor agent assigned to implement work in the GrokClaw repository.
 7. **Test it** — run the thing and verify it works. See "Testing requirements" below.
 8. **Update `memory/MEMORY.md`** — before committing, append a dated bullet under "Completed work" describing exactly what you built and how it runs. Example:
    ```
-   - **2026-03-14** — GRO-14: added tools/gateway-health-check.sh; detects picoclaw process death and alerts Slack. Wired to system crontab (*/5 * * * *).
+   - **2026-03-19** — GRO-XX: added tools/example.sh; wired via cron/jobs.json `example-job`; posts status to Telegram health topic.
    ```
 9. **Commit** — clear messages referencing the issue (e.g. `feat: add health check GRO-14`).
 10. **Push and mark ready** — `gh pr ready <number> --repo BenSheridanEdwards/GrokClaw`
-    **Never merge your own PR.** Merging is Ben's decision. Mark ready and post to Slack — that's where your job ends.
-11. **Post to Slack**:
+    **Never merge your own PR.** Merging is Ben's decision.
+11. **Post completion to Telegram**:
     ```
-    /Users/jarvis/.picoclaw/workspace/tools/slack-post.sh C0ALE1S0LSF "🤖 GRO-XX complete. PR: <pr-url>"
+    ./tools/telegram-post.sh suggestions "🤖 GRO-XX complete. PR: <pr-url>"
     ```
 
 ---
@@ -35,20 +35,20 @@ Writing a script is not enough. It must be wired to something that actually runs
 
 | What you're building | Use |
 |----------------------|-----|
-| Something that checks on the agent/gateway itself (health checks, watchdogs) | **System crontab** — PicoClaw's own cron can't fire if the gateway is dead |
-| Scheduled agent tasks (research, suggestions, reports) | **PicoClaw cron** — `cron/jobs.json` |
+| Something that checks on the agent/gateway itself (health checks, watchdogs) | **System crontab** — external checks keep working if gateway is unhealthy |
+| Scheduled agent tasks (research, suggestions, reports) | **OpenClaw cron** — `cron/jobs.json` |
 | Something triggered by a user message or approval | **AGENTS.md workflow** — document the command Grok should run |
 | A one-off utility | **Document it** — add usage to the tool's header comment and to `docs/` |
 
 ### System crontab (macOS/Linux)
 
-Use when the feature must work even if the PicoClaw gateway is down.
+Use when the feature must work even if the OpenClaw gateway is down.
 
 Add the entry programmatically in your PR:
 
 ```sh
 # Add to system crontab — do this in your implementation
-(crontab -l 2>/dev/null; echo "*/5 * * * * /Users/jarvis/.picoclaw/workspace/tools/your-script.sh >> /tmp/your-script.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "*/5 * * * * /Users/jarvis/Engineering/Projects/GrokClaw/tools/your-script.sh >> /tmp/your-script.log 2>&1") | crontab -
 ```
 
 Verify it was added:
@@ -56,7 +56,7 @@ Verify it was added:
 crontab -l | grep your-script
 ```
 
-### PicoClaw cron (`cron/jobs.json`)
+### OpenClaw cron (`cron/jobs.json`)
 
 Use for scheduled agent tasks. Add a new job object to the `jobs` array:
 
@@ -73,8 +73,8 @@ Use for scheduled agent tasks. Add a new job object to the `jobs` array:
     "kind": "agent_turn",
     "message": "Your instruction to Grok here.",
     "deliver": true,
-    "channel": "slack",
-    "to": "C0ALE1S0LSF"
+    "channel": "telegram",
+    "to": "-1003831656556"
   },
   "deleteAfterRun": false
 }
@@ -89,7 +89,7 @@ Before marking a PR ready, you must verify:
 - [ ] The script runs without errors: `bash tools/your-script.sh`
 - [ ] The trigger is wired: `crontab -l | grep your-script` or confirm `cron/jobs.json` has the entry
 - [ ] The trigger fires correctly: manually invoke it and confirm the output
-- [ ] If it posts to Slack: confirm the message appears in `grok-orchestrator`
+- [ ] If it posts to Telegram: confirm the message appears in the right topic
 - [ ] If it creates files: confirm the files exist with correct permissions
 
 Include the test output in your PR description under a **Verification** section.
@@ -99,26 +99,24 @@ Include the test output in your PR description under a **Verification** section.
 ## Repository layout
 
 ```
-/Users/jarvis/.picoclaw/workspace/
+/Users/jarvis/Engineering/Projects/GrokClaw/
 ├── AGENTS.md              # Grok operating instructions
 ├── CURSOR.md              # This file
 ├── IDENTITY.md            # System identity
-├── config.json            # NOT here — lives at /Users/jarvis/.picoclaw/config.json
 ├── memory/MEMORY.md       # Persistent memory — read before starting
-├── cron/jobs.json         # PicoClaw scheduled jobs
+├── cron/jobs.json         # OpenClaw scheduled jobs
 ├── tools/
-│   ├── slack-post.sh          # Post to Slack (always use this, not the message tool)
+│   ├── telegram-post.sh       # Post to Telegram topics
 │   ├── linear-ticket.sh       # Create Linear tickets
-│   ├── create-pr.sh           # Create GitHub branches + PRs
 │   ├── review-pr.sh           # Fetch PR diff for Grok to review
-│   └── gateway-health-check.sh  # Health check for PicoClaw gateway process
+│   └── health-check.sh        # Health check for OpenClaw gateway process
 └── docs/                  # Documentation for tools and integrations
 ```
 
 **Key config file locations:**
-- PicoClaw config: `/Users/jarvis/.picoclaw/config.json`
+- OpenClaw config: `~/.openclaw/openclaw.json`
 - Gateway port: `18800` (from config — do not hardcode other values)
-- Slack channel: `C0ALE1S0LSF` (`grok-orchestrator`)
+- Telegram group: `-1003831656556` (topic routing in `.env`)
 
 ---
 
@@ -128,17 +126,18 @@ Include the test output in your PR description under a **Verification** section.
 - Python: stdlib only unless clearly warranted.
 - No `TODO` or placeholder comments. Implement it or don't create the file.
 - Every new script must be executable (`chmod +x`).
-- Read `/Users/jarvis/.picoclaw/config.json` for config values — do not hardcode ports, paths, or tokens that are already there.
+- Read `.env` and `~/.openclaw/openclaw.json` for config values — do not hardcode ports, paths, or tokens.
+- Keep memory persistent: every verified change must be reflected in `memory/MEMORY.md`.
 
 ---
 
 ## What "done" means
 
 - [ ] The feature works end-to-end, not just the script existing
-- [ ] It is wired to a trigger (system cron, PicoClaw cron, or documented workflow step)
+- [ ] It is wired to a trigger (system cron, OpenClaw cron, or documented workflow step)
 - [ ] The trigger has been verified to fire
 - [ ] Real file changes in the PR (not just the scaffold commit)
 - [ ] `memory/MEMORY.md` updated with a dated bullet describing what was built and how it runs
 - [ ] Verification output included in PR description
 - [ ] PR marked ready for review
-- [ ] Completion posted to Slack
+- [ ] Completion posted to Telegram suggestions topic

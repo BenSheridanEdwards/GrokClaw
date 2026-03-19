@@ -27,15 +27,15 @@ Fractional CTO and AI Engineering Lead. Currently CTO at [CodeWalnut](https://co
 ## Preferences
 
 - **Timezone**: WIB (UTC+7) — currently in Indonesia
-- **Slack hours**: Morning, 07:00–12:00 WIB. Post suggestions and PR reviews in this window.
+- **Preferred review window**: Morning, 07:00–12:00 WIB for high-signal updates.
 - **Communication style**: Formal and direct. Lead with the conclusion, follow with reasoning. No filler, no preamble.
 - **Language**: English
 
 ## Working Style
 
-- Approves or rejects suggestions via a single Slack reply (`approve` or a rejection reason).
+- Approves or rejects suggestions via Telegram action messages (or plain text approval).
 - Does not want involvement in implementation details — that is Cursor's job.
-- Wants to be notified on Slack only when a PR is ready for his final review.
+- Wants to be notified in Telegram only when a PR is ready for final review.
 - Expects Grok to handle all coordination, code review, and Cursor back-and-forth autonomously.
 - Prioritises: AI agents and automation first, reliability second, DX third.
 

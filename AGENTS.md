@@ -35,12 +35,12 @@ Always use `tools/telegram-post.sh` for outbound messages.
 - Gateway process manager: `tools/gateway-ctl.sh`
 - External watchdog: `tools/gateway-watchdog.sh`
 - Health probe + alerting: `tools/health-check.sh`
+- Telegram single-poller guard: `tools/telegram-poller-guard.sh`
 - Retry wrapper for transient API failures: `tools/retry.sh`
 - Auto-deploy script: `tools/self-deploy.sh`
 
 Launchd agents:
 - `~/Library/LaunchAgents/com.grokclaw.gateway.plist`
-- `~/Library/LaunchAgents/com.grokclaw.callback-handler.plist`
 
 ---
 
@@ -49,6 +49,20 @@ Launchd agents:
 Before any suggestion/research task, read `memory/MEMORY.md` fully.
 After verified actions, append memory updates.
 Never resuggest completed work.
+
+### Persistent memory contract
+
+Treat memory as production state:
+- Canonical long-term memory: `memory/MEMORY.md`
+- Operational state: `~/.openclaw/state/*`
+- Action dedupe state: `~/.openclaw/state/telegram-action-seen.txt`
+
+On every verified workflow step:
+1. Append a dated bullet to `Completed work` in `memory/MEMORY.md`.
+2. Update `Suggestion history` if suggestion state changed.
+3. Keep `Known gaps` current (remove closed gaps, add new ones).
+
+Do not skip these updates. Skipping memory causes repeated work and regressions.
 
 ---
 
@@ -64,7 +78,7 @@ Cron: `daily-grokclaw-suggestion` at 06:00.
 Daily Suggestion #N: [title]
 Reasoning: [1-2 sentences]
 Expected impact: [benefit]
-Approve? (reply exactly 'approve')
+Approve? (tap the Approve button or send `approve_idea:<N>:GRO-XX`)
 ```
 
 ---
@@ -81,13 +95,13 @@ When Ben sends ideas in General:
    - out of scope
 3. Create the issue via `tools/linear-ticket.sh`.
 4. Post status in suggestions topic with the new ticket ID.
-5. If needed, post inline approve/reject buttons via `tools/telegram-inline.sh`.
+5. If needed, post action buttons via `tools/telegram-inline.sh` (single-poller mode).
 
 ---
 
 ## Approval workflow
 
-On exact user reply `approve`:
+On approval action message from Telegram button (or exact reply `approve`):
 
 1. Run `tools/approve-suggestion.sh <N> "<title>" suggestions "<description>"`
 2. Transition issue to In Progress:
@@ -108,18 +122,20 @@ It should:
 1. Find ready `grok/*` PRs.
 2. Review against Linear acceptance criteria.
 3. Post review summary to `pr-reviews`.
-4. Send inline buttons with callback actions:
+4. Send action buttons with message tokens:
    - `merge:<pr>:<issue>`
    - `reject:<pr>:<issue>`
 5. Reconcile merged PRs to Linear Done.
 6. Trigger `tools/self-deploy.sh` when new code is merged to main.
 
-### Callback actions (deterministic)
+### Single-poller actions (deterministic)
 
-Handled by `tools/telegram-callback-handler.py`:
-- `merge` → merge PR, transition Linear to Done, edit message
-- `reject` → post revision request comment, edit message
+Handled by `tools/dispatch-telegram-action.sh "<message text>"`:
+- `merge` → merge PR, transition Linear to Done
+- `reject` → post revision request comment
 - `approve_idea` → transition issue to In Progress
+
+Idempotency rule: duplicate action tokens are ignored safely.
 
 ---
 

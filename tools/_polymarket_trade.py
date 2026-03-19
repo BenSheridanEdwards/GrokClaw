@@ -7,6 +7,7 @@ import json
 import math
 import os
 import sys
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
@@ -17,11 +18,14 @@ if WORKSPACE_ROOT not in sys.path:
 from tools import _polymarket_metrics as metrics
 
 API_URL = "https://gamma-api.polymarket.com/markets"
+DATA_API_URL = "https://data-api.polymarket.com"
 TRADES_FILE = "data/polymarket-trades.json"
 PENDING_FILE = "data/polymarket-pending-trade.json"
 DECISIONS_FILE = "data/polymarket-decisions.json"
 MARKET_PAGE_SIZE = 50
 MARKET_MAX_PAGES = 10
+LEADERBOARD_LIMIT = 12
+POSITIONS_PAGE_SIZE = 100
 
 
 def fetch_markets(page_size=MARKET_PAGE_SIZE, max_pages=MARKET_MAX_PAGES):
@@ -44,6 +48,12 @@ def fetch_markets_page(page_size, offset):
         return json.load(resp)
 
 
+def fetch_json(url, timeout=30):
+    req = urllib.request.Request(url, headers={"User-Agent": "GrokClaw/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.load(resp)
+
+
 def select_market(markets):
     now = datetime.now(timezone.utc)
     cutoff = now + timedelta(days=7)
@@ -63,6 +73,305 @@ def select_market(markets):
                 best_volume = vol
                 best = m
     return best
+
+
+def market_is_within_window(market, now=None, days=7):
+    now = now or datetime.now(timezone.utc)
+    cutoff = now + timedelta(days=days)
+    end_str = market.get("endDate") or market.get("end_date_iso")
+    if not end_str:
+        return False
+    try:
+        end = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return False
+    return now < end <= cutoff
+
+
+def fetch_top_traders(limit=LEADERBOARD_LIMIT):
+    query = urllib.parse.urlencode(
+        {
+            "category": "OVERALL",
+            "timePeriod": "WEEK",
+            "orderBy": "PNL",
+            "limit": str(limit),
+            "offset": "0",
+        }
+    )
+    url = f"{DATA_API_URL}/v1/leaderboard?{query}"
+    data = fetch_json(url, timeout=20)
+    if isinstance(data, list):
+        return data
+    return []
+
+
+def fetch_positions_for_user(user, condition_id=None, limit=POSITIONS_PAGE_SIZE):
+    params = {
+        "user": user,
+        "sizeThreshold": "1",
+        "limit": str(limit),
+        "offset": "0",
+        "sortBy": "CURRENT",
+        "sortDirection": "DESC",
+    }
+    if condition_id:
+        params["market"] = condition_id
+    query = urllib.parse.urlencode(params)
+    url = f"{DATA_API_URL}/positions?{query}"
+    data = fetch_json(url, timeout=20)
+    if isinstance(data, list):
+        return data
+    return []
+
+
+def normalize_outcome_label(outcome):
+    label = str(outcome or "").strip().lower()
+    if label == "yes":
+        return "YES"
+    if label == "no":
+        return "NO"
+    return ""
+
+
+def normalize_title(value):
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def position_notional(position):
+    for key in ("currentValue", "initialValue", "totalBought"):
+        raw = position.get(key)
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(value) and value > 0:
+            return value
+
+    try:
+        size = float(position.get("size") or 0.0)
+        price = float(position.get("curPrice") or position.get("avgPrice") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    notional = size * price
+    if math.isfinite(notional) and notional > 0:
+        return notional
+    return 0.0
+
+
+def build_copy_signal(condition_id, question):
+    if not condition_id:
+        return {"status": "unavailable", "reason": "missing_condition_id"}
+
+    try:
+        traders = fetch_top_traders()
+    except Exception as exc:
+        return {"status": "unavailable", "reason": f"leaderboard_fetch_failed:{type(exc).__name__}"}
+
+    if not traders:
+        return {"status": "unavailable", "reason": "no_top_traders"}
+
+    yes_weight = 0.0
+    no_weight = 0.0
+    matched_wallets = set()
+    samples = []
+
+    for trader in traders:
+        wallet = trader.get("proxyWallet")
+        if not wallet:
+            continue
+        rank_raw = trader.get("rank") or "1"
+        try:
+            rank = max(int(rank_raw), 1)
+        except (TypeError, ValueError):
+            rank = 1
+        rank_weight = 1.0 / float(rank)
+
+        try:
+            positions = fetch_positions_for_user(wallet, condition_id=condition_id)
+            if not positions:
+                # Fallback: fetch broader positions, then match by title.
+                positions = fetch_positions_for_user(wallet, condition_id=None)
+        except Exception:
+            continue
+
+        question_norm = normalize_title(question)
+        for position in positions:
+            pos_condition = str(position.get("conditionId") or "").lower()
+            pos_title = normalize_title(position.get("title"))
+            if pos_condition != str(condition_id).lower() and pos_title != question_norm:
+                continue
+            side = normalize_outcome_label(position.get("outcome"))
+            if side not in ("YES", "NO"):
+                continue
+            notional = position_notional(position)
+            if notional <= 0:
+                continue
+            weighted = notional * rank_weight
+            if side == "YES":
+                yes_weight += weighted
+            else:
+                no_weight += weighted
+            matched_wallets.add(wallet.lower())
+            if len(samples) < 5:
+                samples.append(
+                    {
+                        "wallet": wallet,
+                        "rank": rank,
+                        "side": side,
+                        "notional": round(notional, 2),
+                    }
+                )
+
+    total = yes_weight + no_weight
+    if total <= 0:
+        return {
+            "status": "unavailable",
+            "reason": "no_matching_positions",
+            "condition_id": condition_id,
+            "question": question,
+            "top_traders_considered": len(traders),
+        }
+
+    probability_yes = yes_weight / total
+    consensus_side = "YES" if probability_yes >= 0.5 else "NO"
+    confidence = abs(probability_yes - 0.5) * 2.0
+    return {
+        "status": "ok",
+        "source": "polymarket_data_api",
+        "condition_id": condition_id,
+        "question": question,
+        "top_traders_considered": len(traders),
+        "traders_with_matching_positions": len(matched_wallets),
+        "consensus_side": consensus_side,
+        "consensus_probability_yes": round(probability_yes, 4),
+        "confidence": round(confidence, 4),
+        "yes_weighted_notional": round(yes_weight, 2),
+        "no_weighted_notional": round(no_weight, 2),
+        "samples": samples,
+    }
+
+
+def aggregate_top_trader_positions(top_traders):
+    aggregates = {}
+    for trader in top_traders:
+        wallet = trader.get("proxyWallet")
+        if not wallet:
+            continue
+        rank_raw = trader.get("rank") or "1"
+        try:
+            rank = max(int(rank_raw), 1)
+        except (TypeError, ValueError):
+            rank = 1
+        rank_weight = 1.0 / float(rank)
+
+        try:
+            positions = fetch_positions_for_user(wallet, condition_id=None)
+        except Exception:
+            continue
+
+        for position in positions:
+            condition_id = str(position.get("conditionId") or "").strip().lower()
+            if not condition_id:
+                continue
+            side = normalize_outcome_label(position.get("outcome"))
+            if side not in ("YES", "NO"):
+                continue
+            notional = position_notional(position)
+            if notional <= 0:
+                continue
+
+            entry = aggregates.setdefault(
+                condition_id,
+                {
+                    "condition_id": condition_id,
+                    "question": position.get("title") or "",
+                    "yes_weight": 0.0,
+                    "no_weight": 0.0,
+                    "traders": set(),
+                    "samples": [],
+                },
+            )
+            weighted = notional * rank_weight
+            if side == "YES":
+                entry["yes_weight"] += weighted
+            else:
+                entry["no_weight"] += weighted
+            entry["traders"].add(wallet.lower())
+            if len(entry["samples"]) < 5:
+                entry["samples"].append(
+                    {
+                        "wallet": wallet,
+                        "rank": rank,
+                        "side": side,
+                        "notional": round(notional, 2),
+                    }
+                )
+    return aggregates
+
+
+def build_signal_from_aggregate(aggregate, top_traders_considered):
+    yes_weight = aggregate["yes_weight"]
+    no_weight = aggregate["no_weight"]
+    total = yes_weight + no_weight
+    if total <= 0:
+        return None
+    probability_yes = yes_weight / total
+    confidence = abs(probability_yes - 0.5) * 2.0
+    return {
+        "status": "ok",
+        "source": "polymarket_data_api",
+        "condition_id": aggregate["condition_id"],
+        "question": aggregate["question"],
+        "top_traders_considered": top_traders_considered,
+        "traders_with_matching_positions": len(aggregate["traders"]),
+        "consensus_side": "YES" if probability_yes >= 0.5 else "NO",
+        "consensus_probability_yes": round(probability_yes, 4),
+        "confidence": round(confidence, 4),
+        "yes_weighted_notional": round(yes_weight, 2),
+        "no_weighted_notional": round(no_weight, 2),
+        "samples": aggregate["samples"],
+    }
+
+
+def select_copy_candidate(markets):
+    try:
+        top_traders = fetch_top_traders()
+    except Exception:
+        return None, None
+    if not top_traders:
+        return None, None
+
+    aggregates = aggregate_top_trader_positions(top_traders)
+    if not aggregates:
+        return None, None
+
+    best_market = None
+    best_signal = None
+    best_score = 0.0
+
+    for market in markets:
+        if not market_is_within_window(market):
+            continue
+        condition_id = str(market.get("conditionId") or "").strip().lower()
+        if not condition_id:
+            continue
+        aggregate = aggregates.get(condition_id)
+        if not aggregate:
+            continue
+        signal = build_signal_from_aggregate(aggregate, len(top_traders))
+        if not signal:
+            continue
+        trader_count = signal["traders_with_matching_positions"]
+        if trader_count < 1:
+            continue
+        notional = signal["yes_weighted_notional"] + signal["no_weighted_notional"]
+        score = notional * (0.5 + signal["confidence"])
+        if score > best_score:
+            best_score = score
+            best_market = market
+            best_signal = signal
+
+    return best_market, best_signal
 
 
 def resolve_workspace_root(argv):
@@ -176,7 +485,11 @@ def main():
             print("Already processed today's candidate, skipping.", file=sys.stderr)
             sys.exit(0)
         markets = fetch_markets()
-        best = select_market(markets)
+        best, copy_signal = select_copy_candidate(markets)
+        selection_source = "top_trader_copy"
+        if not best:
+            best = select_market(markets)
+            selection_source = "volume_fallback"
         if not best:
             print("No suitable market found (volume, closing within 7 days)", file=sys.stderr)
             sys.exit(1)
@@ -190,12 +503,18 @@ def main():
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "id": best.get("id") or best.get("conditionId"),
             "market_id": best.get("id") or best.get("conditionId"),
+            "condition_id": best.get("conditionId"),
+            "selection_source": selection_source,
             "question": best.get("question", ""),
             "odds_yes": odds_yes,
             "odds_no": odds_no,
             "volume": best.get("volume") or best.get("volumeNum"),
             "endDate": best.get("endDate") or best.get("end_date_iso"),
         }
+        if copy_signal:
+            out["copy_strategy"] = copy_signal
+        else:
+            out["copy_strategy"] = build_copy_signal(out.get("condition_id"), out["question"])
         stage_candidate(workspace_root, out)
         print(json.dumps(out))
         return

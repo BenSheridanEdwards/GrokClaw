@@ -1,5 +1,5 @@
 #!/bin/sh
-# Send Telegram message with inline buttons.
+# Send Telegram message with single-poller action buttons.
 # Usage:
 #   telegram-inline.sh <topic-id|name> "<message>" '<button-json>'
 #

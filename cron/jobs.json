@@ -35,7 +35,7 @@
       },
       "payload": {
         "kind": "agent_turn",
-        "message": "Run ./tools/polymarket-trade.sh to fetch and stage today's Polymarket candidate. Then ALWAYS use web_search to research the market question thoroughly — search for recent news, data, and analysis relevant to the question. Use at least 2 different search queries. Based on your research, if you do not have a clear edge, run ./tools/polymarket-decide.sh SKIP \"<reason>\". If you do have an edge, choose YES or NO, estimate the probability for that chosen side as a decimal in (0,1), estimate confidence as a decimal in (0,1), and run ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<one sentence reasoning>\". After the decision, run ./tools/polymarket-report.sh and print the final JSON report.",
+        "message": "Run ./tools/polymarket-trade.sh to fetch and stage today's Polymarket candidate. Read the copy_strategy field from the output (derived from top Polymarket traders and their current positions) and use it as a prior signal. Then ALWAYS run web_search with at least 2 queries to validate or challenge that signal using fresh evidence. If no clear edge remains, run ./tools/polymarket-decide.sh SKIP \"<reason>\". If there is a clear edge, choose YES or NO, estimate probability and confidence as decimals in (0,1), and run ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<one sentence reasoning referencing copy_strategy + external evidence>\". After the decision, run ./tools/polymarket-report.sh and print the final JSON report.",
         "deliver": false,
         "channel": "telegram",
         "to": "-1003831656556"
@@ -107,7 +107,7 @@
       },
       "payload": {
         "kind": "agent_turn",
-        "message": "You are Grok. Run proactive PR monitoring: (1) list ready PRs with gh pr list --repo BenSheridanEdwards/GrokClaw --state open --json number,title,isDraft,headRefName and review any non-draft grok/* PR against its Linear ticket; (2) if PR passes, post a concise review summary to pr-reviews topic and send inline merge/reject buttons using ./tools/telegram-inline.sh with callback_data merge:<pr>:<issue> and reject:<pr>:<issue>; (3) reconcile merged PRs by transitioning matching Linear issues to Done; (4) if new commits were merged to main, run ./tools/self-deploy.sh and report result to health-alerts.",
+        "message": "You are Grok. Run proactive PR monitoring: (1) list ready PRs with gh pr list --repo BenSheridanEdwards/GrokClaw --state open --json number,title,isDraft,headRefName and review any non-draft grok/* PR against its Linear ticket; (2) if PR passes, post a concise review summary to pr-reviews topic and send action buttons using ./tools/telegram-inline.sh where button text includes tokens merge:<pr>:<issue> and reject:<pr>:<issue>; (3) when Ben taps a button and action text appears in chat, run ./tools/dispatch-telegram-action.sh \"<that message text>\" and post result; (4) reconcile merged PRs by transitioning matching Linear issues to Done; (5) if new commits were merged to main, run ./tools/self-deploy.sh and report result to health-alerts.",
         "deliver": false,
         "channel": "telegram",
         "to": "-1003831656556"
