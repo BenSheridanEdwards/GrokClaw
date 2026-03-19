@@ -14,6 +14,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-03-19** — GRO-25: Fixed Approve button display (bad spacing, wrapping, visual clutter). Updated `tools/_telegram_inline.py`: clean labels only (callback_data hidden), compact layout (all buttons in one row), action-to-label mapping for approve_idea/merge/reject. Added `tests/test_telegram_inline.py`. Updated `tools/telegram-inline.sh` docs.
 - **2026-03-19** — Hardened Telegram single-poller reliability: removed callback poller path, added `tools/telegram-poller-guard.sh`, integrated guard into `tools/health-check.sh`, and made `tools/dispatch-telegram-action.sh` idempotent via persisted token dedupe state.
 - **2026-03-19** — Upgraded Polymarket selection to include top-trader copy strategy: `tools/_polymarket_trade.py` now builds `copy_strategy` from leaderboard + live positions and prefers trader-backed candidate selection with volume fallback.
 - **2026-03-19** — Updated agent documentation set for OpenClaw + Telegram + persistent memory contract: `README.md`, `AGENTS.md`, `CURSOR.md`, `IDENTITY.md`, `USER.md`.

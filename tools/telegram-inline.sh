@@ -3,8 +3,9 @@
 # Usage:
 #   telegram-inline.sh <topic-id|name> "<message>" '<button-json>'
 #
-# button-json example:
-#   '[{"text":"Approve","callback_data":"approve:12:GRO-21"}]'
+# button-json: array of {text, callback_data}. text = clean label (user-facing).
+# callback_data = action token (hidden, inserted on tap). Compact layout, one row.
+# Example: '[{"text":"Approve","callback_data":"approve_idea:12:GRO-21"}]'
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
