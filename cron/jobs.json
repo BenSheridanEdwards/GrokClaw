@@ -31,11 +31,11 @@
       "enabled": true,
       "schedule": {
         "kind": "cron",
-        "expr": "30 23 * * *"
+        "expr": "0 */4 * * *"
       },
       "payload": {
         "kind": "agent_turn",
-        "message": "Run ./tools/polymarket-trade.sh to fetch and stage today's Polymarket candidate. Read the copy_strategy field from the output (derived from top Polymarket traders and their current positions) and use it as a prior signal. Then ALWAYS run web_search with at least 2 queries to validate or challenge that signal using fresh evidence. If no clear edge remains, run ./tools/polymarket-decide.sh SKIP \"<reason>\". If there is a clear edge, choose YES or NO, estimate probability and confidence as decimals in (0,1), and run ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<one sentence reasoning referencing copy_strategy + external evidence>\". After the decision, run ./tools/polymarket-report.sh and print the final JSON report.",
+        "message": "Polymarket session (runs every 4h). Goal: make a bet every session. First read memory/MEMORY.md Polymarket section and run ./tools/polymarket-context.sh to load recent decisions and results. Use this to calibrate. Then run ./tools/polymarket-trade.sh to fetch and stage the candidate. Read copy_strategy from the output. Run web_search with at least 2 queries to validate. Prefer to trade: only SKIP when evidence strongly conflicts or no tradeable market exists. When there is a marginal edge, choose YES or NO with your best estimate. Run ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<reasoning>\". After deciding, run ./tools/polymarket-report.sh. Then post to Telegram: ./tools/telegram-post.sh polymarket \"Session: [traded YES/NO on <question> | skipped: <reason>]. Why: [one sentence]. Bankroll: $X, accuracy: Y%.\"",
         "deliver": false,
         "channel": "telegram",
         "to": "-1003831656556"

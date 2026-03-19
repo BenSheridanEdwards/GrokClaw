@@ -19,8 +19,8 @@ from tools import _polymarket_trade as trade
 DECISIONS_FILE = "data/polymarket-decisions.json"
 SKIPS_FILE = "data/polymarket-skips.json"
 
-MIN_EDGE = 0.06
-MIN_CONFIDENCE = 0.60
+MIN_EDGE = 0.05
+MIN_CONFIDENCE = 0.55
 MIN_VOLUME = 10000.0
 MAX_STAKE_FRACTION = 0.02
 MAX_OPEN_EXPOSURE_FRACTION = 0.10

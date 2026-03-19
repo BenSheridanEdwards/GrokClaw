@@ -479,11 +479,8 @@ def already_decided_today(workspace_root):
 
 def main():
     if len(sys.argv) <= 2:
-        # Fetch and select
+        # Fetch and select (runs every 4h; no per-day limit)
         workspace_root = resolve_workspace_root(sys.argv)
-        if already_traded_today(workspace_root) or already_decided_today(workspace_root):
-            print("Already processed today's candidate, skipping.", file=sys.stderr)
-            sys.exit(0)
         markets = fetch_markets()
         best, copy_signal = select_copy_candidate(markets)
         selection_source = "top_trader_copy"
