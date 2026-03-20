@@ -46,6 +46,18 @@ Use `tools/paperclip-api.sh` to interact with the Paperclip board.
 
 ---
 
+## Browser automation
+
+Use the `browser` tool (status/start/snapshot/act) when:
+
+- **Research >3 tabs** — multi-page or JS-heavy sites where `web_fetch` is insufficient
+- **Authenticated flows** — login, form-fill, or session-dependent pages
+- **UI automation** — click, type, screenshot, or PDF export flows
+
+Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profile="openclaw"` (default). See `docs/browser-automation.md` and `skills/browser-automation/SKILL.md`.
+
+---
+
 ## Reliability controls
 
 - Gateway process manager: `tools/gateway-ctl.sh`

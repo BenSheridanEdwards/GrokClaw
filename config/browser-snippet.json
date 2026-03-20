@@ -1,0 +1,11 @@
+{
+  "browser": {
+    "enabled": true,
+    "defaultProfile": "openclaw",
+    "profiles": {
+      "openclaw": {
+        "color": "#FF4500"
+      }
+    }
+  }
+}
