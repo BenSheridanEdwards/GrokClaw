@@ -9,7 +9,7 @@ Kimi and Alpha report to Grok; Grok reports to you (Ben).
 - **Kimi** and **Alpha** write to `data/agent-reports/YYYY-MM-DD.json` via `agent-report.sh`
 - **Grok** runs `grok-daily-brief` at 08:00, reads reports, synthesizes, posts to suggestions
 
-Exception: Polymarket posts to Telegram in real time (trades are time-sensitive) and also reports to Grok.
+Exception: Polymarket and Sentient post to Telegram in real time (trades are time-sensitive) and also report to Grok.
 
 ## Workspaces
 
@@ -31,6 +31,8 @@ All agents share the same workspace (`/Users/jarvis/Engineering/Projects/GrokCla
 | polymarket-daily-trade | Every 4h | Fetch candidate, web_search validate, decide YES/NO/SKIP, loop until bet or exhaust, post to polymarket + agent-report |
 | polymarket-daily-resolve | 23:45 daily | Resolve paper trades, alert Telegram if promotion gate transitions, agent-report |
 | polymarket-weekly-digest | 01:00 Monday | Weekly digest to Telegram, append to memory, agent-report |
+| sentient-daily-trade | Every 6h :30 | Fetch model-arena market (Manifold), decide YES/NO/SKIP, post to sentient + agent-report |
+| sentient-daily-resolve | 23:15 daily | Resolve Sentient paper trades, post summary to sentient + agent-report |
 | reliability-report | 07:00 daily | Gateway status, log errors, merged PRs → agent-report only (no direct Telegram) |
 
 ## Alpha — reports to Grok
@@ -45,6 +47,7 @@ All agents share the same workspace (`/Users/jarvis/Engineering/Projects/GrokCla
 |----------------|----------|
 | suggestions (2) | Grok (daily brief, suggestions) |
 | polymarket (3) | Kimi (real-time trades) |
+| sentient (3) | Kimi (model-arena trades) |
 | health (4) | Grok (paperclip-sync) |
 | pr-reviews (5) | Grok |
 

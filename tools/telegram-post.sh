@@ -36,6 +36,7 @@ RAW_TOPIC="$1"; shift
 case "$RAW_TOPIC" in
   suggestions|daily-suggestions) TOPIC_ID="${TELEGRAM_TOPIC_SUGGESTIONS:-2}" ;;
   polymarket)                    TOPIC_ID="${TELEGRAM_TOPIC_POLYMARKET:-3}" ;;
+  sentient)                      TOPIC_ID="${TELEGRAM_TOPIC_SENTIENT:-${TELEGRAM_TOPIC_POLYMARKET:-3}}" ;;
   health|health-alerts)          TOPIC_ID="${TELEGRAM_TOPIC_HEALTH:-4}" ;;
   pr-reviews)                    TOPIC_ID="${TELEGRAM_TOPIC_PR_REVIEWS:-5}" ;;
   [0-9]*)                        TOPIC_ID="$RAW_TOPIC" ;;

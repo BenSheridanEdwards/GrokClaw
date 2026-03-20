@@ -48,6 +48,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-19** — Alpha research priority order: (1) Polymarket discovery, (2) free models, (3) OpenClaw, (4) retry/reliability, (5) agentic tools. Created `docs/agent-tasks.md` with full task breakdown by agent.
 - **2026-03-19** — Reporting chain: Kimi and Alpha report to Grok via `tools/agent-report.sh`; Grok runs `grok-daily-brief` (08:00) to synthesize and post to user. Reliability and Alpha research no longer post directly to Telegram. Polymarket keeps real-time posts + agent-report. Created `tools/agent-report.sh`, `tools/grok-daily-brief.sh`.
 - **2026-03-19** — Fixed system crontab: health-check path updated from picoclaw to GrokClaw (`/Users/jarvis/Engineering/Projects/GrokClaw/tools/health-check.sh`). Log: `/tmp/openclaw-health.log`.
+- **2026-03-20** — GRO-30: Implemented Sentient prediction market trading bot (model arena). Uses Manifold API for Grok vs Claude / model-arena markets. Paper trading only: `tools/sentient-trade.sh`, `tools/sentient-decide.sh`, `tools/sentient-resolve.sh`, `tools/sentient-report.sh`, `tools/sentient-context.sh`, `tools/sentient-dashboard.sh`, `tools/sentient-daily-turn.sh`, `tools/sentient-smoke.sh`. Cron: `sentient-daily-trade` (every 6h at :30), `sentient-daily-resolve` (23:15). Kimi agent. Telegram topic: sentient. Risk: 5% min edge, fractional Kelly, max 2% stake. See `docs/sentient-bot.md`.
 
 ---
 

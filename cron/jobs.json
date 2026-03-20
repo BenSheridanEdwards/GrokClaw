@@ -101,6 +101,48 @@
       "deleteAfterRun": false
     },
     {
+      "id": "d2e3f4a5b6c78013",
+      "name": "sentient-daily-trade",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "30 */6 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "agentId": "kimi",
+        "message": "Sentient model-arena session. Goal: bet when consensus predicts >5% shift. (1) Run ./tools/sentient-context.sh. (2) Run ./tools/sentient-trade.sh to fetch and stage a candidate (Grok vs Claude / model arena from Manifold). (3) Run web_search to validate. (4) Run ./tools/sentient-decide.sh <side> <probability> <confidence> \"<reasoning>\" or SKIP. (5) If SKIP, run sentient-trade.sh again for next market. (6) After trade or exhaust: ./tools/sentient-report.sh, then ./tools/telegram-post.sh sentient \"Session: [traded YES/NO on <q> | no bet]. Bankroll: $X, accuracy: Y%.\" Run ./tools/agent-report.sh kimi sentient-daily-trade \"<summary>\".",
+        "deliver": false,
+        "channel": "telegram",
+        "to": "[REDACTED]"
+      },
+      "state": {"nextRunAtMs": 0, "lastRunAtMs": 0, "lastStatus": null},
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
+    },
+    {
+      "id": "e3f4a5b6c7d89024",
+      "name": "sentient-daily-resolve",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "15 23 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "agentId": "kimi",
+        "message": "Run ./tools/sentient-resolve.sh to resolve Sentient paper trades. Run ./tools/sentient-report.sh and post to Telegram: ./tools/telegram-post.sh sentient \"Resolved: N trade(s). Bankroll: $X, P&L: $Y.\" Run ./tools/agent-report.sh kimi sentient-daily-resolve \"<summary>\".",
+        "deliver": false,
+        "channel": "telegram",
+        "to": "[REDACTED]"
+      },
+      "state": {"nextRunAtMs": 0, "lastRunAtMs": 0, "lastStatus": null},
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
+    },
+    {
       "id": "a7b3c4d5e6f78901",
       "name": "reliability-report",
       "enabled": true,

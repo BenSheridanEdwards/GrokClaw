@@ -11,7 +11,7 @@ GrokClaw runs multiple OpenClaw agents on one gateway:
 | Agent | Model | Workloads |
 |-------|-------|-----------|
 | **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | Daily suggestions, PR review, Paperclip heartbeat, feature intake |
-| **Kimi** | `ollama/kimi-k2.5:cloud` | Polymarket (trade, resolve, digest), reliability report |
+| **Kimi** | `ollama/kimi-k2.5:cloud` | Polymarket (trade, resolve, digest), Sentient model-arena (trade, resolve), reliability report |
 | **Alpha** | `openrouter/arcee-ai/trinity-large-preview:free` | Daily research (alpha-daily-research), long-context (requires `OPENROUTER_API_KEY`) |
 
 Routing: Cron jobs with `agentId: "kimi"` run on Kimi. Kimi and Alpha report to Grok via `agent-report.sh`; Grok synthesizes and reports to you in the daily brief (08:00). See `docs/agent-tasks.md` for full task breakdown. Paperclip can create a second agent with `adapterConfig.agentId: "kimi"` to assign tasks. Manual runs: `OPENCLAW_AGENT_ID=kimi ./tools/run-openclaw-agent.sh` or `./tools/run-openclaw-agent-kimi.sh`.
@@ -35,7 +35,7 @@ Primary responsibilities:
 
 | Integration | Details |
 |-------------|---------|
-| Telegram | Group `-1003831656556`; topics: suggestions(2), polymarket(3), health(4), pr-reviews(5) |
+| Telegram | Group `[REDACTED]`; topics: suggestions(2), polymarket(3), sentient(3), health(4), pr-reviews(5) |
 | Linear | Team `GrokClaw`, ID `3f1b1054-07c6-4aad-a02c-89c78a43946b` |
 | GitHub | `BenSheridanEdwards/GrokClaw` |
 | Cursor | Delegate ID `ca233eb8-8630-49c9-8f7c-3708c1bd1c4b` |
