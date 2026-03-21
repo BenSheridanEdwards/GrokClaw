@@ -58,6 +58,12 @@ Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profi
 
 ---
 
+## Code graph visualizer
+
+Use `tools/codegraph.sh` to visualize a codebase as a dependency graph (nodes: files/functions; edges: imports/calls). Output: interactive HTML (D3), JSON for LLM context, SVG/PNG export. Supports JS/TS/Python/Rust. See `skills/code-graph-visualizer/SKILL.md` and `docs/code-graph-visualizer.md`. Requires: `pip install -r tools/requirements-codegraph.txt`.
+
+---
+
 ## Reliability controls
 
 - Gateway process manager: `tools/gateway-ctl.sh`

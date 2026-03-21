@@ -6,3 +6,5 @@ logs/
 .cursor
 .gateway-health-state
 data/
+graph.html
+graph.json

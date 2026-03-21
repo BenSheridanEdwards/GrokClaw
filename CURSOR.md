@@ -116,7 +116,9 @@ Include the test output in your PR description under a **Verification** section.
 │   ├── health-check.sh        # Health check for OpenClaw gateway process
 │   ├── run-openclaw-agent.sh  # Run agent (Grok default; OPENCLAW_AGENT_ID for override)
 │   ├── run-openclaw-agent-kimi.sh  # Run Kimi agent (ollama/kimi-k2.5:cloud)
-│   └── browser-e2e-test.sh   # E2E browser automation test (docs → snapshot → Telegram)
+│   ├── browser-e2e-test.sh   # E2E browser automation test (docs → snapshot → Telegram)
+│   ├── codegraph.sh         # Code graph visualizer (JS/TS/Py/Rust → D3 graph, JSON for LLMs)
+│   └── _codegraph.py        # Codegraph implementation (tree-sitter, tiktoken)
 └── docs/                  # Documentation for tools and integrations
 ```
 
