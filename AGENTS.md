@@ -193,7 +193,7 @@ Paperclip is the orchestration dashboard — it tracks issues, runs, and costs.
 
 ### Paperclip tools
 
-- `tools/paperclip-api.sh list-issues [status]` — list your issues
+- `tools/paperclip-api.sh list-issues [status]` — list your issues (sorted high→medium→low, includes id and priority)
 - `tools/paperclip-api.sh get-issue <uuid>` — read issue details
 - `tools/paperclip-api.sh update-issue <uuid> <status> [comment]` — update status
 - `tools/paperclip-api.sh comment <uuid> <body>` — add comment

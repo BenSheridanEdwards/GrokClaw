@@ -48,6 +48,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-19** — Alpha research priority order: (1) Polymarket discovery, (2) free models, (3) OpenClaw, (4) retry/reliability, (5) agentic tools. Created `docs/agent-tasks.md` with full task breakdown by agent.
 - **2026-03-19** — Reporting chain: Kimi and Alpha report to Grok via `tools/agent-report.sh`; Grok runs `grok-daily-brief` (08:00) to synthesize and post to user. Reliability and Alpha research no longer post directly to Telegram. Polymarket keeps real-time posts + agent-report. Created `tools/agent-report.sh`, `tools/grok-daily-brief.sh`.
 - **2026-03-19** — Fixed system crontab: health-check path updated from picoclaw to GrokClaw (`/Users/jarvis/Engineering/Projects/GrokClaw/tools/health-check.sh`). Log: `/tmp/openclaw-health.log`.
+- **2026-03-24** — GRO-34: Paperclip dashboard prioritization. `tools/paperclip-api.sh list-issues` now sorts by priority (high→medium→low), shows id and priority in output for Grok to pick highest-priority todo. Added `tools/paperclip-prioritization-test.sh` deterministic smoke test; wired into `reliability-e2e.sh`.
 
 ---
 

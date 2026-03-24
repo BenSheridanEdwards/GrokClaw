@@ -18,8 +18,12 @@ echo "[2/3] Approval smoke"
 "$WORKSPACE_ROOT/tools/approval-smoke.sh"
 echo ""
 
-echo "[3/3] Polymarket smoke"
+echo "[3/4] Polymarket smoke"
 "$WORKSPACE_ROOT/tools/polymarket-smoke.sh"
+echo ""
+
+echo "[4/4] Paperclip prioritization smoke"
+"$WORKSPACE_ROOT/tools/paperclip-prioritization-test.sh"
 echo ""
 
 echo "PASS: reliability e2e completed"

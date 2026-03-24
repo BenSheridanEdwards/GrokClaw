@@ -76,8 +76,19 @@ case "$cmd" in
 import json, sys
 data = json.load(sys.stdin)
 items = data if isinstance(data, list) else data.get('items', [])
+# Sort by priority: high first, then medium, then low (Paperclip API may not guarantee order)
+PRIO_ORDER = {'high': 0, 'medium': 1, 'low': 2}
+def sort_key(i):
+    p = (i.get('priority') or 'medium').lower()
+    return (PRIO_ORDER.get(p, 1), i.get('title', ''))
+items.sort(key=sort_key)
 for i in items:
-    print(f'[{i.get(\"identifier\",\"?\")}] {i[\"status\"]:12s} | {i[\"title\"][:70]}')
+    ident = i.get('identifier', '?')
+    iid = i.get('id', '')
+    prio = (i.get('priority') or 'medium').lower()
+    status = i.get('status', '')
+    title = (i.get('title') or '')[:65]
+    print(f'[{ident}] id={iid} | {prio:6s} | {status:12s} | {title}')
 if not items:
     print('No issues found.')
 "
