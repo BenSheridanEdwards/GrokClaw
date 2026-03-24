@@ -114,6 +114,7 @@ Include the test output in your PR description under a **Verification** section.
 │   ├── linear-ticket.sh       # Create Linear tickets
 │   ├── review-pr.sh           # Fetch PR diff for Grok to review
 │   ├── health-check.sh        # Health check for OpenClaw gateway process
+│   ├── redis-dashboard.sh    # Redis metrics to health topic (memory, keys, clients)
 │   ├── run-openclaw-agent.sh  # Run agent (Grok default; OPENCLAW_AGENT_ID for override)
 │   ├── run-openclaw-agent-kimi.sh  # Run Kimi agent (ollama/kimi-k2.5:cloud)
 │   └── browser-e2e-test.sh   # E2E browser automation test (docs → snapshot → Telegram)

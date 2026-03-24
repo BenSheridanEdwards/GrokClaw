@@ -63,6 +63,7 @@ Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profi
 - Gateway process manager: `tools/gateway-ctl.sh`
 - External watchdog: `tools/gateway-watchdog.sh`
 - Health probe + alerting: `tools/health-check.sh`
+- Redis dashboard: `tools/redis-dashboard.sh` (metrics to health topic; cron at 07:15)
 - Telegram single-poller guard: `tools/telegram-poller-guard.sh`
 - Retry wrapper for transient API failures: `tools/retry.sh`
 - Auto-deploy script: `tools/self-deploy.sh`

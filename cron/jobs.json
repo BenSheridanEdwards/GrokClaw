@@ -221,6 +221,30 @@
       "createdAtMs": 0,
       "updatedAtMs": 0,
       "deleteAfterRun": false
+    },
+    {
+      "id": "d1e2f3a4b5c67890",
+      "name": "redis-dashboard",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "15 7 * * *"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "Run ./tools/redis-dashboard.sh (posts Redis metrics to health topic). Skip if redis-cli is not installed or REDIS_URL is not configured.",
+        "deliver": false,
+        "channel": "telegram",
+        "to": "[REDACTED]"
+      },
+      "state": {
+        "nextRunAtMs": 0,
+        "lastRunAtMs": 0,
+        "lastStatus": null
+      },
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "deleteAfterRun": false
     }
   ]
 }

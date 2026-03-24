@@ -135,3 +135,4 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 - **2026-03-20** — Ben approved browser automation feature (GRO-29). Linear → In Progress; Telegram status posted.
 - **2026-03-21** — Ben feature idea: Sentient prediction market trading bot (Grok vs Claude). Created Linear ticket (GRO-??), delegated to Cursor.
 - **2026-03-21** — Ben feature idea: Claude Code Graph Visualizer. Created Linear ticket (GRO-31), delegated to Cursor.
+- **2026-03-24** — GRO-33: Redis dashboard. Added `tools/redis-dashboard.sh` (collects memory, keys, clients, uptime via redis-cli; posts to Telegram health topic). Cron job `redis-dashboard` at 07:15 daily. Docs `docs/redis-dashboard.md`. Tests `tests/test_redis_dashboard.py`. Skips gracefully if redis-cli unavailable or Redis unreachable.
