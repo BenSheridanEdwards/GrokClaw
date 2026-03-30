@@ -1,0 +1,57 @@
+#!/bin/sh
+# Append one structured cron run record for Grok scrutiny (data/cron-runs/*.jsonl).
+# Every scheduled agent job should call this as its final step with a factual one-line summary.
+#
+# Usage:
+#   cron-run-record.sh <job_name> <agent> <ok|error|skipped> "<summary>"
+#   printf '%s' "summary" | cron-run-record.sh <job_name> <agent> ok -
+#
+# agent: grok | kimi | alpha (who ran the job)
+set -eu
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+
+[ "$#" -ge 4 ] || {
+  echo "usage: cron-run-record.sh <job_name> <agent> <ok|error|skipped> <summary|- for stdin>" >&2
+  exit 1
+}
+
+JOB="$1"
+AGENT="$2"
+STATUS="$3"
+shift 3
+
+if [ "${1:-}" = "-" ]; then
+  SUMMARY=$(cat)
+else
+  SUMMARY="$*"
+fi
+
+case "$STATUS" in ok|error|skipped) ;; *)
+  echo "cron-run-record.sh: status must be ok, error, or skipped" >&2
+  exit 1
+  ;;
+esac
+
+DIR="$WORKSPACE_ROOT/data/cron-runs"
+DATE=$(date -u +%Y-%m-%d)
+FILE="$DIR/${DATE}.jsonl"
+mkdir -p "$DIR"
+
+export CRON_JOB="$JOB" CRON_AGENT="$AGENT" CRON_STATUS="$STATUS" CRON_SUMMARY="$SUMMARY" CRON_FILE="$FILE"
+python3 <<'PY'
+import json, os, datetime
+
+job = os.environ["CRON_JOB"]
+agent = os.environ["CRON_AGENT"]
+status = os.environ["CRON_STATUS"]
+summary = os.environ["CRON_SUMMARY"].strip()
+path = os.environ["CRON_FILE"]
+
+ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+rec = {"job": job, "agent": agent, "ts": ts, "status": status, "summary": summary}
+line = json.dumps(rec, ensure_ascii=False)
+with open(path, "a", encoding="utf-8") as f:
+    f.write(line + "\n")
+PY

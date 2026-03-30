@@ -1,0 +1,3 @@
+# Memory files use union merge: keeps all lines from both sides.
+# This prevents conflicts when agents append locally while PRs also update memory.
+memory/MEMORY.md merge=union

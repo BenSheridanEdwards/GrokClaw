@@ -69,12 +69,16 @@ Use for scheduled agent tasks. Add a new job object to the `jobs` array:
     "kind": "cron",
     "expr": "*/5 * * * *"
   },
+  "sessionTarget": "isolated",
+  "delivery": {
+    "mode": "announce",
+    "channel": "telegram",
+    "to": "-1003831656556",
+    "bestEffort": true
+  },
   "payload": {
     "kind": "agent_turn",
-    "message": "Your instruction to Grok here.",
-    "deliver": true,
-    "channel": "telegram",
-    "to": "-1003831656556"
+    "message": "Your instruction to Grok here."
   },
   "deleteAfterRun": false
 }
@@ -108,6 +112,8 @@ Include the test output in your PR description under a **Verification** section.
 ├── tools/
 │   ├── telegram-post.sh       # Post to Telegram topics
 │   ├── agent-report.sh        # Kimi/Alpha report to Grok (data/agent-reports/)
+│   ├── cron-run-record.sh     # Append one line to data/cron-runs/*.jsonl (end of each cron job)
+│   ├── cron-scrutiny-context.sh # Aggregate JSONL for grok-cron-scrutiny
 │   ├── grok-daily-brief.sh    # Output today's reports for Grok to synthesize
 │   ├── telegram-suggestion.sh # Post daily suggestions with Approve button
 │   ├── telegram-inline.sh     # Post messages with inline action buttons

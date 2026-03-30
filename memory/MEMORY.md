@@ -48,6 +48,10 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-19** — Alpha research priority order: (1) Polymarket discovery, (2) free models, (3) OpenClaw, (4) retry/reliability, (5) agentic tools. Created `docs/agent-tasks.md` with full task breakdown by agent.
 - **2026-03-19** — Reporting chain: Kimi and Alpha report to Grok via `tools/agent-report.sh`; Grok runs `grok-daily-brief` (08:00) to synthesize and post to user. Reliability and Alpha research no longer post directly to Telegram. Polymarket keeps real-time posts + agent-report. Created `tools/agent-report.sh`, `tools/grok-daily-brief.sh`.
 - **2026-03-19** — Fixed system crontab: health-check path updated from picoclaw to GrokClaw (`/Users/jarvis/Engineering/Projects/GrokClaw/tools/health-check.sh`). Log: `/tmp/openclaw-health.log`.
+- **2026-03-21** — Paperclip launchd: versioned `launchd/com.grokclaw.paperclip.plist` + `tools/paperclip-ctl.sh` (`install` bootouts old job, copies plist, loads). Runs `pnpm --filter @paperclipai/server dev` (tsx) so workspace-linked `@paperclipai/*` resolves; `start`/`node dist` fails on TS exports. Loads parent `GrokClaw/.env`. Logs under `~/.openclaw/logs/paperclip-*.log`. Verified `http://127.0.0.1:3100/api/health`. AGENTS.md reliability section updated.
+- **2026-03-21** — Cron Telegram silence fixed: OpenClaw maps `payload.deliver: false` + `channel`/`to` → `delivery.mode: none`, so isolated cron sent no completion messages. Migrated `cron/jobs.json` to job-level `delivery` (`announce` + telegram + `bestEffort` for user-facing jobs; `none` for reliability-report and alpha-daily-research). Added `tools/cron-jobs-tool.py` (validate + state-preserving sync), `tools/sync-cron-jobs.sh`, `self-deploy.sh` preflight validation, docs in `multi-agent-setup.md` / `CURSOR.md` / `AGENTS.md`, unittest hook. Synced to `~/.openclaw/cron/jobs.json` and restarted gateway.
+- **2026-03-21** — Cron scrutiny pipeline: `tools/cron-run-record.sh` → `data/cron-runs/*.jsonl`; `tools/cron-scrutiny-context.sh` + `_cron_scrutiny_context.py` aggregate stats/tail; new OpenClaw job `grok-cron-scrutiny` (hourly :20) has Grok judge value vs hollow/missing data and post health-alerts (separate from pr-watch). All job prompts end with `cron-run-record`. Reliability + Alpha use `announce` + short health headline. Removed internal-only exception from `cron-jobs-tool.py`.
+- **2026-03-30** — Major consistency hardening: (1) Fixed `.zshenv` pointing at stale OpenClawAgent config/tokens — was poisoning all CLI sessions with wrong `OPENCLAW_CONFIG_PATH` and `OPENCLAW_GATEWAY_TOKEN`. (2) Updated gateway v2026.3.13 → v2026.3.28 (fixed Telegram polling, LLM timeouts). (3) Started Ollama as persistent brew service (was down, killing all Kimi jobs). (4) Synced cron — 6/10 jobs had never fired; all 11 now loaded with valid schedules. (5) `self-deploy.sh` now runs `sync-cron-jobs.sh` after `git pull` so deploy auto-syncs cron. (6) Added `cron-jobs-tool.py strip` command + test to prevent scheduler state in git. (7) Built `tools/grokclaw-doctor.sh` — self-healing script that checks gateway, Paperclip, Ollama, Telegram, launchd, crontab, cron config, cron sync, and gateway auth; `--heal` auto-restarts downed services and re-syncs cron drift. (8) Wired doctor as `com.grokclaw.doctor` launchd agent (every 30min, `--heal --quiet`). (9) `health-check.sh` now calls doctor with `--heal` on gateway death. (10) Re-implemented `tools/changelog-check.sh` + `changelog-weekly-check` cron job (GRO-20 was in memory but script/job were missing from repo).
 
 ---
 
@@ -88,7 +92,7 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 - **Polymarket market discovery (priority)** — Grok must research and propose a better way to discover profitable markets. Goal: evaluate ~50 markets per session instead of 5. No arbitrary limits. Be intelligent: research Polymarket API (filters, tag_id, category IDs, sorting), multi-page fetching, clustering/scoring by whale alignment + volume + edge potential, alternative data sources, and any other discovery strategies. Propose a concrete implementation.
 - No retry logic on failed tool calls (linear-ticket.sh or create-pr.sh)
 - Session summarization threshold may need tuning
-- OpenClaw changelog / release notes not yet regularly checked — **being addressed by GRO-20**
+- ~~OpenClaw changelog / release notes~~ — addressed: `tools/changelog-check.sh` + `changelog-weekly-check` cron job (re-implemented 2026-03-30)
 - Old Slack tools (`slack-post.sh`, `_slack_post.py`) still in repo — can be removed once Telegram is confirmed stable
 
 ---
@@ -97,13 +101,13 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 
 | Setting | Value |
 |---------|-------|
-| Runtime | OpenClaw v2026.3.13 |
+| Runtime | OpenClaw v2026.3.28 |
 | Grok model | `xai/grok-4-1-fast-non-reasoning` (alias: `grok-fast`) |
 | Kimi model | `ollama/kimi-k2.5:cloud` (Ollama cloud, free) |
 | Alpha model | `openrouter/arcee-ai/trinity-large-preview:free` (OpenRouter free, requires `OPENROUTER_API_KEY`) |
 | Workspace | `/Users/jarvis/Engineering/Projects/GrokClaw` |
 | Config | `~/.openclaw/openclaw.json` |
-| Cron job | `daily-grokclaw-suggestion`, runs 06:00 daily, job ID `4978a69dab9ec327` |
+| Cron jobs | 11 jobs across 3 agents (Grok, Kimi, Alpha); see `docs/agent-tasks.md` |
 | GitHub repo | `BenSheridanEdwards/GrokClaw` |
 | Linear team | `GrokClaw` (`3f1b1054-07c6-4aad-a02c-89c78a43946b`) |
 | Telegram group | `-1003831656556` (topics: suggestions=2, polymarket=3, health=4, pr-reviews=5) |

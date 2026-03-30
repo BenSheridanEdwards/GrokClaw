@@ -55,6 +55,11 @@ if [ "$alive" = "dead" ]; then
   if [ "$prev" != "dead" ]; then
     alert_telegram
   fi
+  "$WORKSPACE_ROOT/tools/grokclaw-doctor.sh" --heal --quiet 2>/dev/null || true
+  if gateway_alive; then
+    write_state "alive"
+    exit 0
+  fi
   write_state "dead"
   exit 1
 fi

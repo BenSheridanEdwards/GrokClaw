@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""
+Validate and sync GrokClaw OpenClaw cron jobs.
+
+OpenClaw maps legacy payload { deliver: false, channel, to } → delivery.mode "none",
+which disables Telegram completion announcements. Isolated agent_turn jobs should use
+top-level delivery: { mode: announce, channel: telegram, to: <group> }.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+LEGACY_DELIVERY_KEYS = frozenset(
+    {"deliver", "channel", "to", "bestEffortDeliver", "provider"}
+)
+TELEGRAM_GROUP_PREFIX = "-100"
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_jobs(data: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    jobs = data.get("jobs")
+    if not isinstance(jobs, list):
+        return ["jobs must be a non-empty array"]
+    for job in jobs:
+        if not isinstance(job, dict):
+            errors.append("job entry must be an object")
+            continue
+        name = job.get("name", "?")
+        payload = job.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        if payload.get("kind") != "agent_turn":
+            continue
+        legacy = [k for k in LEGACY_DELIVERY_KEYS if k in payload]
+        if legacy:
+            errors.append(
+                f"{name}: remove legacy payload keys {legacy}; "
+                "use top-level delivery (see docs/multi-agent-setup.md)"
+            )
+        delivery = job.get("delivery")
+        if not isinstance(delivery, dict):
+            errors.append(
+                f"{name}: missing job-level delivery; "
+                'use {"mode": "announce", "channel": "telegram", "to": "<group>", '
+                '"bestEffort": true}'
+            )
+            continue
+        if delivery.get("mode") != "announce":
+            errors.append(
+                f'{name}: delivery.mode must be "announce" for user-visible cron jobs'
+            )
+            continue
+        if delivery.get("channel") != "telegram":
+            errors.append(f'{name}: delivery.channel must be "telegram"')
+        to_val = str(delivery.get("to", "")).strip()
+        if not to_val.startswith(TELEGRAM_GROUP_PREFIX):
+            errors.append(
+                f"{name}: delivery.to must be your Telegram supergroup id (negative int string)"
+            )
+    return errors
+
+
+def merge_runtime_fields(repo_jobs: dict[str, Any], target_path: Path) -> dict[str, Any]:
+    """Preserve OpenClaw scheduler state when syncing from git."""
+    if not target_path.is_file():
+        return repo_jobs
+    try:
+        old = load_json(target_path)
+    except (OSError, json.JSONDecodeError):
+        return repo_jobs
+    old_by_id = {j["id"]: j for j in old.get("jobs", []) if isinstance(j, dict) and "id" in j}
+    out = dict(repo_jobs)
+    merged: list[dict[str, Any]] = []
+    for job in repo_jobs.get("jobs", []):
+        if not isinstance(job, dict):
+            merged.append(job)
+            continue
+        j = dict(job)
+        oid = old_by_id.get(j.get("id", ""))
+        if isinstance(oid, dict):
+            if "state" in oid:
+                j["state"] = oid["state"]
+            for key in ("createdAtMs", "updatedAtMs"):
+                if key in oid:
+                    j[key] = oid[key]
+        merged.append(j)
+    out["jobs"] = merged
+    return out
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Cron jobs validate / sync")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    v = sub.add_parser("validate", help="Validate jobs.json")
+    v.add_argument(
+        "path",
+        nargs="?",
+        default=None,
+        help="Path to jobs.json (default: repo cron/jobs.json)",
+    )
+
+    s = sub.add_parser("sync", help="Merge into ~/.openclaw/cron/jobs.json and write")
+    s.add_argument(
+        "--repo",
+        default=None,
+        help="Repo jobs.json path (default: <workspace>/cron/jobs.json)",
+    )
+    s.add_argument(
+        "--target",
+        default=None,
+        help="Target path (default: ~/.openclaw/cron/jobs.json)",
+    )
+    s.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate only; do not write",
+    )
+
+    st = sub.add_parser("strip", help="Remove scheduler state from repo jobs.json")
+    st.add_argument(
+        "path",
+        nargs="?",
+        default=None,
+        help="Path to jobs.json (default: repo cron/jobs.json)",
+    )
+
+    args = parser.parse_args()
+    workspace = Path(__file__).resolve().parents[1]
+
+    if args.cmd == "strip":
+        path = Path(args.path) if args.path else workspace / "cron" / "jobs.json"
+        try:
+            data = load_json(path)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"cron-jobs-tool: {e}", file=sys.stderr)
+            return 2
+        scheduler_keys = {"state", "createdAtMs", "updatedAtMs"}
+        changed = False
+        for job in data.get("jobs", []):
+            for k in scheduler_keys:
+                if k in job:
+                    del job[k]
+                    changed = True
+        if not changed:
+            print(f"cron-jobs-tool strip: already clean ({path})")
+            return 0
+        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        print(f"cron-jobs-tool strip: removed scheduler state from {path}")
+        return 0
+
+    if args.cmd == "validate":
+        path = Path(args.path) if args.path else workspace / "cron" / "jobs.json"
+        try:
+            data = load_json(path)
+        except FileNotFoundError:
+            print(f"cron-jobs-tool: not found: {path}", file=sys.stderr)
+            return 2
+        except json.JSONDecodeError as e:
+            print(f"cron-jobs-tool: invalid JSON in {path}: {e}", file=sys.stderr)
+            return 2
+        errs = validate_jobs(data)
+        if errs:
+            print("cron-jobs-tool validate: FAILED", file=sys.stderr)
+            for e in errs:
+                print(f"  {e}", file=sys.stderr)
+            return 1
+        print(f"cron-jobs-tool validate: OK ({path})")
+        return 0
+
+    repo_path = Path(args.repo) if args.repo else workspace / "cron" / "jobs.json"
+    target = (
+        Path(args.target).expanduser()
+        if args.target
+        else Path.home() / ".openclaw" / "cron" / "jobs.json"
+    )
+
+    try:
+        data = load_json(repo_path)
+    except FileNotFoundError:
+        print(f"cron-jobs-tool: not found: {repo_path}", file=sys.stderr)
+        return 2
+    except json.JSONDecodeError as e:
+        print(f"cron-jobs-tool: invalid JSON in {repo_path}: {e}", file=sys.stderr)
+        return 2
+
+    errs = validate_jobs(data)
+    if errs:
+        print("cron-jobs-tool sync: validation FAILED", file=sys.stderr)
+        for e in errs:
+            print(f"  {e}", file=sys.stderr)
+        return 1
+
+    merged = merge_runtime_fields(data, target)
+    if args.dry_run:
+        print(f"cron-jobs-tool sync: dry-run OK → would write {target}")
+        return 0
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
+    print(f"cron-jobs-tool sync: wrote {target}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

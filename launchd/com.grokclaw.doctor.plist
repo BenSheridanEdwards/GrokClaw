@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.grokclaw.doctor</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/jarvis/Engineering/Projects/GrokClaw/tools/grokclaw-doctor.sh</string>
+    <string>--heal</string>
+    <string>--quiet</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>1800</integer>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/grokclaw-doctor.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/grokclaw-doctor.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>/Users/jarvis</string>
+    <key>OPENCLAW_CONFIG_PATH</key>
+    <string>/Users/jarvis/.openclaw/openclaw.json</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>

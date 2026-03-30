@@ -8,6 +8,7 @@ Kimi and Alpha report to Grok; Grok reports to you (Ben).
 
 - **Kimi** and **Alpha** write to `data/agent-reports/YYYY-MM-DD.json` via `agent-report.sh`
 - **Grok** runs `grok-daily-brief` at 08:00, reads reports, synthesizes, posts to suggestions
+- **All** scheduled jobs append a one-line record via `tools/cron-run-record.sh` → `data/cron-runs/*.jsonl` for **`grok-cron-scrutiny`** (hourly Telegram verdict on value vs hollow vs missing data)
 
 Exception: Polymarket posts to Telegram in real time (trades are time-sensitive) and also reports to Grok.
 
@@ -21,8 +22,10 @@ All agents share the same workspace (`/Users/jarvis/Engineering/Projects/GrokCla
 |-----|----------|------|
 | daily-grokclaw-suggestion | 06:00 daily | Research one improvement from Known gaps, post to suggestions with Approve button |
 | grok-daily-brief | 08:00 daily | Read agent reports, synthesize Kimi + Alpha into brief, post to suggestions |
+| grok-cron-scrutiny | :20 every hour | Read cron run JSONL context; judge substance vs spin; post health-alerts scrutiny |
 | pr-watch | Every 10 min | List ready PRs, review grok/* PRs, post review + merge/reject buttons, reconcile merged → Done, trigger self-deploy |
 | paperclip-sync | Every 6h | Board sync, execute highest-priority todo issue, post summary to health |
+| changelog-weekly-check | Monday 07:00 | Check for OpenClaw updates via GitHub/npm, post to health-alerts if update available |
 
 ## Kimi — reports to Grok
 
@@ -31,13 +34,13 @@ All agents share the same workspace (`/Users/jarvis/Engineering/Projects/GrokCla
 | polymarket-daily-trade | Every 4h | Fetch candidate, web_search validate, decide YES/NO/SKIP, loop until bet or exhaust, post to polymarket + agent-report |
 | polymarket-daily-resolve | 23:45 daily | Resolve paper trades, alert Telegram if promotion gate transitions, agent-report |
 | polymarket-weekly-digest | 01:00 Monday | Weekly digest to Telegram, append to memory, agent-report |
-| reliability-report | 07:00 daily | Gateway status, log errors, merged PRs → agent-report only (no direct Telegram) |
+| reliability-report | 07:00 daily | Gateway status, log errors, merged PRs → agent-report + health headline |
 
 ## Alpha — reports to Grok
 
 | Job | Schedule | Task |
 |-----|----------|------|
-| alpha-daily-research | 07:30 daily | Research one topic (priority order), agent-report only (no direct Telegram) |
+| alpha-daily-research | 07:30 daily | Research one topic (priority order), agent-report + health headline |
 
 ## Topic routing
 

@@ -61,15 +61,21 @@ Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profi
 ## Reliability controls
 
 - Gateway process manager: `tools/gateway-ctl.sh`
+- Paperclip board (launchd): `tools/paperclip-ctl.sh` — `install` copies `launchd/com.grokclaw.paperclip.plist` to `~/Library/LaunchAgents`, then loads; use `restart` / `status` / `logs` like the gateway
+- Cron → Telegram: use job-level `delivery` in `cron/jobs.json` (`announce` + `telegram` + group id). Never `payload.deliver: false` with `payload.channel`/`to` — OpenClaw treats that as `delivery.mode: none` and sends nothing. Validate: `python3 tools/cron-jobs-tool.py validate`; sync runtime: `./tools/sync-cron-jobs.sh --restart` (see `docs/multi-agent-setup.md`)
+- Cron scrutiny: every job ends with `tools/cron-run-record.sh` (structured `data/cron-runs/*.jsonl`). `grok-cron-scrutiny` (hourly) has Grok read `tools/cron-scrutiny-context.sh` output, judge value vs hollow/missing data, post verdict to health-alerts. Separate from pr-watch’s PR/deploy flow.
+- Self-healing doctor: `tools/grokclaw-doctor.sh` — checks gateway, Paperclip, Ollama, Telegram, launchd, crontab, cron config sync, and gateway auth. Use `--heal` to auto-restart downed services and re-sync cron drift. Use `--quiet` to suppress stdout (alerts Telegram on failures only). Runs every 30min via launchd (`com.grokclaw.doctor`).
 - External watchdog: `tools/gateway-watchdog.sh`
-- Health probe + alerting: `tools/health-check.sh`
+- Health probe + self-healing: `tools/health-check.sh` — runs every 5min via system crontab. Alerts Telegram on gateway death, then calls `grokclaw-doctor.sh --heal` to attempt auto-recovery.
+- Changelog monitor: `tools/changelog-check.sh` — checks GitHub/npm for OpenClaw updates, posts to health-alerts. Cron: `changelog-weekly-check` weekly Monday 07:00.
 - Telegram single-poller guard: `tools/telegram-poller-guard.sh`
 - Retry wrapper for transient API failures: `tools/retry.sh`
-- Auto-deploy script: `tools/self-deploy.sh`
+- Auto-deploy script: `tools/self-deploy.sh` — validates cron, pulls, syncs cron to runtime, restarts gateway, verifies health.
 
 Launchd agents:
 - `~/Library/LaunchAgents/com.grokclaw.gateway.plist`
 - `~/Library/LaunchAgents/com.grokclaw.paperclip.plist`
+- `~/Library/LaunchAgents/com.grokclaw.doctor.plist` — self-healing doctor, every 30min
 
 ---
 
