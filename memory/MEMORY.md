@@ -14,6 +14,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-03-31** — GRO-36: Added `skills/autoresearch-polymarket/` (discovery multi-page Gamma API, sim-ROI `evolve.py`, `alpha_context.py`); `tools/autoresearch-polymarket-daily.sh` posts Polymarket-topic Telegram from evolve output; `data/autoresearch-polymarket-strategy.json` stores evolved weights; `tools/openclaw-security-audit-compat.sh`; `alpha-daily-research` cron prompt runs daily script + context first; unit tests `tests/test_autoresearch_polymarket.py`. Verified `evolve.py --dry`, `cron-jobs-tool validate`, unittest.
 - **2026-03-19** — Created Linear GRO-28: verify Cursor cloud agent can post to Telegram when done. Delegated to Cursor; acceptance criteria: run `telegram-post.sh suggestions` and confirm message appears.
 - **2026-03-19** — Hardened Telegram single-poller reliability: removed callback poller path, added `tools/telegram-poller-guard.sh`, integrated guard into `tools/health-check.sh`, and made `tools/dispatch-telegram-action.sh` idempotent via persisted token dedupe state.
 - **2026-03-19** — Upgraded Polymarket selection to include top-trader copy strategy: `tools/_polymarket_trade.py` now builds `copy_strategy` from leaderboard + live positions and prefers trader-backed candidate selection with volume fallback.
@@ -89,7 +90,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 Pick from this list when researching the next suggestion. Do not suggest anything already in "Completed work".
 
-- **Polymarket market discovery (priority)** — Grok must research and propose a better way to discover profitable markets. Goal: evaluate ~50 markets per session instead of 5. No arbitrary limits. Be intelligent: research Polymarket API (filters, tag_id, category IDs, sorting), multi-page fetching, clustering/scoring by whale alignment + volume + edge potential, alternative data sources, and any other discovery strategies. Propose a concrete implementation.
+- **Polymarket market discovery (follow-on)** — Alpha uses `skills/autoresearch-polymarket` + daily evolve for broad scans; Kimi `polymarket-trade.sh` still whale/top-volume biased. Optionally unify: feed evolved ranker into `_polymarket_trade.py` candidate ordering or raise `MARKET_MAX_PAGES` with shared weights.
 - No retry logic on failed tool calls (linear-ticket.sh or create-pr.sh)
 - Session summarization threshold may need tuning
 - ~~OpenClaw changelog / release notes~~ — addressed: `tools/changelog-check.sh` + `changelog-weekly-check` cron job (re-implemented 2026-03-30)
