@@ -62,7 +62,7 @@ Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profi
 
 - Gateway process manager: `tools/gateway-ctl.sh`
 - Paperclip board (launchd): `tools/paperclip-ctl.sh` — `install` copies `launchd/com.grokclaw.paperclip.plist` to `~/Library/LaunchAgents`, then loads; use `restart` / `status` / `logs` like the gateway
-- Cron → Telegram: use job-level `delivery` in `cron/jobs.json` (`announce` + `telegram` + group id). Never `payload.deliver: false` with `payload.channel`/`to` — OpenClaw treats that as `delivery.mode: none` and sends nothing. Validate: `python3 tools/cron-jobs-tool.py validate`; sync runtime: `./tools/sync-cron-jobs.sh --restart` (see `docs/multi-agent-setup.md`)
+- Cron → Telegram: use job-level `delivery` in `cron/jobs.json` (`announce` + `telegram` + group id). Use `payload.kind: "agentTurn"` for isolated scheduled agent turns. Never `payload.deliver: false` with `payload.channel`/`to` — OpenClaw treats that as `delivery.mode: none` and sends nothing. Validate: `python3 tools/cron-jobs-tool.py validate`; sync runtime: `./tools/sync-cron-jobs.sh --restart` (see `docs/multi-agent-setup.md`)
 - Cron scrutiny: every job ends with `tools/cron-run-record.sh` (structured `data/cron-runs/*.jsonl`). `grok-cron-scrutiny` (hourly) has Grok read `tools/cron-scrutiny-context.sh` output, judge value vs hollow/missing data, post verdict to health-alerts. Separate from pr-watch’s PR/deploy flow.
 - Self-healing doctor: `tools/grokclaw-doctor.sh` — checks gateway, Paperclip, Ollama, Telegram, launchd, crontab, cron config sync, and gateway auth. Use `--heal` to auto-restart downed services and re-sync cron drift. Use `--quiet` to suppress stdout (alerts Telegram on failures only). Runs every 30min via launchd (`com.grokclaw.doctor`).
 - External watchdog: `tools/gateway-watchdog.sh`
@@ -155,6 +155,7 @@ It should:
    - `reject:<pr>:<issue>`
 5. Reconcile merged PRs to Linear Done.
 6. Trigger `tools/self-deploy.sh` when new code is merged to main.
+7. If the review surfaced a reusable lesson, run `./tools/append-lesson-learned.sh <GRO-XX> "<lesson>"` to keep `memory/MEMORY.md` current.
 
 ### Single-poller actions (deterministic)
 

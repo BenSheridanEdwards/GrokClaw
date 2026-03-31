@@ -11,7 +11,7 @@ After each approved suggestion and PR, Grok reviews its own accuracy and appends
 
 ## Trigger: AGENTS.md PR review workflow
 
-This runs as part of the PR review workflow in `AGENTS.md` step 6. No separate cron — Grok executes it when approving a PR.
+This is a post-approval operating practice, not a separate cron job. Grok executes it when approving a PR or closing a suggestion loop that produced a concrete lesson. The current `AGENTS.md` PR workflow no longer names this as a numbered step, so keep this document as the source of truth for when to run the helper.
 
 ## Tool: append-lesson-learned.sh
 

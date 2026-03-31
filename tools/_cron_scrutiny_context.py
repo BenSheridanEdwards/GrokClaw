@@ -10,6 +10,8 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+AGENT_TURN_KINDS = frozenset({"agentTurn", "agent_turn"})
+
 
 def parse_ts(ts: str) -> datetime | None:
     try:
@@ -61,7 +63,7 @@ def load_registered_jobs(workspace: Path) -> list[str]:
         if not isinstance(j, dict) or not j.get("enabled", True):
             continue
         pl = j.get("payload") or {}
-        if pl.get("kind") != "agent_turn":
+        if pl.get("kind") not in AGENT_TURN_KINDS:
             continue
         n = j.get("name")
         if isinstance(n, str) and n:

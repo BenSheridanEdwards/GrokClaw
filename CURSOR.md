@@ -77,7 +77,7 @@ Use for scheduled agent tasks. Add a new job object to the `jobs` array:
     "bestEffort": true
   },
   "payload": {
-    "kind": "agent_turn",
+    "kind": "agentTurn",
     "message": "Your instruction to Grok here."
   },
   "deleteAfterRun": false

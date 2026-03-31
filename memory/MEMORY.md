@@ -14,6 +14,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-04-01** — Fixed cron contract drift after OpenClaw scheduler jobs silently stopped running. Root cause: `cron/jobs.json` had been updated to `payload.kind: "agentTurn"` for the gateway, but repo tooling still only recognized legacy `agent_turn`. Updated `tools/cron-jobs-tool.py`, `tools/_cron_scrutiny_context.py`, `AGENTS.md`, `CURSOR.md`, `docs/multi-agent-setup.md`, `docs/agent-tasks.md`, and `docs/self-improvement-loop.md` so validation, scrutiny, and docs all match the live architecture again.
 - **2026-03-19** — Created Linear GRO-28: verify Cursor cloud agent can post to Telegram when done. Delegated to Cursor; acceptance criteria: run `telegram-post.sh suggestions` and confirm message appears.
 - **2026-03-19** — Hardened Telegram single-poller reliability: removed callback poller path, added `tools/telegram-poller-guard.sh`, integrated guard into `tools/health-check.sh`, and made `tools/dispatch-telegram-action.sh` idempotent via persisted token dedupe state.
 - **2026-03-19** — Upgraded Polymarket selection to include top-trader copy strategy: `tools/_polymarket_trade.py` now builds `copy_strategy` from leaderboard + live positions and prefers trader-backed candidate selection with volume fallback.
@@ -94,6 +95,7 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 - Session summarization threshold may need tuning
 - ~~OpenClaw changelog / release notes~~ — addressed: `tools/changelog-check.sh` + `changelog-weekly-check` cron job (re-implemented 2026-03-30)
 - Old Slack tools (`slack-post.sh`, `_slack_post.py`) still in repo — can be removed once Telegram is confirmed stable
+- Cron observability still depends on jobs reaching `tools/cron-run-record.sh`; if a run fails before that step, `data/cron-runs/*.jsonl` will stay thin and `grok-cron-scrutiny` has less evidence
 
 ---
 

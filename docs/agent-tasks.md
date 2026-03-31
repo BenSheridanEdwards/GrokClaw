@@ -24,7 +24,7 @@ All agents share the same workspace (`/Users/jarvis/Engineering/Projects/GrokCla
 | grok-daily-brief | 08:00 daily | Read agent reports, synthesize Kimi + Alpha into brief, post to suggestions |
 | grok-cron-scrutiny | :20 every hour | Read cron run JSONL context; judge substance vs spin; post health-alerts scrutiny |
 | pr-watch | Every 10 min | List ready PRs, review grok/* PRs, post review + merge/reject buttons, reconcile merged → Done, trigger self-deploy |
-| paperclip-sync | Every 6h | Board sync, execute highest-priority todo issue, post summary to health |
+| paperclip-sync | Every 6h | Board sync, execute highest-priority todo issue, post summary to health-alerts |
 | changelog-weekly-check | Monday 07:00 | Check for OpenClaw updates via GitHub/npm, post to health-alerts if update available |
 
 ## Kimi — reports to Grok
@@ -48,7 +48,7 @@ All agents share the same workspace (`/Users/jarvis/Engineering/Projects/GrokCla
 |----------------|----------|
 | suggestions (2) | Grok (daily brief, suggestions) |
 | polymarket (3) | Kimi (real-time trades) |
-| health (4) | Grok (paperclip-sync) |
+| health (4) | Grok (`paperclip-sync`, `grok-cron-scrutiny`, deploy results), Kimi (`reliability-report`), Alpha (`alpha-daily-research`), changelog notices |
 | pr-reviews (5) | Grok |
 
 ## Manual runs

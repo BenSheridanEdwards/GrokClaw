@@ -1,10 +1,19 @@
 import json
+import importlib.util
 import subprocess
 import unittest
 from pathlib import Path
 
 
 class WorkflowPromptTests(unittest.TestCase):
+    @staticmethod
+    def _load_module(path: Path, module_name: str):
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        module = importlib.util.module_from_spec(spec)
+        assert spec is not None and spec.loader is not None
+        spec.loader.exec_module(module)
+        return module
+
     def test_daily_suggestion_prompt_requires_button_not_plain_approve(self):
         workspace = Path(__file__).resolve().parents[1]
         jobs_path = workspace / "cron" / "jobs.json"
@@ -44,6 +53,40 @@ class WorkflowPromptTests(unittest.TestCase):
             0,
             proc.stderr or proc.stdout or "validate failed",
         )
+
+    def test_cron_jobs_tool_treats_agent_turn_camelcase_as_isolated_job(self):
+        workspace = Path(__file__).resolve().parents[1]
+        tool = workspace / "tools" / "cron-jobs-tool.py"
+        module = self._load_module(tool, "cron_jobs_tool")
+
+        jobs = {
+            "jobs": [
+                {
+                    "name": "example",
+                    "payload": {"kind": "agentTurn"},
+                }
+            ]
+        }
+
+        errors = module.validate_jobs(jobs)
+
+        self.assertIn(
+            "example: missing job-level delivery; "
+            'use {"mode": "announce", "channel": "telegram", "to": "<group>", '
+            '"bestEffort": true}',
+            errors,
+        )
+
+    def test_cron_scrutiny_context_registers_agent_turn_camelcase_jobs(self):
+        workspace = Path(__file__).resolve().parents[1]
+        tool = workspace / "tools" / "_cron_scrutiny_context.py"
+        module = self._load_module(tool, "cron_scrutiny_context")
+
+        registered = module.load_registered_jobs(workspace)
+
+        self.assertIn("pr-watch", registered)
+        self.assertIn("grok-cron-scrutiny", registered)
+        self.assertIn("alpha-daily-research", registered)
 
 
 if __name__ == "__main__":

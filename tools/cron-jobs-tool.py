@@ -3,7 +3,7 @@
 Validate and sync GrokClaw OpenClaw cron jobs.
 
 OpenClaw maps legacy payload { deliver: false, channel, to } → delivery.mode "none",
-which disables Telegram completion announcements. Isolated agent_turn jobs should use
+which disables Telegram completion announcements. Isolated agentTurn jobs should use
 top-level delivery: { mode: announce, channel: telegram, to: <group> }.
 """
 from __future__ import annotations
@@ -18,6 +18,7 @@ LEGACY_DELIVERY_KEYS = frozenset(
     {"deliver", "channel", "to", "bestEffortDeliver", "provider"}
 )
 TELEGRAM_GROUP_PREFIX = "-100"
+AGENT_TURN_KINDS = frozenset({"agentTurn", "agent_turn"})
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -37,7 +38,7 @@ def validate_jobs(data: dict[str, Any]) -> list[str]:
         payload = job.get("payload")
         if not isinstance(payload, dict):
             continue
-        if payload.get("kind") != "agent_turn":
+        if payload.get("kind") not in AGENT_TURN_KINDS:
             continue
         legacy = [k for k in LEGACY_DELIVERY_KEYS if k in payload]
         if legacy:

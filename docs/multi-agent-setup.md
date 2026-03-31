@@ -56,10 +56,12 @@ OpenClaw persists cron jobs at `~/.openclaw/cron/jobs.json`. The workspace `cron
 
 ### Telegram delivery (required)
 
-OpenClaw maps legacy **`payload.deliver: false`** together with **`payload.channel` / `payload.to`** to **`delivery.mode: "none"`**, which disables completion announcements to Telegram. Isolated `agent_turn` jobs then produce **no** forum notification unless you fix delivery metadata.
+OpenClaw maps legacy **`payload.deliver: false`** together with **`payload.channel` / `payload.to`** to **`delivery.mode: "none"`**, which disables completion announcements to Telegram. Isolated `agentTurn` jobs then produce **no** forum notification unless you fix delivery metadata.
 
 Use **job-level** `delivery` (not inside `payload`):  
 `"delivery": { "mode": "announce", "channel": "telegram", "to": "-1003831656556", "bestEffort": true }`
+
+Use **`"payload": { "kind": "agentTurn", ... }`** for isolated scheduled agent turns. Older snake_case examples (`agent_turn`) are stale and can silently break runtime behavior or repo tooling.
 
 ### Cron scrutiny (structured log + Grok audit)
 
