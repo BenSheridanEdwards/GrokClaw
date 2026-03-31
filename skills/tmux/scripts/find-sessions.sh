@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: find-sessions.sh [-L socket-name|-S socket-path|-A] [-q pattern]
+Usage: find-sessions.sh [-L socket-name|-S socket-path|-A] [-q pattern] [-n]
 
 List tmux sessions on a socket (default tmux socket if none provided).
 
@@ -12,6 +12,7 @@ Options:
   -S, --socket-path  tmux socket path (passed to tmux -S)
   -A, --all          scan all sockets under NANOBOT_TMUX_SOCKET_DIR
   -q, --query        case-insensitive substring to filter session names
+  -n, --dry-run      validate options and print intent; do not call tmux
   -h, --help         show this help
 USAGE
 }
@@ -20,6 +21,7 @@ socket_name=""
 socket_path=""
 query=""
 scan_all=false
+dry_run=false
 socket_dir="${NANOBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/nanobot-tmux-sockets}"
 
 while [[ $# -gt 0 ]]; do
@@ -28,6 +30,7 @@ while [[ $# -gt 0 ]]; do
     -S|--socket-path) socket_path="${2-}"; shift 2 ;;
     -A|--all)         scan_all=true; shift ;;
     -q|--query)       query="${2-}"; shift 2 ;;
+    -n|--dry-run)     dry_run=true; shift ;;
     -h|--help)        usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
   esac
@@ -41,6 +44,23 @@ fi
 if [[ -n "$socket_name" && -n "$socket_path" ]]; then
   echo "Use either -L or -S, not both" >&2
   exit 1
+fi
+
+if [[ "$dry_run" == true ]]; then
+  echo "[dry-run] Would list tmux sessions."
+  if [[ "$scan_all" == true ]]; then
+    echo "[dry-run]   Mode: all sockets under $socket_dir"
+  else
+    if [[ -n "$socket_name" ]]; then
+      echo "[dry-run]   Socket: -L $socket_name"
+    elif [[ -n "$socket_path" ]]; then
+      echo "[dry-run]   Socket: -S $socket_path"
+    else
+      echo "[dry-run]   Socket: default"
+    fi
+  fi
+  [[ -n "$query" ]] && echo "[dry-run]   Name filter (substring): $query"
+  exit 0
 fi
 
 if ! command -v tmux >/dev/null 2>&1; then

@@ -14,6 +14,7 @@ Options:
   -T, --timeout   seconds to wait (integer, default: 15)
   -i, --interval  poll interval in seconds (default: 0.5)
   -l, --lines     number of history lines to inspect (integer, default: 1000)
+  -n, --dry-run   validate options and print intent; do not poll tmux
   -h, --help      show this help
 USAGE
 }
@@ -24,6 +25,7 @@ grep_flag="-E"
 timeout=15
 interval=0.5
 lines=1000
+dry_run=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -33,6 +35,7 @@ while [[ $# -gt 0 ]]; do
     -T|--timeout)  timeout="${2-}"; shift 2 ;;
     -i|--interval) interval="${2-}"; shift 2 ;;
     -l|--lines)    lines="${2-}"; shift 2 ;;
+    -n|--dry-run)  dry_run=true; shift ;;
     -h|--help)     usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
   esac
@@ -52,6 +55,12 @@ fi
 if ! [[ "$lines" =~ ^[0-9]+$ ]]; then
   echo "lines must be an integer" >&2
   exit 1
+fi
+
+if [[ "$dry_run" == true ]]; then
+  echo "[dry-run] Would poll tmux pane $target for pattern (grep $grep_flag): $pattern"
+  echo "[dry-run]   timeout=${timeout}s interval=${interval}s history_lines=$lines"
+  exit 0
 fi
 
 if ! command -v tmux >/dev/null 2>&1; then

@@ -44,6 +44,7 @@ To monitor:
 
 - List sessions on your socket: `{baseDir}/scripts/find-sessions.sh -S "$SOCKET"`.
 - Scan all sockets: `{baseDir}/scripts/find-sessions.sh --all` (uses `NANOBOT_TMUX_SOCKET_DIR`).
+- Validate flags without tmux: `{baseDir}/scripts/find-sessions.sh --dry-run [-S "$SOCKET" | --all] [-q substring]`.
 
 ## Sending input safely
 
@@ -119,3 +120,4 @@ tmux -S "$SOCKET" capture-pane -p -t agent-1 -S -500
 - `-T` timeout seconds (integer, default 15)
 - `-i` poll interval seconds (default 0.5)
 - `-l` history lines to search (integer, default 1000)
+- `--dry-run` validate options and print intent without calling tmux (useful in CI)
