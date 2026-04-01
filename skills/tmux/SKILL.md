@@ -53,7 +53,7 @@ To monitor:
 ## Watching output
 
 - Capture recent history: `tmux -S "$SOCKET" capture-pane -p -J -t target -S -200`.
-- Wait for prompts: `{baseDir}/scripts/wait-for-text.sh -t session:0.0 -p 'pattern'`.
+- Wait for prompts: `{baseDir}/scripts/wait-for-text.sh --state "$SOCKET" -t session:0.0 -p 'pattern'` (or `-S`/`-L` like tmux).
 - Attaching is OK; detach with `Ctrl+b d`.
 
 ## Spawning processes
@@ -111,9 +111,10 @@ tmux -S "$SOCKET" capture-pane -p -t agent-1 -S -500
 `{baseDir}/scripts/wait-for-text.sh` polls a pane for a regex (or fixed string) with a timeout.
 
 ```bash
-{baseDir}/scripts/wait-for-text.sh -t session:0.0 -p 'pattern' [-F] [-T 20] [-i 0.5] [-l 2000]
+{baseDir}/scripts/wait-for-text.sh --state "$SOCKET" -t session:0.0 -p 'pattern' [-F] [-T 20] [-i 0.5] [-l 2000]
 ```
 
+- `--state`/`--socket-path`/`-S` tmux socket path; `-L`/`--socket` for socket name (omit for default server)
 - `-t`/`--target` pane target (required)
 - `-p`/`--pattern` regex to match (required); add `-F` for fixed string
 - `-T` timeout seconds (integer, default 15)

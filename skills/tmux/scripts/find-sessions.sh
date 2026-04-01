@@ -3,13 +3,14 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: find-sessions.sh [-L socket-name|-S socket-path|-A] [-q pattern]
+Usage: find-sessions.sh [-L socket-name|-S socket-path|--state path|-A] [-q pattern]
 
 List tmux sessions on a socket (default tmux socket if none provided).
 
 Options:
   -L, --socket       tmux socket name (passed to tmux -L)
   -S, --socket-path  tmux socket path (passed to tmux -S)
+      --state        same as --socket-path
   -A, --all          scan all sockets under NANOBOT_TMUX_SOCKET_DIR
   -q, --query        case-insensitive substring to filter session names
   -h, --help         show this help
@@ -26,6 +27,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -L|--socket)      socket_name="${2-}"; shift 2 ;;
     -S|--socket-path) socket_path="${2-}"; shift 2 ;;
+    --state)          socket_path="${2-}"; shift 2 ;;
     -A|--all)         scan_all=true; shift ;;
     -q|--query)       query="${2-}"; shift 2 ;;
     -h|--help)        usage; exit 0 ;;
@@ -34,12 +36,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "$scan_all" == true && ( -n "$socket_name" || -n "$socket_path" ) ]]; then
-  echo "Cannot combine --all with -L or -S" >&2
+  echo "Cannot combine --all with -L, -S, or --state" >&2
   exit 1
 fi
 
 if [[ -n "$socket_name" && -n "$socket_path" ]]; then
-  echo "Use either -L or -S, not both" >&2
+  echo "Use either -L or -S/--state, not both" >&2
   exit 1
 fi
 
