@@ -5,6 +5,7 @@ logs/
 .reliability-report-tmp
 .cursor
 .gateway-health-state
+.openclaw/*.issue
 data/
 .worktrees/
 __pycache__/
