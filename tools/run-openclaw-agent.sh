@@ -7,10 +7,13 @@ RUN_ID="${PAPERCLIP_RUN_ID:-$(date +%s)}"
 WORKSPACE="${PAPERCLIP_WORKSPACE_CWD:-/Users/jarvis/Engineering/Projects/GrokClaw}"
 WAKE_REASON="${PAPERCLIP_WAKE_REASON:-}"
 AGENT_ID="${OPENCLAW_AGENT_ID:-grok}"
+MESSAGE_OVERRIDE="${OPENCLAW_MESSAGE:-}"
 
 SESSION_KEY="paperclip-ephemeral-${RUN_ID}"
 
-if [ -n "$TASK_ID" ]; then
+if [ -n "$MESSAGE_OVERRIDE" ]; then
+  MESSAGE="$MESSAGE_OVERRIDE"
+elif [ -n "$TASK_ID" ]; then
   ISSUE_JSON=$(curl -sf "${PAPERCLIP_API}/issues/${TASK_ID}" 2>/dev/null || echo '{}')
   ISSUE_TITLE=$(echo "$ISSUE_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('title',''))" 2>/dev/null || echo "")
   ISSUE_DESC=$(echo "$ISSUE_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('description','') or '')" 2>/dev/null || echo "")
