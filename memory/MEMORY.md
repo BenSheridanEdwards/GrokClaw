@@ -14,6 +14,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-04-01** — `tests/test_polymarket_digest.py`: dry-run test now invokes `tools/polymarket-digest.sh` via repo root from `__file__` instead of a hardcoded Mac path so the suite passes in CI and other workspaces.
 - **2026-04-01** — `.gitignore`: ignore `__pycache__/` and `*.py[cod]`; removed previously committed `tests/__pycache__` and `tools/__pycache__` bytecode from the repo.
 - **2026-04-01** — GRO-42 workflow health: `cron-paperclip-lifecycle.sh start` now allows only the four core cron job names (blocks stray Paperclip issues from non-core jobs). `cron-run-record.sh` resolves `PAPERCLIP_ISSUE_UUID` from `.openclaw/<job>.issue` when the env var is unset so Paperclip issues still close if the agent omits exporting the variable. Added read-only `tools/_workflow_health_audit.py` and wired it into `grokclaw-doctor.sh` (no auto-repair; surfaces missing `data/cron-runs` evidence). Tests: `test_workflow_health_audit.py`, lifecycle non-core refusal, cron-run-record file fallback.
 - **2026-04-01** — Added a hard Linear creation gate on top of the Telegram draft flow. `tools/linear-ticket.sh` now refuses to create issues unless `LINEAR_CREATION_FLOW` and `LINEAR_DRAFT_ID` are set and the request exactly matches an approved `data/pending-linear-draft-*.json` record. This closes the bypass where direct script calls could still create Linear without Ben's explicit approval.

@@ -79,7 +79,8 @@ class PolymarketDigestTests(unittest.TestCase):
                     "probability_yes": 0.6,
                 }) + "\n")
 
-            script_path = "/Users/jarvis/Engineering/Projects/GrokClaw/tools/polymarket-digest.sh"
+            repo_root = Path(__file__).resolve().parents[1]
+            script_path = str(repo_root / "tools" / "polymarket-digest.sh")
             env = os.environ.copy()
             env["WORKSPACE_ROOT"] = str(workspace)
             env["POLYMARKET_DRY_RUN"] = "1"
