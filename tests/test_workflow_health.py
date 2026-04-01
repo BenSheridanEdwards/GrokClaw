@@ -104,6 +104,28 @@ class WorkflowHealthTests(unittest.TestCase):
             {"id": "issue-kimi", "title": "[kimi-polymarket] 2026-04-01 09:00 UTC", "status": "done", "updatedAt": kimi_ts},
         ]
 
+    def _read_audit_events(self, workspace: Path) -> list[dict]:
+        return [
+            json.loads(line)
+            for line in (workspace / "data" / "audit-log" / "2026-04-01.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+
+    def _write_audit_events(self, workspace: Path, events: list[dict]) -> None:
+        (workspace / "data" / "audit-log" / "2026-04-01.jsonl").write_text(
+            "\n".join(json.dumps(event) for event in events) + "\n",
+            encoding="utf-8",
+        )
+
+    def _read_agent_reports(self, workspace: Path) -> dict:
+        return json.loads((workspace / "data" / "agent-reports" / "2026-04-01.json").read_text(encoding="utf-8"))
+
+    def _write_agent_reports(self, workspace: Path, payload: dict) -> None:
+        (workspace / "data" / "agent-reports" / "2026-04-01.json").write_text(
+            json.dumps(payload),
+            encoding="utf-8",
+        )
+
     def test_reports_healthy_when_core_workflow_leaves_full_evidence(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -390,6 +412,141 @@ class WorkflowHealthTests(unittest.TestCase):
             self.assertFalse(report["healthy"])
             messages = "\n".join(failure["message"] for failure in report["failures"])
             self.assertIn("kimi-polymarket", messages)
+
+    def test_daily_brief_happy_path_satisfies_contract(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T08:10:00Z",
+                kimi_ts="2026-04-01T08:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+
+            report = self._run_audit(workspace, "2026-04-01T08:30:00Z", payload)
+            self.assertTrue(report["healthy"])
+
+    def test_daily_brief_sad_path_flags_missing_audit(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T08:10:00Z",
+                kimi_ts="2026-04-01T08:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+            events = [event for event in self._read_audit_events(workspace) if event["topic"] != "suggestions"]
+            self._write_audit_events(workspace, events)
+
+            report = self._run_audit(workspace, "2026-04-01T08:30:00Z", payload)
+            self.assertFalse(report["healthy"])
+            messages = "\n".join(failure["message"] for failure in report["failures"])
+            self.assertIn("grok-daily-brief is missing recent audit-log evidence", messages)
+
+    def test_openclaw_research_happy_path_satisfies_contract(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T13:10:00Z",
+                kimi_ts="2026-04-01T13:09:00Z",
+                research_ts="2026-04-01T13:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+
+            report = self._run_audit(workspace, "2026-04-01T13:30:00Z", payload)
+            self.assertTrue(report["healthy"])
+
+    def test_openclaw_research_sad_path_flags_missing_markdown(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T13:10:00Z",
+                kimi_ts="2026-04-01T13:09:00Z",
+                research_ts="2026-04-01T13:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+            (workspace / "data" / "research" / "openclaw" / "2026-04-01.md").unlink()
+
+            report = self._run_audit(workspace, "2026-04-01T13:30:00Z", payload)
+            self.assertFalse(report["healthy"])
+            messages = "\n".join(failure["message"] for failure in report["failures"])
+            self.assertIn("grok-openclaw-research is missing research markdown", messages)
+
+    def test_alpha_happy_path_satisfies_contract(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T10:10:00Z",
+                kimi_ts="2026-04-01T10:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+
+            report = self._run_audit(workspace, "2026-04-01T10:30:00Z", payload)
+            self.assertTrue(report["healthy"])
+
+    def test_alpha_sad_path_flags_missing_agent_report(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T10:10:00Z",
+                kimi_ts="2026-04-01T10:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+            reports = self._read_agent_reports(workspace)
+            reports["reports"] = [entry for entry in reports["reports"] if entry["agent"] != "alpha"]
+            self._write_agent_reports(workspace, reports)
+
+            report = self._run_audit(workspace, "2026-04-01T10:30:00Z", payload)
+            self.assertFalse(report["healthy"])
+            messages = "\n".join(failure["message"] for failure in report["failures"])
+            self.assertIn("alpha-polymarket is missing a recent agent report", messages)
+
+    def test_kimi_happy_path_satisfies_contract(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T10:10:00Z",
+                kimi_ts="2026-04-01T10:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+
+            report = self._run_audit(workspace, "2026-04-01T10:30:00Z", payload)
+            self.assertTrue(report["healthy"])
+
+    def test_kimi_sad_path_flags_missing_paperclip(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T10:10:00Z",
+                kimi_ts="2026-04-01T10:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+            payload = [issue for issue in payload if not issue["title"].startswith("[kimi-polymarket]")]
+
+            report = self._run_audit(workspace, "2026-04-01T10:30:00Z", payload)
+            self.assertFalse(report["healthy"])
+            messages = "\n".join(failure["message"] for failure in report["failures"])
+            self.assertIn("kimi-polymarket is missing a recent Paperclip issue", messages)
 
 
 if __name__ == "__main__":
