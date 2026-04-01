@@ -1,48 +1,51 @@
 # GrokClaw Approval Workflow
 
-When Ben taps the Telegram **Approve** button on a daily suggestion, `tools/dispatch-telegram-action.sh` handles the `approve_suggestion:N` token: it reads `data/pending-suggestion-N.json`, runs `tools/approve-suggestion.sh` to create a Linear ticket, transitions the issue to In Progress, and posts the result to the suggestions topic.
+Daily suggestions no longer create Linear immediately. Ben now sees the drafted Linear ticket in Telegram before anything is created.
+
+## Flow
+
+1. Grok posts a daily suggestion with `tools/telegram-suggestion.sh`.
+2. The suggestion state is stored in `data/pending-suggestion-N.json`.
+3. Ben taps `Approve`.
+4. `tools/dispatch-telegram-action.sh` handles `approve_suggestion:N` and runs `tools/approve-suggestion.sh`.
+5. `tools/approve-suggestion.sh` calls `tools/linear-draft-approval.sh request ...`, which writes `data/pending-linear-draft-suggestion-N.json` and sends a second Telegram message showing the drafted Linear ticket with `Create Linear` and `Cancel` buttons.
+6. If Ben taps `Create Linear`, `tools/dispatch-telegram-action.sh` handles `approve_linear_draft:suggestion-N` and runs `tools/linear-draft-approval.sh create suggestion-N`.
+7. Only then does the system call `LINEAR_CREATION_FLOW=suggestion LINEAR_DRAFT_ID=suggestion-N tools/linear-ticket.sh ...`, post the Linear link to Telegram, and transition the issue to `In Progress`.
 
 ## Tools
 
 | Tool | Purpose |
 |------|---------|
-| `tools/telegram-suggestion.sh` | Posts daily suggestions with an inline Approve button. Writes `data/pending-suggestion-N.json` for the approval flow. Uses plain text (no Markdown) to avoid formatting breaks. |
-| `tools/telegram-inline.sh` | Sends messages with inline action buttons. Optional 4th arg: `parse_mode` (Markdown, HTML, or plain). |
-| `tools/dispatch-telegram-action.sh` | Handles action tokens from button taps: `approve_suggestion:N`, `merge`, `reject`, etc. |
+| `tools/telegram-suggestion.sh` | Posts daily suggestions with the first-step Approve button and writes `data/pending-suggestion-N.json`. |
+| `tools/approve-suggestion.sh` | Converts an approved suggestion into a Telegram reviewable Linear draft. |
+| `tools/linear-draft-approval.sh` | Stores pending Linear drafts, sends draft approval buttons, creates the real Linear issue after approval, or cancels the draft. |
+| `tools/dispatch-telegram-action.sh` | Handles `approve_suggestion:N`, `approve_linear_draft:<id>`, `reject_linear_draft:<id>`, `merge`, and `reject`. |
 
-## How it works
+## Manual usage
 
-1. **Linear ticket** — Creates an issue in the GrokClaw workspace, delegates to the Cursor agent.
-2. **Telegram update** — Posts status with the Linear link in the suggestions topic.
+### Suggestion draft request
 
-On any step failure, the script posts the error to Telegram and exits 1.
-
-## Usage
-
-### Posting a suggestion (Grok)
-
-```
-tools/telegram-suggestion.sh <N> "<title>" "<reasoning>" "<impact>" "<description>"
+```sh
+tools/approve-suggestion.sh 8 "Test title" suggestions "Test description"
 ```
 
-Writes `data/pending-suggestion-N.json` and posts to the suggestions topic with an Approve button. Uses plain text to avoid Markdown formatting issues.
+### Generic user-request draft approval
 
-### Running approval manually
-
-```
-tools/approve-suggestion.sh <N> "<title>" suggestions [description]
+```sh
+tools/linear-draft-approval.sh request user-req-123 user_request telegram-123 suggestions "Fix webhook retry issue" "Problem, acceptance criteria, implementation notes"
 ```
 
-- `N` — Suggestion number (e.g. 8)
-- `title` — Suggestion title (quoted)
-- `suggestions` — target Telegram topic shortcut
-- `description` — Optional PM-quality ticket body
+### Create the real Linear issue from an approved draft
+
+```sh
+tools/linear-draft-approval.sh create suggestion-8
+```
 
 ## Dry-run
 
-Validate the flow without calling Linear or Telegram:
+Validate the suggestion path without calling Telegram or Linear:
 
-```
+```sh
 tools/approve-suggestion.sh --dry-run 8 "Test title" suggestions "Test description"
 ```
 
@@ -50,21 +53,19 @@ Or set `APPROVAL_DRY_RUN=1`.
 
 ## Smoke test
 
-Run the approval workflow smoke test:
-
-```
+```sh
 tools/approval-smoke.sh
 ```
 
-Verifies that `approve-suggestion.sh --dry-run` runs correctly and prints the expected step sequence. Does not hit external APIs.
+This verifies that `approve-suggestion.sh --dry-run` prints the expected draft-approval sequence.
 
-## Environment variables
+## Hard gate
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WORKSPACE_ROOT` | Derived from script path | Workspace root |
-| `APPROVAL_DRY_RUN` | `0` | If `1`, validate only, no API calls |
+`tools/linear-ticket.sh` now refuses to create a Linear issue unless all of these are true:
 
-## Trigger
+- `LINEAR_CREATION_FLOW` is set to `suggestion` or `user_request`
+- `LINEAR_DRAFT_ID` is set
+- `data/pending-linear-draft-<id>.json` exists
+- the flow, reference ID, title, and description exactly match the approved pending draft
 
-The approval workflow is triggered when Ben taps the Approve button on a daily suggestion. Grok posts suggestions using `tools/telegram-suggestion.sh`, which writes `data/pending-suggestion-N.json` and sends a message with an inline Approve button. The button displays "Approve" (no token visible). When tapped, the message `approve_suggestion:N` is sent; the poller forwards it to `tools/dispatch-telegram-action.sh`, which runs the approval flow.
+That makes the approved draft the final enforcement point, not just a caller convention.

@@ -25,16 +25,23 @@ if [ "$EXIT" -ne 0 ]; then
 fi
 
 # Verify expected step sequence in output
-if ! echo "$OUTPUT" | grep -q "linear-ticket.sh"; then
-  echo "FAIL: output missing linear-ticket step" >&2
-  echo "$OUTPUT" >&2
-  exit 1
-fi
-if ! echo "$OUTPUT" | grep -q "telegram-post.sh"; then
-  echo "FAIL: output missing telegram-post step" >&2
-  echo "$OUTPUT" >&2
-  exit 1
-fi
+case "$OUTPUT" in
+  *"linear-draft-approval.sh request"*) ;;
+  *)
+    echo "FAIL: output missing linear draft approval step" >&2
+    echo "$OUTPUT" >&2
+    exit 1
+    ;;
+esac
+
+case "$OUTPUT" in
+  *"telegram-inline.sh"*) ;;
+  *)
+    echo "FAIL: output missing telegram-inline step" >&2
+    echo "$OUTPUT" >&2
+    exit 1
+    ;;
+esac
 
 echo "$OUTPUT"
 echo ""

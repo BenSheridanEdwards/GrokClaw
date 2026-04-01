@@ -1,5 +1,5 @@
 #!/bin/sh
-# Orchestrate the full approval workflow: Linear ticket → Telegram reply.
+# Turn a suggestion approval into a reviewed Linear draft.
 # Usage: approve-suggestion.sh <N> "<title>" <topic-id> [description]
 #        approve-suggestion.sh --dry-run <N> "<title>" <topic-id> [description]
 #
@@ -34,8 +34,8 @@ DESCRIPTION="${4:-}"
 
 if [ "$DRY_RUN" = "1" ]; then
   echo "[dry-run] Would run:"
-  echo "  1. $WORKSPACE_ROOT/tools/linear-ticket.sh $SUGGESTION_NUMBER \"$SUGGESTION_TITLE\" \"$DESCRIPTION\""
-  echo "  2. $WORKSPACE_ROOT/tools/telegram-post.sh $TELEGRAM_TOPIC \"✅ Suggestion #${SUGGESTION_NUMBER} approved. Linear: <url>. Cursor is on it.\""
+  echo "  1. $WORKSPACE_ROOT/tools/linear-draft-approval.sh request suggestion-$SUGGESTION_NUMBER suggestion $SUGGESTION_NUMBER \"$TELEGRAM_TOPIC\" \"$SUGGESTION_TITLE\" \"$DESCRIPTION\" \"In Progress\""
+  echo "  2. $WORKSPACE_ROOT/tools/telegram-inline.sh \"$TELEGRAM_TOPIC\" \"<draft message>\" '<buttons>' plain"
   exit 0
 fi
 
@@ -53,30 +53,12 @@ post_error() {
     "❌ Approval failed at step $1: $2" 2>/dev/null || true
 }
 
-# Step 1: Create Linear ticket
-export WORKSPACE_ROOT="$WORKSPACE_ROOT"
-LINEAR_OUTPUT=$(RETRY_DISABLE_ALERT=1 "$WORKSPACE_ROOT/tools/retry.sh" --max 3 --delay 2 --alert "$TELEGRAM_TOPIC" -- "$WORKSPACE_ROOT/tools/linear-ticket.sh" \
-  "$SUGGESTION_NUMBER" "$SUGGESTION_TITLE" "$DESCRIPTION" 2>&1) || {
-  post_error "1 (Linear ticket)" "$LINEAR_OUTPUT"
-  echo "$LINEAR_OUTPUT" >&2
+# Step 1: Send the draft for explicit Linear approval.
+DRAFT_OUTPUT=$(RETRY_DISABLE_ALERT=1 "$WORKSPACE_ROOT/tools/retry.sh" --max 3 --delay 2 --alert "$TELEGRAM_TOPIC" -- \
+  "$WORKSPACE_ROOT/tools/linear-draft-approval.sh" request "suggestion-$SUGGESTION_NUMBER" suggestion "$SUGGESTION_NUMBER" "$TELEGRAM_TOPIC" "$SUGGESTION_TITLE" "$DESCRIPTION" "In Progress" 2>&1) || {
+  post_error "1 (draft approval request)" "$DRAFT_OUTPUT"
+  echo "$DRAFT_OUTPUT" >&2
   exit 1
 }
 
-LINEAR_URL=$(echo "$LINEAR_OUTPUT" | tail -n1)
-LINEAR_ISSUE_ID=$(echo "$LINEAR_URL" | sed -n 's|.*/\(GRO-[0-9]*\).*|\1|p')
-if [ -z "$LINEAR_ISSUE_ID" ]; then
-  post_error "1 (Linear ticket)" "Could not parse issue ID from: $LINEAR_URL"
-  exit 1
-fi
-
-# Step 2: Report in Telegram
-TELEGRAM_MSG="✅ Suggestion #${SUGGESTION_NUMBER} approved.
-Linear: ${LINEAR_URL}
-Cursor is on it."
-
-RETRY_DISABLE_ALERT=1 "$WORKSPACE_ROOT/tools/retry.sh" --max 3 --delay 2 --alert "$TELEGRAM_TOPIC" -- "$WORKSPACE_ROOT/tools/telegram-post.sh" "$TELEGRAM_TOPIC" "$TELEGRAM_MSG" 2>&1 || {
-  post_error "2 (Telegram reply)" "Could not post success message"
-  exit 1
-}
-
-echo "Linear: $LINEAR_URL"
+echo "Draft approval requested for suggestion #${SUGGESTION_NUMBER}"

@@ -1,4 +1,4 @@
-"""Tests for the approval workflow (approve-suggestion.sh)."""
+"""Tests for the suggestion-to-linear draft approval workflow."""
 import os
 import subprocess
 import unittest
@@ -25,7 +25,7 @@ class ApprovalWorkflowTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
 
     def test_approve_suggestion_dry_run_prints_steps(self):
-        """approve-suggestion.sh --dry-run prints linear-ticket and telegram-post."""
+        """approve-suggestion.sh --dry-run prints draft request and inline approval steps."""
         env = os.environ.copy()
         env["WORKSPACE_ROOT"] = str(self.workspace)
         result = subprocess.run(
@@ -37,8 +37,8 @@ class ApprovalWorkflowTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0)
         out = result.stdout + result.stderr
-        self.assertIn("linear-ticket.sh", out)
-        self.assertIn("telegram-post.sh", out)
+        self.assertIn("linear-draft-approval.sh request", out)
+        self.assertIn("telegram-inline.sh", out)
 
     def test_approve_suggestion_fails_without_args(self):
         """approve-suggestion.sh exits 1 when given insufficient args."""

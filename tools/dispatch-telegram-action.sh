@@ -7,7 +7,9 @@
 #   merge:<pr-number>:<issue-id>
 #   reject:<pr-number>:<issue-id>
 #   approve_idea:<n>:<issue-id>
-#   approve_suggestion:<n>   — runs approve-suggestion.sh using data/pending-suggestion-<n>.json
+#   approve_suggestion:<n>        — sends the draft Linear ticket for suggestion review
+#   approve_linear_draft:<id>     — creates Linear from a pending approved draft
+#   reject_linear_draft:<id>      — cancels a pending draft without creating Linear
 #   probe:<label>:<id>
 set -eu
 
@@ -82,12 +84,20 @@ case "$ACTION" in
     DESC=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('description',''))" "$PENDING_FILE")
     OUTPUT=$("$WORKSPACE_ROOT/tools/approve-suggestion.sh" "$SUGGESTION_N" "$TITLE" "suggestions" "$DESC" 2>&1) || true
     rm -f "$PENDING_FILE"
-    ISSUE_FROM_OUTPUT=$(echo "$OUTPUT" | sed -n 's|.*/\(GRO-[0-9]*\).*|\1|p' | head -1)
-    if [ -n "$ISSUE_FROM_OUTPUT" ]; then
-      "$WORKSPACE_ROOT/tools/linear-transition.sh" "$ISSUE_FROM_OUTPUT" "In Progress"
-    fi
     printf '%s\n' "$TOKEN" >>"$SEEN_FILE"
-    echo "Suggestion #${SUGGESTION_N} approved. Linear: $ISSUE_FROM_OUTPUT"
+    echo "Suggestion #${SUGGESTION_N} approved. Draft sent for Linear review."
+    ;;
+  approve_linear_draft)
+    DRAFT_ID="$PR_NUM"
+    "$WORKSPACE_ROOT/tools/linear-draft-approval.sh" create "$DRAFT_ID"
+    printf '%s\n' "$TOKEN" >>"$SEEN_FILE"
+    echo "Linear draft approved: $DRAFT_ID"
+    ;;
+  reject_linear_draft)
+    DRAFT_ID="$PR_NUM"
+    "$WORKSPACE_ROOT/tools/linear-draft-approval.sh" reject "$DRAFT_ID"
+    printf '%s\n' "$TOKEN" >>"$SEEN_FILE"
+    echo "Linear draft rejected: $DRAFT_ID"
     ;;
   *)
     echo "Unknown action token: $TOKEN" >&2
