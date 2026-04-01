@@ -1,0 +1,180 @@
+import json
+import os
+import subprocess
+import tempfile
+import textwrap
+import unittest
+from pathlib import Path
+
+
+class CronRunRecordTests(unittest.TestCase):
+    def setUp(self):
+        self.workspace = Path(__file__).resolve().parents[1]
+        self.script = self.workspace / "tools" / "cron-run-record.sh"
+
+    def _write_stub(self, path: Path, body: str) -> None:
+        path.write_text(body, encoding="utf-8")
+        path.chmod(0o755)
+
+    def _setup_workspace_tools(self, workspace: Path) -> tuple[Path, Path, Path]:
+        tools_dir = workspace / "tools"
+        tools_dir.mkdir(parents=True, exist_ok=True)
+        lifecycle_log = workspace / "lifecycle.log"
+        telegram_log = workspace / "telegram.log"
+        paperclip_log = workspace / "paperclip.log"
+
+        self._write_stub(
+            tools_dir / "cron-paperclip-lifecycle.sh",
+            textwrap.dedent(
+                f"""\
+                #!/bin/sh
+                set -eu
+                printf '%s\\n' "$*" >> "{lifecycle_log}"
+                """
+            ),
+        )
+        self._write_stub(
+            tools_dir / "telegram-post.sh",
+            textwrap.dedent(
+                f"""\
+                #!/bin/sh
+                set -eu
+                printf '%s\\n' "$*" >> "{telegram_log}"
+                """
+            ),
+        )
+        self._write_stub(
+            tools_dir / "paperclip-api.sh",
+            textwrap.dedent(
+                f"""\
+                #!/bin/sh
+                set -eu
+                printf '%s\\n' "$*" >> "{paperclip_log}"
+                """
+            ),
+        )
+        return lifecycle_log, telegram_log, paperclip_log
+
+    def test_records_json_and_finishes_paperclip_issue(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            lifecycle_log, telegram_log, _ = self._setup_workspace_tools(workspace)
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["PAPERCLIP_ISSUE_UUID"] = "issue-123"
+
+            result = subprocess.run(
+                ["sh", str(self.script), "alpha-polymarket", "alpha", "ok", "placed one trade"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+
+            today_file = next((workspace / "data" / "cron-runs").glob("*.jsonl"))
+            record = json.loads(today_file.read_text(encoding="utf-8").strip())
+            self.assertEqual(record["job"], "alpha-polymarket")
+            self.assertEqual(record["agent"], "alpha")
+            self.assertEqual(record["status"], "ok")
+            self.assertEqual(record["summary"], "placed one trade")
+
+            self.assertEqual(
+                lifecycle_log.read_text(encoding="utf-8").strip(),
+                "finish issue-123 ok placed one trade",
+            )
+            self.assertFalse(telegram_log.exists(), "successful runs should not post routine health confirmations")
+
+    def test_skipped_run_closes_issue_as_ok(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            lifecycle_log, _, _ = self._setup_workspace_tools(workspace)
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["PAPERCLIP_ISSUE_UUID"] = "issue-123"
+
+            result = subprocess.run(
+                ["sh", str(self.script), "grok-openclaw-research", "grok", "skipped", "nothing new to report"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertEqual(
+                lifecycle_log.read_text(encoding="utf-8").strip(),
+                "finish issue-123 skipped nothing new to report",
+            )
+            self.assertFalse((workspace / "telegram.log").exists(), "skipped runs should not post routine health confirmations")
+
+    def test_error_run_adds_detailed_paperclip_comment(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            lifecycle_log, telegram_log, paperclip_log = self._setup_workspace_tools(workspace)
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["PAPERCLIP_ISSUE_UUID"] = "issue-123"
+            env["CRON_ERROR_DETAILS"] = "Traceback: market validation failed"
+
+            result = subprocess.run(
+                ["sh", str(self.script), "kimi-polymarket", "kimi", "error", "trade loop failed"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertEqual(
+                lifecycle_log.read_text(encoding="utf-8").strip(),
+                "finish issue-123 error trade loop failed",
+            )
+            self.assertEqual(
+                telegram_log.read_text(encoding="utf-8").strip(),
+                "health-alerts [kimi] kimi-polymarket: error -- trade loop failed",
+            )
+            self.assertIn("comment issue-123 Error details:", paperclip_log.read_text(encoding="utf-8"))
+            self.assertIn("Traceback: market validation failed", paperclip_log.read_text(encoding="utf-8"))
+
+    def test_error_still_finishes_if_telegram_post_fails(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            lifecycle_log, telegram_log, _ = self._setup_workspace_tools(workspace)
+            self._write_stub(
+                workspace / "tools" / "telegram-post.sh",
+                textwrap.dedent(
+                    f"""\
+                    #!/bin/sh
+                    set -eu
+                    printf '%s\\n' "$*" >> "{telegram_log}"
+                    exit 1
+                    """
+                ),
+            )
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["PAPERCLIP_ISSUE_UUID"] = "issue-123"
+
+            result = subprocess.run(
+                ["sh", str(self.script), "alpha-polymarket", "alpha", "error", "placed one trade"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(
+                lifecycle_log.read_text(encoding="utf-8").strip(),
+                "finish issue-123 error placed one trade",
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,55 +1,78 @@
 # Agent Tasks
 
-All scheduled tasks and which agent runs them.
+All scheduled agent work is now organized around four core workflows.
 
-## Reporting chain
+## Core model
 
-Kimi and Alpha report to Grok; Grok reports to you (Ben).
+- Every scheduled workflow run creates a fresh Paperclip issue with `tools/cron-paperclip-lifecycle.sh`.
+- Every scheduled workflow run appends a structured line to `data/cron-runs/*.jsonl` via `tools/cron-run-record.sh`.
+- Telegram health posts are failure-only; normal `ok` and `skipped` runs leave evidence in Paperclip and `data/cron-runs/*.jsonl`.
+- Kimi and Alpha still report to Grok with `tools/agent-report.sh`.
+- Linear is only created from approved daily suggestions or direct user-requested bug/feature intake.
 
-- **Kimi** and **Alpha** write to `data/agent-reports/YYYY-MM-DD.json` via `agent-report.sh`
-- **Grok** runs `grok-daily-brief` at 08:00, reads reports, synthesizes, posts to suggestions
-- **All** scheduled jobs append a one-line record via `tools/cron-run-record.sh` → `data/cron-runs/*.jsonl` for **`grok-cron-scrutiny`** (hourly Telegram verdict on value vs hollow vs missing data)
+## Shared workspace
 
-Exception: Polymarket posts to Telegram in real time (trades are time-sensitive) and also reports to Grok.
+All agents share `/Users/jarvis/Engineering/Projects/GrokClaw`.
 
-## Workspaces
+Runtime outputs:
 
-All agents share the same workspace (`/Users/jarvis/Engineering/Projects/GrokClaw`) so they can run shared tools. Agent-specific outputs go to `data/agent-reports/` (tagged by agent).
+- `data/cron-runs/` — one JSONL file per UTC day for cron execution history
+- `data/linear-creations/` — one JSONL file per UTC day for Linear creation audit
+- `data/research/openclaw/` — Grok OpenClaw research markdown briefs
+- `data/alpha/research/` — Alpha hourly Polymarket research markdown files
+- `data/kimi/research/` — Kimi hourly Polymarket research markdown files
+- `data/agent-reports/` — agent reports consumed by Grok daily brief
 
-## Grok (default) — reports to you
+## The four workflows
 
-| Job | Schedule | Task |
-|-----|----------|------|
-| daily-grokclaw-suggestion | 06:00 daily | Research one improvement from Known gaps, post to suggestions with Approve button |
-| grok-daily-brief | 08:00 daily | Read agent reports, synthesize Kimi + Alpha into brief, post to suggestions |
-| grok-cron-scrutiny | :20 every hour | Read cron run JSONL context; judge substance vs spin; post health-alerts scrutiny |
-| pr-watch | Every 10 min | List ready PRs, review grok/* PRs, post review + merge/reject buttons, reconcile merged → Done, trigger self-deploy |
-| paperclip-sync | Every 6h | Board sync, execute highest-priority todo issue, post summary to health-alerts |
-| changelog-weekly-check | Monday 07:00 | Check for OpenClaw updates via GitHub/npm, post to health-alerts if update available |
-
-## Kimi — reports to Grok
+### Grok
 
 | Job | Schedule | Task |
 |-----|----------|------|
-| polymarket-daily-trade | Every 4h | Fetch candidate, web_search validate, decide YES/NO/SKIP, loop until bet or exhaust, post to polymarket + agent-report |
-| polymarket-daily-resolve | 23:45 daily | Resolve paper trades, alert Telegram if promotion gate transitions, agent-report |
-| polymarket-weekly-digest | 01:00 Monday | Weekly digest to Telegram, append to memory, agent-report |
-| reliability-report | 07:00 daily | Gateway status, log errors, merged PRs → agent-report + health headline |
+| `grok-daily-brief` | 08:00 daily | Review the last 24h of Paperclip issues, cron logs, audit logs, health checks, and agent reports; summarize success/failure/fixes/improvements; flag invalid Linear creation flows; optionally post one approveable suggestion |
+| `grok-openclaw-research` | 07:00, 13:00, 19:00 daily | Research latest stable OpenClaw version, new features, notable integrations, and ecosystem movement across X/GitHub/npm; save markdown brief and post headline to health |
 
-## Alpha — reports to Grok
+### Alpha
 
 | Job | Schedule | Task |
 |-----|----------|------|
-| alpha-daily-research | 07:30 daily | Research one topic (priority order), agent-report + health headline |
+| `alpha-polymarket` | Hourly | Autoresearch profitable traders and candidate markets, validate with web research, make trade/skip decisions, resolve pending paper trades when needed, save markdown research, post to polymarket, report to Grok |
+
+### Kimi
+
+| Job | Schedule | Task |
+|-----|----------|------|
+| `kimi-polymarket` | Hourly | Same workflow as Alpha but on Kimi for model diversity and broader market coverage; save markdown research, post to polymarket, report to Grok |
+
+## Paperclip lifecycle
+
+Each scheduled run is a distinct Paperclip issue lifecycle:
+
+1. `tools/cron-paperclip-lifecycle.sh start <job> <agent>` creates the issue and moves it to `in_progress`
+2. Each workflow prompt writes the returned issue UUID to `.openclaw/<job>.issue` immediately so the final record step can recover it safely
+3. The agent performs the workflow
+4. `PAPERCLIP_ISSUE_UUID=$(cat "$ISSUE_FILE") tools/cron-run-record.sh ...` records the result
+5. `cron-run-record.sh` closes the Paperclip issue as `done`, `failed`, or `cancelled` for a skipped run
+6. On errors, `CRON_ERROR_DETAILS` can add an extra Paperclip comment with failure context
+
+## PR review
+
+PR review is no longer a cron workflow.
+
+- `.github/workflows/pr-review.yml` marks PRs with `needs-grok-review` on `opened`, `ready_for_review`, and `synchronize`
+- `tools/pr-review-watch.sh` runs locally every 5 minutes and wakes Grok only when the review queue changes
+- `tools/pr-review-handler.sh list` shows queued PRs
+- `tools/pr-review-handler.sh approve ...` approves on GitHub first, swaps labels, then posts Telegram merge/reject buttons
+- `tools/pr-review-handler.sh request-changes ...` requests changes on GitHub and keeps Telegram quiet
 
 ## Topic routing
 
 | Telegram topic | Agent(s) |
 |----------------|----------|
-| suggestions (2) | Grok (daily brief, suggestions) |
-| polymarket (3) | Kimi (real-time trades) |
-| health (4) | Grok (`paperclip-sync`, `grok-cron-scrutiny`, deploy results), Kimi (`reliability-report`), Alpha (`alpha-daily-research`), changelog notices |
-| pr-reviews (5) | Grok |
+| suggestions (2) | Grok daily brief and approveable suggestions |
+| polymarket (3) | Alpha and Kimi hourly trading/research summaries |
+| health (4) | Grok OpenClaw research headlines, failures, and reliability anomalies |
+| pr-reviews (5) | Grok after GitHub approval is complete |
 
 ## Manual runs
 
@@ -64,4 +87,7 @@ OPENCLAW_AGENT_ID=kimi ./tools/run-openclaw-agent.sh
 
 # Alpha
 OPENCLAW_AGENT_ID=alpha ./tools/run-openclaw-agent.sh
+
+# Grok PR review queue watcher
+./tools/pr-review-watch.sh
 ```

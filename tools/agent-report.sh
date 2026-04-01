@@ -2,7 +2,7 @@
 # Append an agent report for Grok to synthesize.
 # Usage: agent-report.sh <agent> <job> <summary>
 #   agent: kimi | alpha
-#   job: job name (e.g. reliability-report, alpha-daily-research)
+#   job: job name (e.g. alpha-polymarket, kimi-polymarket)
 #   summary: report text (one line or use - to read from stdin)
 #
 # Reports go to data/agent-reports/YYYY-MM-DD.json

@@ -2,159 +2,7 @@
   "version": 1,
   "jobs": [
     {
-      "id": "4978a69dab9ec327",
-      "name": "daily-grokclaw-suggestion",
-      "enabled": true,
-      "sessionTarget": "isolated",
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 6 * * *"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "-1003831656556",
-        "bestEffort": true
-      },
-      "payload": {
-        "kind": "agentTurn",
-        "message": "You are Grok, the sole agent of GrokClaw. Read memory/MEMORY.md in full first \u2014 never suggest anything already in Completed work, use Known gaps as your backlog, and check Suggestion history for the next N. Then research exactly one high-leverage improvement for this system. Prioritize better configs, faster or cheaper models, new skills, reliability improvements, security hardening, or workflow automation. Post using ./tools/telegram-suggestion.sh N \"<title>\" \"<reasoning>\" \"<impact>\" \"<description>\" \u2014 this posts to the daily-suggestions topic with an Approve button. Approve? (tap the Approve button). The description is the PM-quality ticket body for the Linear issue when approved. Final step \u2014 append scrutiny log: ./tools/cron-run-record.sh daily-grokclaw-suggestion grok ok|error|skipped 'one-line factual outcome (e.g. posted suggestion #N or blocked reason)'"
-      },
-      "deleteAfterRun": false
-    },
-    {
-      "id": "983b5187b5727cee",
-      "name": "polymarket-daily-trade",
-      "agentId": "kimi",
-      "enabled": true,
-      "sessionTarget": "isolated",
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 */4 * * *"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "-1003831656556",
-        "bestEffort": true
-      },
-      "payload": {
-        "kind": "agentTurn",
-        "message": "Polymarket session (runs every 4h). Goal: make a bet every session. First read memory/MEMORY.md Polymarket section and run ./tools/polymarket-context.sh to load recent decisions and results. Use this to calibrate. Loop until you place a bet or exhaust options: (1) Run ./tools/polymarket-trade.sh to fetch and stage the next candidate. If it returns no candidate, stop and post that to Telegram. (2) Read copy_strategy from the output. Run web_search with at least 2 queries to validate. (3) Prefer to trade: only SKIP when evidence strongly conflicts or no tradeable market exists. When there is a marginal edge, choose YES or NO with your best estimate. Run ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<reasoning>\". (4) If you SKIP, go back to step 1 \u2014 the skipped market is excluded, so the next run returns a different whale-backed or volume candidate. Keep iterating through markets until you place a bet. After placing a bet (or exhausting options), run ./tools/polymarket-report.sh. Post to Telegram: ./tools/telegram-post.sh polymarket \"Session: [traded YES/NO on <question> | no bet: <reason>]. Why: [one sentence]. Bankroll: $X, accuracy: Y%.\" Also run ./tools/agent-report.sh kimi polymarket-daily-trade \"<same session summary>\" to report to Grok. Final step \u2014 scrutiny log: ./tools/cron-run-record.sh polymarket-daily-trade kimi ok|error|skipped 'one-line: trade/skip loop outcome + bankroll hint or error'"
-      },
-      "deleteAfterRun": false
-    },
-    {
-      "id": "03a58dc58cec4832",
-      "name": "polymarket-daily-resolve",
-      "agentId": "kimi",
-      "enabled": true,
-      "sessionTarget": "isolated",
-      "schedule": {
-        "kind": "cron",
-        "expr": "45 23 * * *"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "-1003831656556",
-        "bestEffort": true
-      },
-      "payload": {
-        "kind": "agentTurn",
-        "message": "Run ./tools/polymarket-resolve-turn.sh to resolve paper trades, print the latest report, and only alert Telegram if the promotion gate has just transitioned to eligible. Then run ./tools/agent-report.sh kimi polymarket-daily-resolve \"<report summary>\" to report to Grok. Final step \u2014 scrutiny log: ./tools/cron-run-record.sh polymarket-daily-resolve kimi ok|error|skipped 'one-line: resolves/gate transition or none'"
-      },
-      "deleteAfterRun": false
-    },
-    {
-      "id": "c1aeff28188137f8",
-      "name": "polymarket-weekly-digest",
-      "agentId": "kimi",
-      "enabled": true,
-      "sessionTarget": "isolated",
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 1 * * 1"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "-1003831656556",
-        "bestEffort": true
-      },
-      "payload": {
-        "kind": "agentTurn",
-        "message": "Run ./tools/polymarket-digest.sh to post the weekly Polymarket digest to Telegram and append a calibration note to memory/MEMORY.md. Then run ./tools/agent-report.sh kimi polymarket-weekly-digest \"<digest summary>\" to report to Grok. Final step \u2014 scrutiny log: ./tools/cron-run-record.sh polymarket-weekly-digest kimi ok|error|skipped 'one-line: digest posted + memory updated or error'"
-      },
-      "deleteAfterRun": false
-    },
-    {
-      "id": "a7b3c4d5e6f78901",
-      "name": "reliability-report",
-      "agentId": "kimi",
-      "enabled": true,
-      "sessionTarget": "isolated",
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 7 * * *"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "-1003831656556",
-        "bestEffort": true
-      },
-      "payload": {
-        "kind": "agentTurn",
-        "message": "Run ./tools/reliability-report.sh --dry-run and capture the Report/Summary output. Then run ./tools/agent-report.sh kimi reliability-report \"<paste the summary>\". Post a short line to health-alerts: ./tools/telegram-post.sh health-alerts \"Reliability: <one-line headline from summary>\". Final step \u2014 scrutiny log: ./tools/cron-run-record.sh reliability-report kimi ok|error|skipped 'one-line: gateway/logs/PR stats headline or error'"
-      },
-      "deleteAfterRun": false
-    },
-    {
-      "id": "0f9f35e8f4ad61ac",
-      "name": "pr-watch",
-      "enabled": true,
-      "sessionTarget": "isolated",
-      "schedule": {
-        "kind": "cron",
-        "expr": "*/10 * * * *"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "-1003831656556",
-        "bestEffort": true
-      },
-      "payload": {
-        "kind": "agentTurn",
-        "message": "You are Grok. This is the dedicated PR/deploy watch flow (separate from cron scrutiny). (1) list ready PRs with gh pr list --repo BenSheridanEdwards/GrokClaw --state open --json number,title,isDraft,headRefName and review any non-draft grok/* PR against its Linear ticket; (2) if PR passes, post a concise review summary to pr-reviews topic and send action buttons using ./tools/telegram-inline.sh where button text includes tokens merge:<pr>:<issue> and reject:<pr>:<issue>; (3) when Ben taps a button and action text appears in chat, run ./tools/dispatch-telegram-action.sh \"<that message text>\" and post result; (4) reconcile merged PRs by transitioning matching Linear issues to Done; (5) if new commits were merged to main, run ./tools/self-deploy.sh and report result to health-alerts. Final step \u2014 scrutiny log (for the separate Grok scrutiny job): ./tools/cron-run-record.sh pr-watch grok ok|error|skipped 'one-line: PRs reviewed N, merges/deploy actions, or idle'"
-      },
-      "deleteAfterRun": false
-    },
-    {
-      "id": "b8c4d5e6f7a89012",
-      "name": "alpha-daily-research",
-      "agentId": "alpha",
-      "enabled": true,
-      "sessionTarget": "isolated",
-      "schedule": {
-        "kind": "cron",
-        "expr": "30 7 * * *"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "-1003831656556",
-        "bestEffort": true
-      },
-      "payload": {
-        "kind": "agentTurn",
-        "message": "You are Alpha, GrokClaw's research agent. Read memory/MEMORY.md. Research one topic in this priority order: (1) Polymarket market discovery \u2014 API filters, tag_id, categories, pagination, multi-page fetch, whale/volume scoring, alternative data; (2) free AI models \u2014 new OpenRouter/Ollama models, tool-calling support, deprecations; (3) OpenClaw \u2014 changelog, multi-agent patterns, session/compaction; (4) retry/reliability \u2014 API retry patterns, idempotency; (5) agentic tool use. Use web_search. Produce 3\u20135 bullet summary. Run ./tools/agent-report.sh alpha alpha-daily-research \"<topic>: <one-line>. Findings: <bullets>. Next: <action>.\". Post headline to health-alerts: ./tools/telegram-post.sh health-alerts \"Alpha research: <one-line topic>\". Final step \u2014 scrutiny log: ./tools/cron-run-record.sh alpha-daily-research alpha ok|error|skipped 'one-line: topic + finding quality or error'"
-      },
-      "deleteAfterRun": false
-    },
-    {
-      "id": "c9d5e6f7a8b90123",
+      "id": "9c1b0a7d4e2f1001",
       "name": "grok-daily-brief",
       "enabled": true,
       "sessionTarget": "isolated",
@@ -170,18 +18,18 @@
       },
       "payload": {
         "kind": "agentTurn",
-        "message": "You are Grok. Kimi and Alpha report to you; you report to Ben. Run ./tools/grok-daily-brief.sh to read today's agent reports. If there are reports, synthesize them into a concise daily brief (one paragraph per agent, key points only). Post to suggestions: ./tools/telegram-post.sh suggestions \"Daily brief: <synthesis of Kimi + Alpha reports>. \u2014 Grok\". Final step \u2014 scrutiny log: ./tools/cron-run-record.sh grok-daily-brief grok ok|skipped 'one-line: brief posted or no reports today'"
+        "message": "You are Grok. First create the Paperclip issue for this run: mkdir -p .openclaw && ISSUE_FILE=.openclaw/grok-daily-brief.issue && ISSUE_UUID=$(./tools/cron-paperclip-lifecycle.sh start grok-daily-brief grok) && printf '%s' \"$ISSUE_UUID\" > \"$ISSUE_FILE\". Then read memory/MEMORY.md in full. Produce the Grok Daily System Brief for the last 24 hours of GrokClaw. Review Paperclip issues from the last 24 hours, read data/cron-runs/*.jsonl for execution history, inspect audit logs in data/audit-log/*.jsonl if present, inspect data/linear-creations/*.jsonl and flag any flow outside suggestion or user_request, run read-only health checks for gateway, Paperclip, Telegram, and Ollama, and read today's agent reports. Summarize what succeeded, what failed, what needs fixing today, and one concrete way to improve the system. If you have a concrete improvement worth approval, post it with ./tools/telegram-suggestion.sh <next-N> \"<title>\" \"<reasoning>\" \"<impact>\" \"<description>\". Otherwise post the brief to suggestions with ./tools/telegram-post.sh suggestions \"Daily system brief: <summary>\". Final step: replace STATUS with exactly one of ok, error, or skipped, then run CRON_ERROR_DETAILS=\"<root cause if error>\" PAPERCLIP_ISSUE_UUID=$(cat \"$ISSUE_FILE\") ./tools/cron-run-record.sh grok-daily-brief grok STATUS 'one-line factual outcome'; rm -f \"$ISSUE_FILE\""
       },
       "deleteAfterRun": false
     },
     {
-      "id": "a7b2c3d4e5f61728",
-      "name": "paperclip-sync",
+      "id": "9c1b0a7d4e2f1002",
+      "name": "grok-openclaw-research",
       "enabled": true,
       "sessionTarget": "isolated",
       "schedule": {
         "kind": "cron",
-        "expr": "0 */6 * * *"
+        "expr": "0 7,13,19 * * *"
       },
       "delivery": {
         "mode": "announce",
@@ -191,18 +39,19 @@
       },
       "payload": {
         "kind": "agentTurn",
-        "message": "You are Grok. Run Paperclip board maintenance:\n1. Run ./tools/paperclip-sync.sh and report the board status.\n2. Run ./tools/paperclip-api.sh list-issues todo \u2014 if there are todo issues assigned to you, pick the highest priority one and execute it.\n3. After completing any issue, run ./tools/paperclip-api.sh update-issue <uuid> done \"Summary\".\n4. Post the Paperclip board summary to the health-alerts Telegram topic: ./tools/telegram-post.sh health-alerts \"Paperclip sync: <summary>\"\n5. Final step \u2014 scrutiny log: ./tools/cron-run-record.sh paperclip-sync grok ok|error|skipped 'one-line: issues done N or sync-only or error'"
+        "message": "You are Grok. First create the Paperclip issue for this run: mkdir -p .openclaw && ISSUE_FILE=.openclaw/grok-openclaw-research.issue && ISSUE_UUID=$(./tools/cron-paperclip-lifecycle.sh start grok-openclaw-research grok) && printf '%s' \"$ISSUE_UUID\" > \"$ISSUE_FILE\". Read memory/MEMORY.md. Determine the run slot from the current UTC hour: 07=morning, 13=afternoon, 19=evening. Research OpenClaw status and ecosystem: are we on the latest stable version, what new features or integrations are shipping, and what is happening on X, GitHub, and npm. Save a markdown brief to data/research/openclaw/YYYY-MM-DD-{morning|afternoon|evening}.md with sections: latest stable, notable changes, interesting integrations, and recommended action. Post a one-line headline to health-alerts with ./tools/telegram-post.sh health-alerts \"OpenClaw research (<slot>): <one-line headline>\". Final step: replace STATUS with exactly one of ok, error, or skipped, then run CRON_ERROR_DETAILS=\"<root cause if error>\" PAPERCLIP_ISSUE_UUID=$(cat \"$ISSUE_FILE\") ./tools/cron-run-record.sh grok-openclaw-research grok STATUS 'one-line factual outcome'; rm -f \"$ISSUE_FILE\""
       },
       "deleteAfterRun": false
     },
     {
-      "id": "e1f2a3b4c5d67012",
-      "name": "grok-cron-scrutiny",
+      "id": "9c1b0a7d4e2f1003",
+      "name": "alpha-polymarket",
+      "agentId": "alpha",
       "enabled": true,
       "sessionTarget": "isolated",
       "schedule": {
         "kind": "cron",
-        "expr": "20 * * * *"
+        "expr": "0 * * * *"
       },
       "delivery": {
         "mode": "announce",
@@ -212,18 +61,19 @@
       },
       "payload": {
         "kind": "agentTurn",
-        "message": "You are Grok running **cron scrutiny** for GrokClaw. This job is separate from pr-watch, polymarket, and other workflows: you only judge whether scheduled jobs are producing real outcomes vs empty spin, using evidence from structured logs.\n\n1. Read memory/MEMORY.md (Known gaps, Completed work).\n2. Run ./tools/cron-scrutiny-context.sh and read the entire output (stats + recent JSON lines).\n3. Judge hard: empty summaries, repeated identical text, status=error, jobs with no records in 36h that should have run, summaries with no concrete artifact (numbers, PR numbers, bet side, issue IDs). Distinguish **value** vs **hollow** vs **missing data**.\n4. **pr-watch** is its own linear flow: do not demand novel insight every run. Flag pr-watch only if summaries are always empty/error, or identical boilerplate across many runs with no PR activity when gh would show open grok/* PRs \u2014 then say **suspicious** and why.\n5. Optionally verify with read-only checks when summaries claim system state (e.g. ./tools/health-check.sh exit code). Do not start deploys or merge PRs in this job unless you find a critical regression worth an explicit health post (prefer reporting over acting).\n6. Post **one** Telegram to health-alerts with your verdict:\n   ./tools/telegram-post.sh health-alerts \"Cron scrutiny: <2\u20136 short bullets \u2014 Value | Hollow | Missing | Suspicious + one recommended next step>\"\n   If nothing is wrong but the log is thin, say so honestly (e.g. jobs not yet calling cron-run-record).\n7. Record: ./tools/cron-run-record.sh grok-cron-scrutiny grok ok|error|skipped 'one-line: scrutiny headline'"
+        "message": "You are Alpha. First create the Paperclip issue for this run: mkdir -p .openclaw && ISSUE_FILE=.openclaw/alpha-polymarket.issue && ISSUE_UUID=$(./tools/cron-paperclip-lifecycle.sh start alpha-polymarket alpha) && printf '%s' \"$ISSUE_UUID\" > \"$ISSUE_FILE\". Read memory/MEMORY.md Polymarket section and run ./tools/polymarket-context.sh. This is hourly autoresearch-enabled Polymarket research and trading. Look for markets to trade and profitable traders and what they are doing. Use ./tools/polymarket-trade.sh to fetch candidates, web_search to validate, ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<reasoning>\" when you have an edge, ./tools/polymarket-report.sh after a trade or skip, and ./tools/polymarket-resolve-turn.sh when you need to resolve pending paper trades. Save research markdown to data/alpha/research/YYYY-MM-DD-HH.md with sections: trader signals, market candidates, action taken, and next questions. Post to Telegram with ./tools/telegram-post.sh polymarket \"Alpha session: <trade or skip>. Why: <one sentence>.\" Report to Grok with ./tools/agent-report.sh alpha alpha-polymarket \"<same concise summary>\". Final step: replace STATUS with exactly one of ok, error, or skipped, then run CRON_ERROR_DETAILS=\"<root cause if error>\" PAPERCLIP_ISSUE_UUID=$(cat \"$ISSUE_FILE\") ./tools/cron-run-record.sh alpha-polymarket alpha STATUS 'one-line factual outcome'; rm -f \"$ISSUE_FILE\""
       },
       "deleteAfterRun": false
     },
     {
-      "id": "d2e3f4a5b6c78901",
-      "name": "changelog-weekly-check",
+      "id": "9c1b0a7d4e2f1004",
+      "name": "kimi-polymarket",
+      "agentId": "kimi",
       "enabled": true,
       "sessionTarget": "isolated",
       "schedule": {
         "kind": "cron",
-        "expr": "0 7 * * 1"
+        "expr": "0 * * * *"
       },
       "delivery": {
         "mode": "announce",
@@ -233,7 +83,7 @@
       },
       "payload": {
         "kind": "agentTurn",
-        "message": "Run ./tools/changelog-check.sh to check for OpenClaw updates. If an update is available, the script posts to health-alerts automatically. Then record: ./tools/cron-run-record.sh changelog-weekly-check grok ok|error|skipped 'one-line: version status'"
+        "message": "You are Kimi. First create the Paperclip issue for this run: mkdir -p .openclaw && ISSUE_FILE=.openclaw/kimi-polymarket.issue && ISSUE_UUID=$(./tools/cron-paperclip-lifecycle.sh start kimi-polymarket kimi) && printf '%s' \"$ISSUE_UUID\" > \"$ISSUE_FILE\". Read memory/MEMORY.md Polymarket section and run ./tools/polymarket-context.sh. This is hourly autoresearch-enabled Polymarket research and trading. Look for markets to trade and profitable traders and what they are doing. Use ./tools/polymarket-trade.sh to fetch candidates, web_search to validate, ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<reasoning>\" when you have an edge, ./tools/polymarket-report.sh after a trade or skip, and ./tools/polymarket-resolve-turn.sh when you need to resolve pending paper trades. Save research markdown to data/kimi/research/YYYY-MM-DD-HH.md with sections: trader signals, market candidates, action taken, and next questions. Post to Telegram with ./tools/telegram-post.sh polymarket \"Kimi session: <trade or skip>. Why: <one sentence>.\" Report to Grok with ./tools/agent-report.sh kimi kimi-polymarket \"<same concise summary>\". Final step: replace STATUS with exactly one of ok, error, or skipped, then run CRON_ERROR_DETAILS=\"<root cause if error>\" PAPERCLIP_ISSUE_UUID=$(cat \"$ISSUE_FILE\") ./tools/cron-run-record.sh kimi-polymarket kimi STATUS 'one-line factual outcome'; rm -f \"$ISSUE_FILE\""
       },
       "deleteAfterRun": false
     }

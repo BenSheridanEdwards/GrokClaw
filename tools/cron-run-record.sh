@@ -55,3 +55,21 @@ line = json.dumps(rec, ensure_ascii=False)
 with open(path, "a", encoding="utf-8") as f:
     f.write(line + "\n")
 PY
+
+TELEGRAM_POST="$WORKSPACE_ROOT/tools/telegram-post.sh"
+LIFECYCLE="$WORKSPACE_ROOT/tools/cron-paperclip-lifecycle.sh"
+PAPERCLIP_API="$WORKSPACE_ROOT/tools/paperclip-api.sh"
+TELEGRAM_MESSAGE="[$AGENT] $JOB: $STATUS -- $SUMMARY"
+
+if [ -n "${PAPERCLIP_ISSUE_UUID:-}" ]; then
+  LIFECYCLE_STATUS="$STATUS"
+  "$LIFECYCLE" finish "$PAPERCLIP_ISSUE_UUID" "$LIFECYCLE_STATUS" "$SUMMARY"
+
+  if [ "$STATUS" = "error" ] && [ -n "${CRON_ERROR_DETAILS:-}" ]; then
+    "$PAPERCLIP_API" comment "$PAPERCLIP_ISSUE_UUID" "Error details: ${CRON_ERROR_DETAILS}"
+  fi
+fi
+
+if [ "$STATUS" = "error" ]; then
+  "$TELEGRAM_POST" health-alerts "$TELEGRAM_MESSAGE"
+fi
