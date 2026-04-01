@@ -90,7 +90,7 @@ Run after any infrastructure change:
 - **After deploy:** `./tools/self-deploy.sh` handles cron sync + restart automatically.
 - **After cron edit:** `python3 tools/cron-jobs-tool.py validate && ./tools/sync-cron-jobs.sh --restart`
 - **After dependency change (Ollama, OpenRouter):** Document in prerequisites above, verify with `./tools/grokclaw-doctor.sh --check`
-- **Full system check:** `./tools/grokclaw-doctor.sh --check` (read-only) or `--heal` (auto-fix)
+- **Full system check:** `./tools/grokclaw-doctor.sh --check` (read-only) or `--heal` (auto-fix); `./tools/grokclaw-doctor.sh --status` prints one machine-readable line (read-only)
 - **Before committing cron:** `python3 tools/cron-jobs-tool.py strip` to remove scheduler state
 
 ## Self-healing
@@ -112,6 +112,9 @@ Additionally, `tools/health-check.sh` (system crontab, every 5min) calls the doc
 ```bash
 # Full system health check
 ./tools/grokclaw-doctor.sh --check
+
+# One-line status (for scripts / dashboards)
+./tools/grokclaw-doctor.sh --status
 
 # List agents (use GrokClaw config)
 openclaw agents list
