@@ -17,6 +17,8 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-04-01** — `tests/test_polymarket_digest.py`: dry-run test now invokes `tools/polymarket-digest.sh` via repo root from `__file__` instead of a hardcoded Mac path so the suite passes in CI and other workspaces.
 - **2026-04-01** — `.gitignore`: ignore `__pycache__/` and `*.py[cod]`; removed previously committed `tests/__pycache__` and `tools/__pycache__` bytecode from the repo.
 - **2026-04-01** — GRO-42 workflow health: `cron-paperclip-lifecycle.sh start` now allows only the four core cron job names (blocks stray Paperclip issues from non-core jobs). `cron-run-record.sh` resolves `PAPERCLIP_ISSUE_UUID` from `.openclaw/<job>.issue` when the env var is unset so Paperclip issues still close if the agent omits exporting the variable. Added read-only `tools/_workflow_health_audit.py` and wired it into `grokclaw-doctor.sh` (no auto-repair; surfaces missing `data/cron-runs` evidence). Tests: `test_workflow_health_audit.py`, lifecycle non-core refusal, cron-run-record file fallback.
+- **2026-04-01** — Split reliability checks into three verified layers: `tools/health-check.sh` now runs every 2 minutes as a fast detector that hands off to `tools/gateway-watchdog.sh`, `tools/gateway-watchdog.sh` now owns bounded automatic gateway repair, and `tools/grokclaw-doctor.sh` remains audit-only with schedule-aware grace windows for the 4 core workflows. Added launchd schedule files for explicit watchdog/doctor wall-clock timing, updated `North Star.md` + runtime docs to match, and verified the new model with end-to-end tests covering detector handoff, watchdog repair/failure, doctor dedupe, workflow latest-run enforcement, and launchd schedule wiring.
+- **2026-04-01** — Synced the live OpenClaw runtime cron back to the North Star 4-workflow layout with `./tools/sync-cron-jobs.sh --restart`, created the missing evidence directories (`data/research/openclaw/`, `data/alpha/research/`, `data/kimi/research/`, `data/linear-creations/`, `data/audit-log/`), restored PR review intake with `.github/workflows/pr-review.yml`, and added `tools/pr-review-handler.sh` for `list`, `approve`, and `request-changes`.
 - **2026-04-01** — Added a hard Linear creation gate on top of the Telegram draft flow. `tools/linear-ticket.sh` now refuses to create issues unless `LINEAR_CREATION_FLOW` and `LINEAR_DRAFT_ID` are set and the request exactly matches an approved `data/pending-linear-draft-*.json` record. This closes the bypass where direct script calls could still create Linear without Ben's explicit approval.
 - **2026-04-01** — Aligned runtime and docs to `North Star.md`: `cron-run-record.sh` now posts Telegram health only on failures, skipped workflow runs close Paperclip issues as `cancelled`, daily suggestions now require a second Telegram approval of the drafted Linear ticket before real Linear creation, direct Telegram bug/feature intake can use `tools/linear-draft-approval.sh request ...`, and PR review now has a local launchd-ready watcher via `tools/pr-review-watch.sh`. Rewrote stale docs and removed obsolete `reliability-report`, `paperclip-sync`, and cron-scrutiny helper scripts.
 - **2026-04-01** — Replaced the old 11-job cron layout with 4 core workflows: `grok-daily-brief`, `grok-openclaw-research`, `alpha-polymarket`, and `kimi-polymarket`. Added per-run Paperclip issue lifecycle tooling (`tools/cron-paperclip-lifecycle.sh`), upgraded `tools/cron-run-record.sh` to close Paperclip issues and post Telegram confirmations, added research output directories, and rewrote `cron/jobs.json` to the new schedules and prompts.
@@ -102,8 +104,7 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 - No retry logic on failed tool calls (linear-ticket.sh or create-pr.sh)
 - Session summarization threshold may need tuning
 - ~~OpenClaw changelog / release notes~~ — addressed: `tools/changelog-check.sh` + `changelog-weekly-check` cron job (re-implemented 2026-03-30)
-- Old Slack tools (`slack-post.sh`, `_slack_post.py`) still in repo — can be removed once Telegram is confirmed stable
-- Cron observability still depends on jobs reaching `tools/cron-run-record.sh`; if a run fails before that step, `data/cron-runs/*.jsonl` will stay thin and `grok-cron-scrutiny` has less evidence
+- Cron observability still depends on jobs reaching `tools/cron-run-record.sh`; if a run fails before that step, `data/cron-runs/*.jsonl` will stay thin and the daily brief will have less execution evidence to inspect
 
 ---
 
@@ -117,7 +118,7 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 | Alpha model | `openrouter/arcee-ai/trinity-large-preview:free` (OpenRouter free, requires `OPENROUTER_API_KEY`) |
 | Workspace | `/Users/jarvis/Engineering/Projects/GrokClaw` |
 | Config | `~/.openclaw/openclaw.json` |
-| Cron jobs | 11 jobs across 3 agents (Grok, Kimi, Alpha); see `docs/agent-tasks.md` |
+| Cron jobs | 4 core jobs across 3 agents (Grok, Kimi, Alpha); see `docs/agent-tasks.md` |
 | GitHub repo | `BenSheridanEdwards/GrokClaw` |
 | Linear team | `GrokClaw` (`3f1b1054-07c6-4aad-a02c-89c78a43946b`) |
 | Telegram group | `-1003831656556` (topics: suggestions=2, polymarket=3, health=4, pr-reviews=5) |
