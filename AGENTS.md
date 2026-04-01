@@ -10,9 +10,9 @@ GrokClaw runs multiple OpenClaw agents on one gateway:
 
 | Agent | Model | Workloads |
 |-------|-------|-----------|
-| **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | Daily suggestions, PR review, Paperclip heartbeat, feature intake |
-| **Kimi** | `ollama/kimi-k2.5:cloud` | Polymarket (trade, resolve, digest), reliability report |
-| **Alpha** | `openrouter/arcee-ai/trinity-large-preview:free` | Daily research (alpha-daily-research), long-context (requires `OPENROUTER_API_KEY`) |
+| **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | Daily system brief, OpenClaw research, PR review, feature intake |
+| **Kimi** | `ollama/kimi-k2.5:cloud` | Hourly Polymarket research and trading |
+| **Alpha** | `openrouter/arcee-ai/trinity-large-preview:free` | Hourly Polymarket research and trading, long-context (requires `OPENROUTER_API_KEY`) |
 
 Routing: Cron jobs with `agentId: "kimi"` run on Kimi. Kimi and Alpha report to Grok via `agent-report.sh`; Grok synthesizes and reports to you in the daily brief (08:00). See `docs/agent-tasks.md` for full task breakdown. Paperclip can create a second agent with `adapterConfig.agentId: "kimi"` to assign tasks. Manual runs: `OPENCLAW_AGENT_ID=kimi ./tools/run-openclaw-agent.sh` or `./tools/run-openclaw-agent-kimi.sh`.
 
@@ -24,9 +24,9 @@ GrokClaw is an OpenClaw instance where Grok acts as a daily research operator an
 
 Primary responsibilities:
 1. Research latest OpenClaw features and compare against this deployment.
-2. Post one high-leverage suggestion daily.
+2. Post one high-leverage suggestion inside the daily system brief when warranted.
 3. Turn approved ideas into PM-quality Linear tickets delegated to Cursor.
-4. Proactively review ready PRs and coordinate merge decisions.
+4. Review PRs on GitHub before Telegram ever asks Ben to merge.
 5. Keep the system healthy (alerts, retries, watchdog, deploy loop).
 
 ---
@@ -62,8 +62,8 @@ Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profi
 
 - Gateway process manager: `tools/gateway-ctl.sh`
 - Paperclip board (launchd): `tools/paperclip-ctl.sh` — `install` copies `launchd/com.grokclaw.paperclip.plist` to `~/Library/LaunchAgents`, then loads; use `restart` / `status` / `logs` like the gateway
-- Cron → Telegram: use job-level `delivery` in `cron/jobs.json` (`announce` + `telegram` + group id). Use `payload.kind: "agentTurn"` for isolated scheduled agent turns. Never `payload.deliver: false` with `payload.channel`/`to` — OpenClaw treats that as `delivery.mode: none` and sends nothing. Validate: `python3 tools/cron-jobs-tool.py validate`; sync runtime: `./tools/sync-cron-jobs.sh --restart` (see `docs/multi-agent-setup.md`)
-- Cron scrutiny: every job ends with `tools/cron-run-record.sh` (structured `data/cron-runs/*.jsonl`). `grok-cron-scrutiny` (hourly) has Grok read `tools/cron-scrutiny-context.sh` output, judge value vs hollow/missing data, post verdict to health-alerts. Separate from pr-watch’s PR/deploy flow.
+- Cron → Telegram: use job-level `delivery` in `cron/jobs.json` (`announce` + `telegram` + group id). Use `payload.kind: "agentTurn"` for isolated scheduled agent turns. Validate: `python3 tools/cron-jobs-tool.py validate`; sync runtime: `./tools/sync-cron-jobs.sh --restart` (see `docs/multi-agent-setup.md`)
+- Scheduled workflow lifecycle: every workflow run creates a Paperclip issue with `tools/cron-paperclip-lifecycle.sh start`, records to `data/cron-runs/*.jsonl` with `tools/cron-run-record.sh`, and closes the Paperclip issue through the same record step.
 - Self-healing doctor: `tools/grokclaw-doctor.sh` — checks gateway, Paperclip, Ollama, Telegram, launchd, crontab, cron config sync, and gateway auth. Use `--heal` to auto-restart downed services and re-sync cron drift. Use `--quiet` to suppress stdout (alerts Telegram on failures only). Runs every 30min via launchd (`com.grokclaw.doctor`).
 - External watchdog: `tools/gateway-watchdog.sh`
 - Health probe + self-healing: `tools/health-check.sh` — runs every 5min via system crontab. Alerts Telegram on gateway death, then calls `grokclaw-doctor.sh --heal` to attempt auto-recovery.
@@ -101,13 +101,16 @@ Do not skip these updates. Skipping memory causes repeated work and regressions.
 
 ---
 
-## Daily suggestion workflow
+## Four workflow schedule
 
-Cron: `daily-grokclaw-suggestion` at 06:00.
+OpenClaw cron now runs exactly four workflows:
 
-1. Read memory.
-2. Research one improvement.
-3. Post using `./tools/telegram-suggestion.sh N "<title>" "<reasoning>" "<impact>" "<description>"` — posts to suggestions topic with an Approve button. The description is the PM-quality ticket body for the Linear issue when approved.
+1. `grok-daily-brief` at 08:00 — the last 24h of GrokClaw: Paperclip issues, cron runs, audit logs, health checks, agent reports, and Linear-usage violations.
+2. `grok-openclaw-research` at 07:00 / 13:00 / 19:00 — latest stable version, ecosystem changes, new integrations, and notable OpenClaw chatter.
+3. `alpha-polymarket` hourly — Polymarket research, trader discovery, trade decisions, markdown research output, Telegram post, report to Grok.
+4. `kimi-polymarket` hourly — same as Alpha on a second model for broader coverage.
+
+All four workflows create a fresh Paperclip issue per run.
 
 ---
 
@@ -121,9 +124,11 @@ When Ben sends ideas in General:
    - implementation notes
    - trigger/run mode
    - out of scope
-3. Create the issue via `tools/linear-ticket.sh`.
-4. Post status in suggestions topic with the new ticket ID.
-5. If needed, post action buttons via `tools/telegram-inline.sh` (single-poller mode).
+3. Send the draft to Telegram for approval before creating anything:
+   - `tools/linear-draft-approval.sh request <draft-id> user_request <reference-id> suggestions "<title>" "<description>"`
+4. Only after explicit approval, create the issue via:
+   - `LINEAR_CREATION_FLOW=user_request LINEAR_DRAFT_ID=<draft-id> tools/linear-ticket.sh`
+5. Post status in suggestions topic with the new ticket ID.
 
 ---
 
@@ -132,9 +137,11 @@ When Ben sends ideas in General:
 On approval action message from Telegram button:
 
 1. Run `tools/approve-suggestion.sh <N> "<title>" suggestions "<description>"`
-2. Transition issue to In Progress:
+2. This sends a draft Linear ticket back to Telegram with explicit create/cancel buttons.
+3. Only after `approve_linear_draft:<id>` is tapped should the real Linear ticket be created.
+4. Transition issue to In Progress:
    - `./tools/linear-transition.sh GRO-XX "In Progress"`
-3. Update memory suggestion history and completed-work bullet.
+5. Update memory suggestion history and completed-work bullet.
 
 On failure, report error to Telegram and retry safely.
 
@@ -142,20 +149,17 @@ On failure, report error to Telegram and retry safely.
 
 ## PR review and merge workflow
 
-### Proactive monitoring
+### Event-driven review
 
-Cron job `pr-watch` runs every 10 minutes.
+GitHub Actions now drive review intake:
 
-It should:
-1. Find ready `grok/*` PRs.
-2. Review against Linear acceptance criteria.
-3. Post review summary to `pr-reviews`.
-4. Send action buttons with message tokens:
-   - `merge:<pr>:<issue>`
-   - `reject:<pr>:<issue>`
-5. Reconcile merged PRs to Linear Done.
-6. Trigger `tools/self-deploy.sh` when new code is merged to main.
-7. If the review surfaced a reusable lesson, run `./tools/append-lesson-learned.sh <GRO-XX> "<lesson>"` to keep `memory/MEMORY.md` current.
+1. `.github/workflows/pr-review.yml` fires on `pull_request` events (`opened`, `ready_for_review`, `synchronize`).
+2. The workflow adds `needs-grok-review` and leaves a machine-readable comment marker.
+3. `tools/pr-review-watch.sh` runs locally via launchd every 5 minutes and only wakes Grok when the `needs-grok-review` queue changes.
+4. Grok uses `tools/pr-review-handler.sh list` to find queued PRs, reviews them against the linked Linear issue, and only then decides:
+   - `approve` — GitHub approval first, label swap to `grok-approved`, then Telegram merge/reject buttons in `pr-reviews`
+   - `request-changes` — GitHub request-changes only, no Telegram ping
+5. Ben should only be pinged in Telegram after Grok has already approved the PR on GitHub.
 
 ### Single-poller actions (deterministic)
 
@@ -163,7 +167,9 @@ Handled by `tools/dispatch-telegram-action.sh "<message text>"`:
 - `merge` → merge PR, transition Linear to Done
 - `reject` → post revision request comment
 - `approve_idea` → transition issue to In Progress
-- `approve_suggestion:N` → read `data/pending-suggestion-N.json`, run approve-suggestion.sh, transition to In Progress
+- `approve_suggestion:N` → read `data/pending-suggestion-N.json`, send back a draft Linear ticket for review
+- `approve_linear_draft:<id>` → create the real Linear ticket from the approved draft
+- `reject_linear_draft:<id>` → cancel the draft without creating Linear
 
 Idempotency rule: duplicate action tokens are ignored safely.
 
@@ -184,7 +190,14 @@ If working tree is dirty, deployment is blocked and reported.
 
 ## Linear board management
 
-Linear is source of truth for status:
+Linear is only created in two circumstances:
+
+1. Approved daily suggestion
+2. Ben explicitly asks for a bug fix or feature in Telegram
+
+Use `LINEAR_CREATION_FLOW=suggestion|user_request LINEAR_DRAFT_ID=<draft-id> tools/linear-ticket.sh` only after a Telegram-approved draft so every new ticket is logged to `data/linear-creations/*.jsonl`.
+
+Linear remains the source of truth for status:
 - Approved suggestion → In Progress
 - Ready and reviewed by Grok → In Review
 - Merged PR → Done
@@ -196,7 +209,7 @@ Use `tools/linear-transition.sh` only.
 
 ## Paperclip board workflow
 
-Paperclip is the orchestration dashboard — it tracks issues, runs, and costs.
+Paperclip is the orchestration dashboard for real work runs — it tracks per-run workflow issues, comments, runs, and costs.
 
 ### Paperclip tools
 
@@ -205,7 +218,8 @@ Paperclip is the orchestration dashboard — it tracks issues, runs, and costs.
 - `tools/paperclip-api.sh update-issue <uuid> <status> [comment]` — update status
 - `tools/paperclip-api.sh comment <uuid> <body>` — add comment
 - `tools/paperclip-api.sh create-issue <title> <desc> [priority]` — create issue
-- `tools/paperclip-sync.sh` — check board health and report summary
+- `tools/cron-paperclip-lifecycle.sh start <job> <agent>` — create a fresh Paperclip issue for a workflow run
+- `tools/cron-paperclip-lifecycle.sh finish <issue-id> <ok|error|skipped> "<summary>"` — close the run issue as `done`, `failed`, or `cancelled`
 
 ### Paperclip second agent (Kimi)
 
@@ -214,16 +228,13 @@ To assign Paperclip issues to Kimi, create a second agent in the Paperclip UI:
 - Same URL, auth, and gateway token as Grok
 - In adapter config, set `agentId` (or `payloadTemplate.agentId`) to `"kimi"`
 
-### Heartbeat
+### Per-run workflow issues
 
-Paperclip wakes Grok every 6 hours via the heartbeat scheduler. When woken:
-1. List todo issues and execute the highest priority one.
-2. Update issue status to done with a summary.
-
-### Cron sync
-
-The `paperclip-sync` cron job (every 6h) runs `paperclip-sync.sh` and reports
-board status to the health-alerts topic.
+Every scheduled workflow run should:
+1. Create a Paperclip issue at the start of the run
+2. Stay `in_progress` while the agent is working
+3. End as `done` or `failed`
+4. Carry the run summary and any error details as comments
 
 ---
 
@@ -233,5 +244,5 @@ board status to the health-alerts topic.
 - Use correct topic by message type.
 - Daily suggestions: `tools/telegram-suggestion.sh` (includes Approve button).
 - Other posts: `tools/telegram-post.sh` or `tools/telegram-inline.sh` for action buttons.
-- Post proactively on failures, deploy events, and PR decisions.
+- Post proactively on failures, deploy events, PR decisions, and explicit approval prompts.
 - Avoid noisy chatter.

@@ -113,13 +113,14 @@ Include the test output in your PR description under a **Verification** section.
 │   ├── telegram-post.sh       # Post to Telegram topics
 │   ├── agent-report.sh        # Kimi/Alpha report to Grok (data/agent-reports/)
 │   ├── cron-run-record.sh     # Append one line to data/cron-runs/*.jsonl (end of each cron job)
-│   ├── cron-scrutiny-context.sh # Aggregate JSONL for grok-cron-scrutiny
 │   ├── grok-daily-brief.sh    # Output today's reports for Grok to synthesize
 │   ├── telegram-suggestion.sh # Post daily suggestions with Approve button
 │   ├── telegram-inline.sh     # Post messages with inline action buttons
+│   ├── linear-draft-approval.sh # Gate Linear creation behind Telegram approval
 │   ├── linear-ticket.sh       # Create Linear tickets
 │   ├── review-pr.sh           # Fetch PR diff for Grok to review
 │   ├── health-check.sh        # Health check for OpenClaw gateway process
+│   ├── pr-review-watch.sh     # Wake Grok when PR review queue changes
 │   ├── run-openclaw-agent.sh  # Run agent (Grok default; OPENCLAW_AGENT_ID for override)
 │   ├── run-openclaw-agent-kimi.sh  # Run Kimi agent (ollama/kimi-k2.5:cloud)
 │   └── browser-e2e-test.sh   # E2E browser automation test (docs → snapshot → Telegram)
@@ -148,7 +149,7 @@ Include the test output in your PR description under a **Verification** section.
 
 - [ ] The feature works end-to-end, not just the script existing
 - [ ] It is wired to a trigger (system cron, OpenClaw cron, or documented workflow step)
-- [ ] The trigger has been verified to fire
+- [ ] The trigger has been verified to fire, or the workflow is explicitly manual by design
 - [ ] Real file changes in the PR (not just the scaffold commit)
 - [ ] `memory/MEMORY.md` updated with a dated bullet describing what was built and how it runs
 - [ ] Verification output included in PR description

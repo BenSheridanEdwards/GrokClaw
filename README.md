@@ -23,7 +23,7 @@ Grok runs as PM + coordinator:
 - `health` (topic 4): incidents, watchdog, deploy alerts
 - `pr-reviews` (topic 5): review summaries and merge actions
 
-Approvals and merge decisions are action-button driven (single-poller mode), not free-text commands. Daily suggestions use `tools/telegram-suggestion.sh` to post with an inline Approve button; see `docs/approval-workflow.md`.
+Approvals and merge decisions are action-button driven (single-poller mode), not free-text commands. Daily suggestions now use a two-step approval: first approve the suggestion, then approve the drafted Linear ticket before creation. See `docs/approval-workflow.md`.
 
 ## Persistent Memory (Required)
 
