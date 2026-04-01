@@ -67,6 +67,7 @@ Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profi
 - Workflow-health doctor: `tools/grokclaw-doctor.sh` — audits whether the 4 core workflows ran on schedule, wrote their research/data/audit evidence, and left the expected Paperclip lifecycle. It alerts Telegram health immediately on failure and sends an approval-gated Linear draft to suggestions for a Cursor fix. Use `--check` for normal auditing and `--quiet` to suppress stdout. Runs via launchd at `02,17,32,47` (`com.grokclaw.doctor`).
 - External watchdog: `tools/gateway-watchdog.sh` — the only health check allowed to repair the gateway. It runs via launchd at `01,06,11,16,21,26,31,36,41,46,51,56`, attempts bounded runtime repair, and alerts Telegram only if repair is exhausted or the gateway later recovers after a reported failure.
 - Health probe: `tools/health-check.sh` — runs every 2min via system crontab. Detects gateway death fast, hands off to the watchdog, and only alerts if the watchdog handoff itself is unavailable.
+- Health test gate: `tools/run-health-e2e-tests.sh` runs the mocked workflow-health suite, and `.githooks/pre-commit` calls it before each commit.
 - Changelog monitor: `tools/changelog-check.sh` — checks GitHub/npm for OpenClaw updates, posts to health-alerts. Cron: `changelog-weekly-check` weekly Monday 07:00.
 - Telegram single-poller guard: `tools/telegram-poller-guard.sh`
 - Retry wrapper for transient API failures: `tools/retry.sh`

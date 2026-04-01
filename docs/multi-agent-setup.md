@@ -85,9 +85,12 @@ OPENCLAW_AGENT_ID=alpha ./tools/run-openclaw-agent.sh
 ## Verification
 
 ```bash
+./tools/run-health-e2e-tests.sh
 ./tools/grokclaw-doctor.sh --check
 openclaw agents list
 openclaw cron list
 openclaw models list
 ./tools/pr-review-watch.sh
 ```
+
+The repo-managed `.githooks/pre-commit` hook runs `./tools/run-health-e2e-tests.sh` automatically before each commit.

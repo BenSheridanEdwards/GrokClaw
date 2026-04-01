@@ -63,6 +63,16 @@ Its plist is `launchd/com.grokclaw.gateway-watchdog.plist`.
 
 This keeps workflow auditing separate from gateway repair and aligned after the core workflow grace windows.
 
+## Test gate
+
+The health model is protected by a repo-managed test runner:
+
+```sh
+./tools/run-health-e2e-tests.sh
+```
+
+That runner covers the mocked happy and sad paths for the 4 core workflow contracts plus the detector, watchdog, and doctor layers. `.githooks/pre-commit` calls it before each commit.
+
 ## Environment variables
 
 | Variable | Default | Description |

@@ -275,6 +275,21 @@ That includes:
 - the run happened but did not leave a Paperclip lifecycle
 - the run touched the wrong Telegram surface or left no human-facing output
 
+### Workflow Health Verification
+
+This contract must stay executable, not just descriptive.
+
+That means GrokClaw should keep:
+
+- mocked happy-path and sad-path tests for each of the 4 core workflows
+- tests that exercise the gateway detector, watchdog, and doctor separately
+- a pre-commit gate that runs the workflow-health end-to-end test suite and blocks commits when it fails
+
+The workflow-health suite should prove both:
+
+- the core workflows are judged healthy when they leave the expected cron, research, audit, agent-report, and Paperclip evidence
+- the health system reacts correctly when any required part of that contract is missing
+
 ### What Health Monitoring Should Do
 
 When workflow health fails:
