@@ -14,6 +14,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-04-01** — GRO-40: `skills/tmux/scripts/find-sessions.sh` now accepts `--json` (requires `jq`): prints a JSON array of `{id, title, state}` (`state` is `attached` or `detached`). With `--all`, `id` is prefixed as `<socket-path>#<session>` so sessions stay unique across sockets. Fixed `list-sessions -F` to use a real tab delimiter (`$'...'`) so parsing matched tmux output.
 - **2026-04-01** — Fixed cron contract drift after OpenClaw scheduler jobs silently stopped running. Root cause: `cron/jobs.json` had been updated to `payload.kind: "agentTurn"` for the gateway, but repo tooling still only recognized legacy `agent_turn`. Updated `tools/cron-jobs-tool.py`, `tools/_cron_scrutiny_context.py`, `AGENTS.md`, `CURSOR.md`, `docs/multi-agent-setup.md`, `docs/agent-tasks.md`, and `docs/self-improvement-loop.md` so validation, scrutiny, and docs all match the live architecture again.
 - **2026-03-19** — Created Linear GRO-28: verify Cursor cloud agent can post to Telegram when done. Delegated to Cursor; acceptance criteria: run `telegram-post.sh suggestions` and confirm message appears.
 - **2026-03-19** — Hardened Telegram single-poller reliability: removed callback poller path, added `tools/telegram-poller-guard.sh`, integrated guard into `tools/health-check.sh`, and made `tools/dispatch-telegram-action.sh` idempotent via persisted token dedupe state.

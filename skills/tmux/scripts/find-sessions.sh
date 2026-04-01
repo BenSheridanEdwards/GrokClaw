@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: find-sessions.sh [-L socket-name|-S socket-path|-A] [-q pattern]
+Usage: find-sessions.sh [-L socket-name|-S socket-path|-A] [-q pattern] [--json]
 
 List tmux sessions on a socket (default tmux socket if none provided).
 
@@ -12,6 +12,7 @@ Options:
   -S, --socket-path  tmux socket path (passed to tmux -S)
   -A, --all          scan all sockets under NANOBOT_TMUX_SOCKET_DIR
   -q, --query        case-insensitive substring to filter session names
+  --json             print JSON array: objects with id, title, state (requires jq)
   -h, --help         show this help
 USAGE
 }
@@ -20,6 +21,7 @@ socket_name=""
 socket_path=""
 query=""
 scan_all=false
+json_output=false
 socket_dir="${NANOBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/nanobot-tmux-sockets}"
 
 while [[ $# -gt 0 ]]; do
@@ -28,6 +30,7 @@ while [[ $# -gt 0 ]]; do
     -S|--socket-path) socket_path="${2-}"; shift 2 ;;
     -A|--all)         scan_all=true; shift ;;
     -q|--query)       query="${2-}"; shift 2 ;;
+    --json)           json_output=true; shift ;;
     -h|--help)        usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
   esac
@@ -48,11 +51,18 @@ if ! command -v tmux >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ "$json_output" == true ]] && ! command -v jq >/dev/null 2>&1; then
+  echo "jq not found in PATH (required for --json)" >&2
+  exit 1
+fi
+
+# Optional prefix so session ids stay unique when scanning multiple sockets (--all).
 list_sessions() {
   local label="$1"; shift
+  local id_prefix="${1-}"; shift
   local tmux_cmd=(tmux "$@")
 
-  if ! sessions="$("${tmux_cmd[@]}" list-sessions -F '#{session_name}\t#{session_attached}\t#{session_created_string}' 2>/dev/null)"; then
+  if ! sessions="$("${tmux_cmd[@]}" list-sessions -F $'#{session_name}\t#{session_attached}\t#{session_created_string}' 2>/dev/null)"; then
     echo "No tmux server found on $label" >&2
     return 1
   fi
@@ -62,7 +72,28 @@ list_sessions() {
   fi
 
   if [[ -z "$sessions" ]]; then
-    echo "No sessions found on $label"
+    if [[ "$json_output" == true ]]; then
+      printf '%s\n' '[]'
+    else
+      echo "No sessions found on $label"
+    fi
+    return 0
+  fi
+
+  if [[ "$json_output" == true ]]; then
+    local lines=()
+    while IFS=$'\t' read -r name attached _created; do
+      [[ -z "$name" ]] && continue
+      local state
+      state=$([[ "$attached" == "1" ]] && echo "attached" || echo "detached")
+      local id="${id_prefix}${name}"
+      lines+=("$(jq -nc --arg id "$id" --arg title "$name" --arg state "$state" '{id:$id,title:$title,state:$state}')")
+    done <<< "$sessions"
+    if [[ "${#lines[@]}" -eq 0 ]]; then
+      printf '%s\n' '[]'
+      return 0
+    fi
+    printf '%s\n' "${lines[@]}" | jq -s '.'
     return 0
   fi
 
@@ -88,12 +119,27 @@ if [[ "$scan_all" == true ]]; then
     exit 1
   fi
 
+  if [[ "$json_output" == true ]]; then
+    combined="[]"
+    for sock in "${sockets[@]}"; do
+      if [[ ! -S "$sock" ]]; then
+        continue
+      fi
+      if ! chunk="$(list_sessions "socket path '$sock'" "${sock}#" -S "$sock")"; then
+        continue
+      fi
+      combined="$(jq -s '.[0] + .[1]' <<<"$combined"$'\n'"$chunk")"
+    done
+    printf '%s\n' "$combined"
+    exit 0
+  fi
+
   exit_code=0
   for sock in "${sockets[@]}"; do
     if [[ ! -S "$sock" ]]; then
       continue
     fi
-    list_sessions "socket path '$sock'" -S "$sock" || exit_code=$?
+    list_sessions "socket path '$sock'" "" -S "$sock" || exit_code=$?
   done
   exit "$exit_code"
 fi
@@ -109,4 +155,4 @@ elif [[ -n "$socket_path" ]]; then
   socket_label="socket path '$socket_path'"
 fi
 
-list_sessions "$socket_label" "${tmux_cmd[@]:1}"
+list_sessions "$socket_label" "" "${tmux_cmd[@]:1}"

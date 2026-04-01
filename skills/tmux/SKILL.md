@@ -44,6 +44,7 @@ To monitor:
 
 - List sessions on your socket: `{baseDir}/scripts/find-sessions.sh -S "$SOCKET"`.
 - Scan all sockets: `{baseDir}/scripts/find-sessions.sh --all` (uses `NANOBOT_TMUX_SOCKET_DIR`).
+- Machine-readable list (requires `jq`): `{baseDir}/scripts/find-sessions.sh -S "$SOCKET" --json` → JSON array of `{id, title, state}`; with `--all`, `id` is `<socket-path>#<session_name>`.
 
 ## Sending input safely
 
