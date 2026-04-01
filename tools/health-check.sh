@@ -1,6 +1,6 @@
 #!/bin/sh
-# Health check for OpenClaw gateway. Alerts to Telegram if the gateway dies.
-# Run via system cron, OpenClaw cron, or HEARTBEAT.
+# Health check for OpenClaw gateway. Detects failure fast and hands off repair.
+# Run via system cron.
 #
 # Usage: health-check.sh
 # Env:   WORKSPACE_ROOT — workspace root (default: derived from script path)
@@ -12,6 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 STATE_FILE="$WORKSPACE_ROOT/.gateway-health-state"
 GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18800}"
+WATCHDOG_SCRIPT="$WORKSPACE_ROOT/tools/gateway-watchdog.sh"
 
 # Load .env for TELEGRAM_BOT_TOKEN
 if [ -f "$WORKSPACE_ROOT/.env" ]; then
@@ -43,22 +44,28 @@ write_state() {
 }
 
 alert_telegram() {
-  RETRY_DISABLE_ALERT=1 "$WORKSPACE_ROOT/tools/retry.sh" --max 3 --delay 1 --alert health -- \
-    "$WORKSPACE_ROOT/tools/telegram-post.sh" health \
-    "🚨 GrokClaw gateway is down — restart required."
+  if [ -x "$WORKSPACE_ROOT/tools/retry.sh" ]; then
+    RETRY_DISABLE_ALERT=1 "$WORKSPACE_ROOT/tools/retry.sh" --max 3 --delay 1 --alert health -- \
+      "$WORKSPACE_ROOT/tools/telegram-post.sh" health \
+      "🚨 GrokClaw gateway is down and watchdog handoff failed."
+    return
+  fi
+  "$WORKSPACE_ROOT/tools/telegram-post.sh" health \
+    "🚨 GrokClaw gateway is down and watchdog handoff failed."
+}
+
+handoff_to_watchdog() {
+  [ -x "$WATCHDOG_SCRIPT" ] || return 1
+  "$WATCHDOG_SCRIPT" health-check >/dev/null 2>&1 || true
+  return 0
 }
 
 alive=$(gateway_alive && echo "alive" || echo "dead")
 prev=$(read_state)
 
 if [ "$alive" = "dead" ]; then
-  if [ "$prev" != "dead" ]; then
+  if ! handoff_to_watchdog; then
     alert_telegram
-  fi
-  "$WORKSPACE_ROOT/tools/grokclaw-doctor.sh" --heal --quiet 2>/dev/null || true
-  if gateway_alive; then
-    write_state "alive"
-    exit 0
   fi
   write_state "dead"
   exit 1

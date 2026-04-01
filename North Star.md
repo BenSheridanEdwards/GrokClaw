@@ -8,7 +8,7 @@ It defines:
 - the supporting reliability and health workflows
 - how Paperclip is used
 - how Telegram is used
-- how suggestions and user requests become Linear work
+- how suggestions and user requests become Linear issues that are assigned to Cursor Cloud Agents.
 
 The goal is a system that is simple, inspectable, and operationally honest. Every important workflow should leave evidence. Every human-facing action should be traceable. Every agent should have a clear job.
 
@@ -54,8 +54,9 @@ What it produces:
 
 - a daily brief posted to Telegram suggestions
 - optionally one high-leverage suggestion for approval
-- one Paperclip issue for that run
-- one cron run record
+- a concise summary of every PaperClip Issue created, the workflow, what happened.
+- one Paperclip issue per run for itself
+- one cron run record for itself
 
 What "good" looks like:
 
@@ -97,7 +98,7 @@ Schedule: `hourly`
 
 Purpose:
 
-- Run an autonomous Polymarket research and trading loop with its own model perspective.
+- Run an autonomous Polymarket research and trading loop with its own model perspective. It uses autoresearch to self-improve.
 
 What it does:
 
@@ -107,12 +108,14 @@ What it does:
 - validates with web research
 - decides whether to trade or skip
 - resolves pending paper trades when needed
+- Produces a self-improvement report on how auto-research was used to be better next time.
 
 What it produces:
 
 - markdown research files in `data/alpha/research/`
 - a Telegram summary in the polymarket topic
 - an agent report to Grok
+- one saved autoresearch report
 - one Paperclip issue per run
 - one cron run record
 
@@ -139,6 +142,7 @@ What it produces:
 - markdown research files in `data/kimi/research/`
 - a Telegram summary in the polymarket topic
 - an agent report to Grok
+- one saved autoresearch report
 - one Paperclip issue per run
 - one cron run record
 
@@ -154,31 +158,40 @@ These are not part of the 4 core OpenClaw jobs, but they are required to keep th
 ### Health Check
 
 Script: `tools/health-check.sh`  
-Schedule: system cron, every 5 minutes
+Schedule: system cron, every 2 minutes
 
 Purpose:
 
 - detect gateway death or obvious runtime failure
-- alert Telegram health when the system is down
-- trigger self-healing through the doctor
+- hand off gateway repair to `tools/gateway-watchdog.sh`
+- alert Telegram health only if the watchdog handoff is unavailable
+- never own restart policy or workflow auditing
 
 ### GrokClaw Doctor
 
 Script: `tools/grokclaw-doctor.sh`  
-Schedule: launchd, every 30 minutes
+Schedule: launchd at `02,17,32,47`
 
 Purpose:
 
-- check gateway, Paperclip, Ollama, Telegram, cron sync, launchd, and auth state
-- heal known failures automatically when possible
+- audit whether the 4 core workflows actually completed the work they were supposed to complete
+- check the latest expected run for each workflow after a grace period, not just any artifact inside a broad recent window
+- verify expected evidence exists across cron logs, artifacts, Telegram-facing outputs, and Paperclip
+- report failures to Telegram health immediately
+- turn meaningful failures into approval-gated fix suggestions instead of repairing them automatically
 
 ### Gateway Watchdog
 
 Script: `tools/gateway-watchdog.sh`
+Schedule: launchd at `01,06,11,16,21,26,31,36,41,46,51,56`
 
 Purpose:
 
-- extra guard around gateway uptime and recoverability
+- own bounded automatic gateway repair
+- restart the gateway and refresh runtime dependencies when liveness fails
+- avoid repair storms with lock/cooldown behavior
+- alert Telegram health only after automatic repair is exhausted
+- post a recovery notice if the gateway later returns after a reported watchdog failure
 
 ### Self Deploy
 
@@ -204,6 +217,95 @@ Purpose:
 - validate Telegram delivery config
 - keep runtime cron config in sync with repo state
 
+## Workflow Health Contract
+
+Workflow health is not just process health.
+
+The question that matters is:
+
+- did the workflow run when it was meant to
+- did it produce the data, audit logs, and research it was meant to produce
+- did it leave the expected Paperclip evidence
+
+A core workflow run is only healthy when its full contract is satisfied.
+
+### Per-Workflow Health Requirements
+
+For each core workflow, GrokClaw should be able to verify the most recent expected run.
+
+`grok-daily-brief`
+
+- a recent `data/cron-runs/*.jsonl` record exists for the run
+- the daily brief or suggestion was posted to Telegram suggestions
+- the run created and closed a Paperclip issue
+- the run was able to inspect the evidence it is responsible for summarizing, including `data/linear-creations/*.jsonl` and `data/audit-log/*.jsonl` when present
+
+`grok-openclaw-research`
+
+- a recent `data/cron-runs/*.jsonl` record exists for the run
+- a markdown brief exists in `data/research/openclaw/`
+- the health-topic Telegram headline was posted
+- the run created and closed a Paperclip issue
+
+`alpha-polymarket`
+
+- a recent `data/cron-runs/*.jsonl` record exists for the run
+- a markdown research file exists in `data/alpha/research/`
+- a Telegram summary was posted to polymarket
+- an agent report was written for Grok
+- the run created and closed a Paperclip issue
+
+`kimi-polymarket`
+
+- a recent `data/cron-runs/*.jsonl` record exists for the run
+- a markdown research file exists in `data/kimi/research/`
+- a Telegram summary was posted to polymarket
+- an agent report was written for Grok
+- the run created and closed a Paperclip issue
+
+### Workflow Health Outcomes
+
+If any required evidence is missing, the workflow is not healthy.
+
+That includes:
+
+- the run did not happen on schedule
+- the run happened but did not write the required artifacts
+- the run happened but did not leave a cron run record
+- the run happened but did not leave a Paperclip lifecycle
+- the run touched the wrong Telegram surface or left no human-facing output
+
+### What Health Monitoring Should Do
+
+When workflow health fails:
+
+1. tell Ben clearly in Telegram health what failed
+2. explain which expected evidence is missing
+3. send an approval-gated Linear draft for the fix in Telegram suggestions
+4. wait for approval before any Linear ticket is created
+
+Health monitoring should not silently repair workflow failures.
+
+If a workflow breaks, the right next step is:
+
+- an immediate Telegram health alert
+- then an approval-gated Linear draft that can create a Linear ticket and delegate Cursor only after Ben approves it
+
+### Linear For Workflow Failures
+
+Workflow failures should not bypass the normal approval model.
+
+That means:
+
+- no automatic Linear ticket creation from health checks
+- no automatic Cursor kickoff from the doctor
+- fix work should enter Linear only through an approval-gated draft sent to Telegram suggestions
+
+This preserves the main policy:
+
+- Telegram tells Ben what failed now
+- Linear only appears after explicit approval
+
 ## How Paperclip Is Used
 
 Paperclip is the operational board for real work runs.
@@ -214,11 +316,15 @@ It is not noise storage. It should represent meaningful run lifecycles.
 
 Every core workflow run creates its own Paperclip issue.
 
+Only the 4 core workflows are allowed to touch Paperclip.
+
 That means:
 
 - one run
 - one Paperclip issue
 - one lifecycle
+
+Any non-core script or background check writing to Paperclip is a policy violation.
 
 The issue should move through:
 
@@ -251,7 +357,7 @@ End of run:
 - `tools/cron-run-record.sh ...`
 - appends a record to `data/cron-runs/*.jsonl`
 - closes the Paperclip issue through `tools/cron-paperclip-lifecycle.sh finish`
-- posts a one-line Telegram confirmation
+- does not count as complete unless the run summary is visible in Paperclip
 - adds extra Paperclip error detail when `CRON_ERROR_DETAILS` exists
 
 ### What Must Be Visible In Paperclip
@@ -283,6 +389,7 @@ It is where Ben sees the outputs that matter.
 - post after real work, not before
 - do not force Ben to infer system state from vague wording
 - approval and merge actions must be deterministic and idempotent
+- health failures should say exactly which workflow failed and what evidence is missing
 
 ### Suggestions In Telegram
 
@@ -298,6 +405,8 @@ That suggestion includes:
 - the impact
 - the implementation description
 - an Approve button
+
+Workflow-health failures that need engineering work should use this same suggestion path.
 
 The pending suggestion state is written to:
 
@@ -369,6 +478,10 @@ This log exists so the system can verify that Linear is only being created throu
 
 The daily brief should check this log and flag any violations.
 
+Workflow-health failures do not create an exception to this rule.
+
+If GrokClaw detects a broken workflow and wants a Cursor cloud agent to fix it, that still begins as a suggestion requiring approval before Linear is created.
+
 ## How PR Review Works
 
 PR review is event-driven, not cron-driven.
@@ -415,6 +528,8 @@ The system should always leave evidence in four places:
 
 If a workflow cannot be seen in those places, it is not operationally complete.
 
+If a workflow is missing expected research files, audit logs, or agent reports for its contract, it is also not operationally complete even if a process technically ran.
+
 ## Non-Goals
 
 This document does not define:
@@ -431,8 +546,10 @@ GrokClaw should become a system where:
 
 - the 4 core workflows are clear and stable
 - every meaningful run is represented in Paperclip
+- workflow health means complete evidence, not just a live process
 - Telegram shows the right things to the right topic
 - Linear only appears when work has actually been approved or explicitly requested
+- broken workflows alert Telegram immediately and suggest a fix only through approval
 - Grok reviews before Ben is asked to merge
 - health and reliability workflows keep the machine honest
 

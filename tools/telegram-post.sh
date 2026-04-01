@@ -57,6 +57,8 @@ max_attempts=3
 while [ "$attempt" -le "$max_attempts" ]; do
   if python3 "$WORKSPACE_ROOT/tools/_telegram_post.py" \
     "$TELEGRAM_BOT_TOKEN" "$TELEGRAM_GROUP_ID" "$TOPIC_ID" "$MESSAGE"; then
+    python3 "$WORKSPACE_ROOT/tools/_audit_log.py" \
+      telegram_post "$RAW_TOPIC" "$MESSAGE" "$TOPIC_ID" >/dev/null 2>&1 || true
     exit 0
   fi
   if [ "$attempt" -ge "$max_attempts" ]; then

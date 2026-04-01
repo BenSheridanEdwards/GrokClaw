@@ -44,8 +44,9 @@ openclaw cron list
 
 These are outside the four core cron jobs but are still part of the live runtime:
 
-- `tools/grokclaw-doctor.sh --heal --quiet` via launchd `com.grokclaw.doctor`
-- `tools/health-check.sh` from system cron for gateway death detection
+- `tools/health-check.sh` from system cron every 2 minutes for fast gateway death detection and watchdog handoff
+- `tools/gateway-watchdog.sh` via launchd `com.grokclaw.gateway-watchdog` at `01,06,11,16,21,26,31,36,41,46,51,56` for bounded automatic gateway repair
+- `tools/grokclaw-doctor.sh --check --quiet` via launchd `com.grokclaw.doctor` at `02,17,32,47` for workflow-health auditing
 - `tools/pr-review-watch.sh` via launchd `com.grokclaw.pr-review-watch` to wake Grok when the PR review queue changes
 
 ## Cron sync

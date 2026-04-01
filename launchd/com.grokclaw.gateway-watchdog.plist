@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.grokclaw.gateway-watchdog</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/jarvis/Engineering/Projects/GrokClaw/tools/gateway-watchdog.sh</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Minute</key><integer>1</integer></dict>
+    <dict><key>Minute</key><integer>6</integer></dict>
+    <dict><key>Minute</key><integer>11</integer></dict>
+    <dict><key>Minute</key><integer>16</integer></dict>
+    <dict><key>Minute</key><integer>21</integer></dict>
+    <dict><key>Minute</key><integer>26</integer></dict>
+    <dict><key>Minute</key><integer>31</integer></dict>
+    <dict><key>Minute</key><integer>36</integer></dict>
+    <dict><key>Minute</key><integer>41</integer></dict>
+    <dict><key>Minute</key><integer>46</integer></dict>
+    <dict><key>Minute</key><integer>51</integer></dict>
+    <dict><key>Minute</key><integer>56</integer></dict>
+  </array>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/grokclaw-gateway-watchdog.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/grokclaw-gateway-watchdog.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>/Users/jarvis</string>
+    <key>OPENCLAW_CONFIG_PATH</key>
+    <string>/Users/jarvis/.openclaw/openclaw.json</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>

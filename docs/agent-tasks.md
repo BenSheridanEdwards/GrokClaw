@@ -4,11 +4,14 @@ All scheduled agent work is now organized around four core workflows.
 
 ## Core model
 
-- Every scheduled workflow run creates a fresh Paperclip issue with `tools/cron-paperclip-lifecycle.sh`.
+- Only the 4 core workflows are allowed to create Paperclip issues, and they do so with `tools/cron-paperclip-lifecycle.sh`.
 - Every scheduled workflow run appends a structured line to `data/cron-runs/*.jsonl` via `tools/cron-run-record.sh`.
+- Telegram posts and inline button messages append audit records to `data/audit-log/*.jsonl`.
 - Telegram health posts are failure-only; normal `ok` and `skipped` runs leave evidence in Paperclip and `data/cron-runs/*.jsonl`.
 - Kimi and Alpha still report to Grok with `tools/agent-report.sh`.
 - Linear is only created from approved daily suggestions or direct user-requested bug/feature intake.
+- Gateway uptime is protected by a split health path: `tools/health-check.sh` detects quickly, `tools/gateway-watchdog.sh` repairs the gateway, and `tools/grokclaw-doctor.sh` audits workflow contracts.
+- Workflow-health failures do not auto-repair. `tools/grokclaw-doctor.sh` alerts Telegram health and sends an approval-gated Linear draft to suggestions when a core workflow misses its contract.
 
 ## Shared workspace
 
@@ -17,6 +20,7 @@ All agents share `/Users/jarvis/Engineering/Projects/GrokClaw`.
 Runtime outputs:
 
 - `data/cron-runs/` — one JSONL file per UTC day for cron execution history
+- `data/audit-log/` — Telegram output audit trail used for workflow-health checks
 - `data/linear-creations/` — one JSONL file per UTC day for Linear creation audit
 - `data/research/openclaw/` — Grok OpenClaw research markdown briefs
 - `data/alpha/research/` — Alpha hourly Polymarket research markdown files
@@ -54,6 +58,16 @@ Each scheduled run is a distinct Paperclip issue lifecycle:
 4. `PAPERCLIP_ISSUE_UUID=$(cat "$ISSUE_FILE") tools/cron-run-record.sh ...` records the result
 5. `cron-run-record.sh` closes the Paperclip issue as `done`, `failed`, or `cancelled` for a skipped run
 6. On errors, `CRON_ERROR_DETAILS` can add an extra Paperclip comment with failure context
+
+Non-core jobs must not call `cron-paperclip-lifecycle.sh start`; the script now rejects them.
+
+## Workflow health auditing
+
+- `tools/grokclaw-doctor.sh --check` audits whether each core workflow ran within its expected window
+- It uses schedule-aware grace windows so the doctor checks the latest expected run, not just any recent artifact inside a broad time window
+- It verifies cron evidence, required research files, required Telegram audit-log evidence, agent reports, and recent Paperclip lifecycle evidence
+- If a core workflow fails that contract, the doctor posts a Telegram health alert and sends a draft Linear fix ticket to suggestions for approval
+- The doctor does not repair runtime drift or restart services automatically
 
 ## PR review
 

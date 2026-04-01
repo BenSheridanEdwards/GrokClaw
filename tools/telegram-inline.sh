@@ -43,6 +43,13 @@ case "$RAW_TOPIC" in
     ;;
 esac
 
-"$WORKSPACE_ROOT/tools/retry.sh" --max 3 --delay 1 --alert health -- \
+if "$WORKSPACE_ROOT/tools/retry.sh" --max 3 --delay 1 --alert health -- \
   python3 "$WORKSPACE_ROOT/tools/_telegram_inline.py" \
   "$TELEGRAM_BOT_TOKEN" "$TELEGRAM_GROUP_ID" "$TOPIC_ID" "$MESSAGE" "$BUTTON_JSON" "$PARSE_MODE"
+then
+  python3 "$WORKSPACE_ROOT/tools/_audit_log.py" \
+    telegram_inline "$RAW_TOPIC" "$MESSAGE" "$TOPIC_ID" >/dev/null 2>&1 || true
+  exit 0
+fi
+
+exit 1

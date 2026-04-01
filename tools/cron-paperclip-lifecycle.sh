@@ -35,6 +35,7 @@ PY
 create_issue() {
   job_name="$1"
   agent="$2"
+  python3 "$WORKSPACE_ROOT/tools/_workflow_health.py" paperclip-allowed "$job_name" >/dev/null
   now_iso="$(timestamp_iso)"
   now_display="$(timestamp_display "$now_iso")"
   title="[$job_name] $now_display"
