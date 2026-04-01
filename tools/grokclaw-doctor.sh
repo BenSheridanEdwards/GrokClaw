@@ -4,9 +4,10 @@
 # What it can't fix, it reports to Telegram health-alerts.
 #
 # Modes:
-#   --check    Read-only diagnostics (default)
-#   --heal     Diagnose + attempt auto-recovery
-#   --quiet    Suppress stdout; only alert Telegram on failures
+#   --check   Read-only diagnostics (default)
+#   --status  One-line machine-readable summary; read-only; no Telegram alerts
+#   --heal    Diagnose + attempt auto-recovery (--status ignores --heal)
+#   --quiet   Suppress stdout; only alert Telegram on failures (--status overrides)
 #
 # Exit codes: 0 = healthy, 1 = issues found (healed or reported)
 set -eu
@@ -16,13 +17,31 @@ WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 HEAL=0
 QUIET=0
+STATUS=0
 for arg in "$@"; do
   case "$arg" in
-    --heal)  HEAL=1 ;;
-    --quiet) QUIET=1 ;;
-    --check) HEAL=0 ;;
+    --heal)   HEAL=1 ;;
+    --quiet)  QUIET=1 ;;
+    --check)  HEAL=0 ;;
+    --status) STATUS=1 ;;
   esac
 done
+
+if [ "$STATUS" -eq 1 ]; then
+  HEAL=0
+  QUIET=1
+fi
+
+GATEWAY_ST="unknown"
+PAPERCLIP_ST="unknown"
+OLLAMA_ST="unknown"
+TELEGRAM_ST="unknown"
+L_GW_ST="unknown"
+L_PC_ST="unknown"
+HEALTH_CRON_ST="unknown"
+CRON_JSON_ST="unknown"
+CRON_SYNC_ST="unknown"
+OPENCLAW_AUTH_ST="unknown"
 
 if [ -f "$WORKSPACE_ROOT/.env" ]; then
   set -a
@@ -55,7 +74,9 @@ add_failed() {
 log "Checking gateway..."
 if curl -sf --connect-timeout 3 http://127.0.0.1:18800/health >/dev/null 2>&1; then
   log "  Gateway: UP"
+  GATEWAY_ST=up
 else
+  GATEWAY_ST=down
   add_issue "Gateway DOWN"
   if [ "$HEAL" -eq 1 ]; then
     log "  Healing: restarting gateway..."
@@ -76,7 +97,9 @@ fi
 log "Checking Paperclip..."
 if curl -sf --connect-timeout 3 http://127.0.0.1:3100/api/health >/dev/null 2>&1; then
   log "  Paperclip: UP"
+  PAPERCLIP_ST=up
 else
+  PAPERCLIP_ST=down
   add_issue "Paperclip DOWN"
   if [ "$HEAL" -eq 1 ]; then
     log "  Healing: restarting Paperclip..."
@@ -97,7 +120,9 @@ fi
 log "Checking Ollama..."
 if curl -sf --connect-timeout 3 http://127.0.0.1:11434/ >/dev/null 2>&1; then
   log "  Ollama: UP"
+  OLLAMA_ST=up
 else
+  OLLAMA_ST=down
   add_issue "Ollama DOWN (Kimi jobs will fail)"
   if [ "$HEAL" -eq 1 ]; then
     log "  Healing: starting Ollama via brew services..."
@@ -119,11 +144,14 @@ fi
 log "Checking Telegram..."
 TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
 if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+  TELEGRAM_ST=missing
   add_issue "TELEGRAM_BOT_TOKEN not set"
 else
   if curl -sf --connect-timeout 5 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe" >/dev/null 2>&1; then
     log "  Telegram API: reachable"
+    TELEGRAM_ST=ok
   else
+    TELEGRAM_ST=unreachable
     add_failed "Telegram API unreachable (network or token issue) — cannot self-report"
   fi
 fi
@@ -133,7 +161,15 @@ log "Checking launchd..."
 for label in com.grokclaw.gateway com.grokclaw.paperclip; do
   if launchctl list 2>/dev/null | grep -q "$label"; then
     log "  $label: loaded"
+    case "$label" in
+      com.grokclaw.gateway)  L_GW_ST=loaded ;;
+      com.grokclaw.paperclip) L_PC_ST=loaded ;;
+    esac
   else
+    case "$label" in
+      com.grokclaw.gateway)  L_GW_ST=missing ;;
+      com.grokclaw.paperclip) L_PC_ST=missing ;;
+    esac
     add_issue "$label not loaded in launchd"
     if [ "$HEAL" -eq 1 ]; then
       plist="$HOME/Library/LaunchAgents/${label}.plist"
@@ -155,7 +191,9 @@ done
 log "Checking system crontab..."
 if crontab -l 2>/dev/null | grep -q "health-check.sh"; then
   log "  health-check.sh: scheduled"
+  HEALTH_CRON_ST=scheduled
 else
+  HEALTH_CRON_ST=missing
   add_issue "health-check.sh not in system crontab"
   if [ "$HEAL" -eq 1 ]; then
     log "  Healing: adding health-check to crontab..."
@@ -168,7 +206,9 @@ fi
 log "Checking cron config..."
 if python3 "$WORKSPACE_ROOT/tools/cron-jobs-tool.py" validate >/dev/null 2>&1; then
   log "  cron/jobs.json: valid"
+  CRON_JSON_ST=valid
 else
+  CRON_JSON_ST=invalid
   add_issue "cron/jobs.json validation failed"
 fi
 
@@ -204,9 +244,12 @@ print('|'.join(diffs) if diffs else '')
 " 2>/dev/null || echo "error")
   if [ -z "$drift" ]; then
     log "  Cron sync: OK"
+    CRON_SYNC_ST=ok
   elif [ "$drift" = "error" ]; then
+    CRON_SYNC_ST=error
     add_issue "Could not compare cron configs"
   else
+    CRON_SYNC_ST=drift
     add_issue "Cron drift: $drift"
     if [ "$HEAL" -eq 1 ]; then
       log "  Healing: syncing cron jobs..."
@@ -220,6 +263,7 @@ print('|'.join(diffs) if diffs else '')
     fi
   fi
 else
+  CRON_SYNC_ST=missing
   add_issue "Runtime cron file missing ($RUNTIME_CRON)"
   if [ "$HEAL" -eq 1 ]; then
     log "  Healing: syncing cron jobs..."
@@ -235,8 +279,21 @@ fi
 log "Checking gateway auth..."
 if OPENCLAW_CONFIG_PATH="$HOME/.openclaw/openclaw.json" openclaw cron list >/dev/null 2>&1; then
   log "  Gateway auth: OK"
+  OPENCLAW_AUTH_ST=ok
 else
+  OPENCLAW_AUTH_ST=fail
   add_issue "Gateway CLI auth failed (token mismatch or gateway unreachable)"
+fi
+
+# --- Status line (machine-readable; no heal, no Telegram) ---
+if [ "$STATUS" -eq 1 ]; then
+  printf 'gateway=%s paperclip=%s ollama=%s telegram=%s launchd_gateway=%s launchd_paperclip=%s health_cron=%s cron_json=%s cron_runtime_sync=%s openclaw_cli_auth=%s\n' \
+    "$GATEWAY_ST" "$PAPERCLIP_ST" "$OLLAMA_ST" "$TELEGRAM_ST" \
+    "$L_GW_ST" "$L_PC_ST" "$HEALTH_CRON_ST" "$CRON_JSON_ST" "$CRON_SYNC_ST" "$OPENCLAW_AUTH_ST"
+  if [ -z "$ISSUES" ] && [ -z "$FAILED" ]; then
+    exit 0
+  fi
+  exit 1
 fi
 
 # --- Summary and alerting ---
