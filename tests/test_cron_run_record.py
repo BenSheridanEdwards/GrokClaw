@@ -175,6 +175,32 @@ class CronRunRecordTests(unittest.TestCase):
                 "finish issue-123 error placed one trade",
             )
 
+    def test_resolves_issue_uuid_from_openclaw_job_file_when_env_unset(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            lifecycle_log, _, _ = self._setup_workspace_tools(workspace)
+            oc = workspace / ".openclaw"
+            oc.mkdir(parents=True)
+            (oc / "kimi-polymarket.issue").write_text("issue-from-file\n", encoding="utf-8")
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env.pop("PAPERCLIP_ISSUE_UUID", None)
+
+            result = subprocess.run(
+                ["sh", str(self.script), "kimi-polymarket", "kimi", "ok", "session complete"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertEqual(
+                lifecycle_log.read_text(encoding="utf-8").strip(),
+                "finish issue-from-file ok session complete",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

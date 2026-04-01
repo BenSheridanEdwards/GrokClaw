@@ -137,6 +137,25 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
             self.assertEqual(calls[0], "update-issue issue-uuid-123 cancelled")
             self.assertIn("comment issue-uuid-123 [2026-04-01 08:00 UTC] skipped -- no candidate market found", calls[1])
 
+    def test_start_refuses_non_core_job(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._write_stub_api(workspace)
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+
+            result = subprocess.run(
+                ["sh", str(self.script), "start", "changelog-weekly-check", "grok"],
+                cwd=str(self.repo_root),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("non-core", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

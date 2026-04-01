@@ -231,7 +231,20 @@ else
   fi
 fi
 
-# --- 9. Gateway CLI auth ---
+# --- 9. Core workflow health (read-only audit) ---
+log "Checking core workflow run evidence (cron-runs)..."
+WH_LOG="$(mktemp)"
+if python3 "$WORKSPACE_ROOT/tools/_workflow_health_audit.py" --failures-only >"$WH_LOG" 2>&1; then
+  log "  Core workflows: recent runs recorded"
+else
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ -z "$line" ] && continue
+    add_issue "Workflow health: $line"
+  done <"$WH_LOG"
+fi
+rm -f "$WH_LOG"
+
+# --- 10. Gateway CLI auth ---
 log "Checking gateway auth..."
 if OPENCLAW_CONFIG_PATH="$HOME/.openclaw/openclaw.json" openclaw cron list >/dev/null 2>&1; then
   log "  Gateway auth: OK"
