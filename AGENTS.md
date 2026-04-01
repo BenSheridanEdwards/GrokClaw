@@ -154,7 +154,7 @@ On failure, report error to Telegram and retry safely.
 
 GitHub Actions now drive review intake:
 
-1. `.github/workflows/pr-review.yml` fires on `pull_request` events (`opened`, `ready_for_review`, `synchronize`).
+1. `.github/workflows/pr-review.yml` fires on `pull_request_target` events (`opened`, `ready_for_review`, `synchronize`) so Grok can label and comment on queued PRs without depending on the PR branch token scope.
 2. The workflow adds `needs-grok-review` and leaves a machine-readable comment marker.
 3. `tools/pr-review-watch.sh` runs locally via launchd every 5 minutes and only wakes Grok when the `needs-grok-review` queue changes.
 4. Grok uses `tools/pr-review-handler.sh list` to find queued PRs, reviews them against the linked Linear issue, and only then decides:
