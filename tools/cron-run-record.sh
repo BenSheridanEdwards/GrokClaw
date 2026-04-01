@@ -39,6 +39,15 @@ DATE=$(date -u +%Y-%m-%d)
 FILE="$DIR/${DATE}.jsonl"
 mkdir -p "$DIR"
 
+# Resolve Paperclip issue UUID: env wins; else stable per-job file from core workflow prompts.
+ISSUE_UUID="${PAPERCLIP_ISSUE_UUID:-}"
+if [ -z "$ISSUE_UUID" ]; then
+  ISSUE_FILE="$WORKSPACE_ROOT/.openclaw/${JOB}.issue"
+  if [ -f "$ISSUE_FILE" ]; then
+    ISSUE_UUID=$(tr -d ' \t\n\r' <"$ISSUE_FILE" || true)
+  fi
+fi
+
 export CRON_JOB="$JOB" CRON_AGENT="$AGENT" CRON_STATUS="$STATUS" CRON_SUMMARY="$SUMMARY" CRON_FILE="$FILE"
 python3 <<'PY'
 import json, os, datetime
@@ -61,12 +70,12 @@ LIFECYCLE="$WORKSPACE_ROOT/tools/cron-paperclip-lifecycle.sh"
 PAPERCLIP_API="$WORKSPACE_ROOT/tools/paperclip-api.sh"
 TELEGRAM_MESSAGE="[$AGENT] $JOB: $STATUS -- $SUMMARY"
 
-if [ -n "${PAPERCLIP_ISSUE_UUID:-}" ]; then
+if [ -n "$ISSUE_UUID" ]; then
   LIFECYCLE_STATUS="$STATUS"
-  "$LIFECYCLE" finish "$PAPERCLIP_ISSUE_UUID" "$LIFECYCLE_STATUS" "$SUMMARY"
+  "$LIFECYCLE" finish "$ISSUE_UUID" "$LIFECYCLE_STATUS" "$SUMMARY"
 
   if [ "$STATUS" = "error" ] && [ -n "${CRON_ERROR_DETAILS:-}" ]; then
-    "$PAPERCLIP_API" comment "$PAPERCLIP_ISSUE_UUID" "Error details: ${CRON_ERROR_DETAILS}"
+    "$PAPERCLIP_API" comment "$ISSUE_UUID" "Error details: ${CRON_ERROR_DETAILS}"
   fi
 fi
 

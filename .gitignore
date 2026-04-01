@@ -7,3 +7,5 @@ logs/
 .gateway-health-state
 data/
 .worktrees/
+__pycache__/
+*.py[cod]

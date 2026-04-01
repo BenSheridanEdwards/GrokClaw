@@ -5,6 +5,14 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 PAPERCLIP_API="$WORKSPACE_ROOT/tools/paperclip-api.sh"
 
+# Only the four core GrokClaw cron workflows may create Paperclip run issues.
+is_core_job() {
+  case "$1" in
+    grok-daily-brief|grok-openclaw-research|alpha-polymarket|kimi-polymarket) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 timestamp_iso() {
   if [ -n "${CRON_PAPERCLIP_NOW:-}" ]; then
     printf '%s\n' "$CRON_PAPERCLIP_NOW"
@@ -76,6 +84,10 @@ case "$command" in
       echo "usage: cron-paperclip-lifecycle.sh start <job-name> <agent>" >&2
       exit 1
     }
+    if ! is_core_job "$2"; then
+      echo "cron-paperclip-lifecycle.sh: refuse create-issue for non-core job: $2" >&2
+      exit 1
+    fi
     create_issue "$2" "$3"
     ;;
   finish)
