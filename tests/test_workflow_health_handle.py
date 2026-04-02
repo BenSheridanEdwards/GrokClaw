@@ -41,23 +41,54 @@ class WorkflowHealthHandleTests(unittest.TestCase):
             check=False,
         )
 
+    def _stub_telegram_tools(self, workspace, health_log, inline_log=None):
+        self._write_executable(
+            workspace / "tools" / "telegram-post.sh",
+            textwrap.dedent(
+                f"""\
+                #!/bin/sh
+                set -eu
+                printf '%s\\n' "$*" >> "{health_log}"
+                """
+            ),
+        )
+        log_target = inline_log or health_log
+        self._write_executable(
+            workspace / "tools" / "telegram-inline.sh",
+            textwrap.dedent(
+                f"""\
+                #!/bin/sh
+                set -eu
+                printf '%s\\n' "$*" >> "{log_target}"
+                """
+            ),
+        )
+        self._write_executable(
+            workspace / "tools" / "retry.sh",
+            textwrap.dedent(
+                """\
+                #!/bin/sh
+                set -eu
+                while [ "$#" -gt 0 ]; do
+                  case "$1" in
+                    --) shift; break ;;
+                    *) shift ;;
+                  esac
+                done
+                exec "$@"
+                """
+            ),
+        )
+
     def test_new_failure_posts_alert_and_requests_draft(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             health_log = workspace / "health.log"
+            inline_log = workspace / "inline.log"
             draft_log = workspace / "draft.log"
             state_file = workspace / "state.json"
 
-            self._write_executable(
-                workspace / "tools" / "telegram-post.sh",
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    set -eu
-                    printf '%s\\n' "$*" >> "{health_log}"
-                    """
-                ),
-            )
+            self._stub_telegram_tools(workspace, health_log, inline_log)
             self._write_executable(
                 workspace / "tools" / "linear-draft-approval.sh",
                 textwrap.dedent(
@@ -72,7 +103,10 @@ class WorkflowHealthHandleTests(unittest.TestCase):
             payload = {
                 "healthy": False,
                 "failureHash": "abc123",
-                "alertMessage": "Workflow health failure: alpha missing research markdown",
+                "failures": [
+                    {"workflow": "alpha-polymarket", "kind": "missing_research", "message": "no research markdown"},
+                ],
+                "alertMessage": "alpha-polymarket: no research file written\n\nthe agent ran but didn't write output — check the prompt",
                 "draft": {
                     "id": "workflow-health-abc123",
                     "title": "Fix workflow health failure in core cron workflows",
@@ -82,7 +116,9 @@ class WorkflowHealthHandleTests(unittest.TestCase):
 
             result = self._run_handler(workspace, payload, state_file)
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-            self.assertIn("health Workflow health failure: alpha missing research markdown", health_log.read_text(encoding="utf-8"))
+            self.assertTrue(inline_log.exists(), "alert with rerun button should use telegram-inline.sh")
+            inline_text = inline_log.read_text(encoding="utf-8")
+            self.assertIn("Rerun alpha-polymarket", inline_text)
             self.assertIn(
                 "request workflow-health-abc123 suggestion abc123 suggestions Fix workflow health failure in core cron workflows Problem and acceptance criteria In Progress",
                 draft_log.read_text(encoding="utf-8"),
@@ -98,16 +134,7 @@ class WorkflowHealthHandleTests(unittest.TestCase):
             draft_log = workspace / "draft.log"
             state_file = workspace / "state.json"
 
-            self._write_executable(
-                workspace / "tools" / "telegram-post.sh",
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    set -eu
-                    printf '%s\\n' "$*" >> "{health_log}"
-                    """
-                ),
-            )
+            self._stub_telegram_tools(workspace, health_log)
             self._write_executable(
                 workspace / "tools" / "linear-draft-approval.sh",
                 textwrap.dedent(
@@ -185,16 +212,7 @@ class WorkflowHealthHandleTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            self._write_executable(
-                workspace / "tools" / "telegram-post.sh",
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    set -eu
-                    printf '%s\\n' "$*" >> "{health_log}"
-                    """
-                ),
-            )
+            self._stub_telegram_tools(workspace, health_log)
             self._write_executable(
                 workspace / "tools" / "linear-draft-approval.sh",
                 textwrap.dedent(
@@ -234,16 +252,7 @@ class WorkflowHealthHandleTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            self._write_executable(
-                workspace / "tools" / "telegram-post.sh",
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    set -eu
-                    printf '%s\\n' "$*" >> "{health_log}"
-                    """
-                ),
-            )
+            self._stub_telegram_tools(workspace, health_log)
             self._write_executable(
                 workspace / "tools" / "linear-draft-approval.sh",
                 textwrap.dedent(
@@ -288,16 +297,7 @@ class WorkflowHealthHandleTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            self._write_executable(
-                workspace / "tools" / "telegram-post.sh",
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    set -eu
-                    printf '%s\\n' "$*" >> "{health_log}"
-                    """
-                ),
-            )
+            self._stub_telegram_tools(workspace, health_log)
             self._write_executable(
                 workspace / "tools" / "linear-draft-approval.sh",
                 textwrap.dedent(

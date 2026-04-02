@@ -16,9 +16,11 @@ The goal is a system that is simple, inspectable, and operationally honest. Ever
 
 GrokClaw is a multi-agent OpenClaw system with 3 operating agents:
 
-- `Grok` is the coordinator, reviewer, and system operator
-- `Alpha` is an hourly Polymarket research and trading agent
-- `Kimi` is an hourly Polymarket research and trading agent
+- `Grok` is the coordinator, reviewer, and system operator (xai/grok)
+- `Alpha` is an hourly Polymarket research and trading agent (openrouter free → grok fallback)
+- `Kimi` is an hourly Polymarket research and trading agent (ollama → openrouter free → grok fallback)
+
+Every agent has a fallback chain so jobs never silently die when a free-tier provider hits rate limits. The gateway falls through automatically; the doctor reports fallback activity once per day.
 
 The system should do four things well:
 
@@ -178,6 +180,7 @@ Purpose:
 - act as the missed-run and drift catch-all when event-driven checks could not fire
 - verify the runtime environment stays trustworthy: gateway, Paperclip, Ollama, Telegram connectivity, launchd, crontab, cron validation, cron sync, and gateway auth
 - detect when the 4 core workflows missed their expected schedule windows
+- detect model fallbacks (rate limits, timeouts) and notify once per day
 - escalate from missed-run detection into a full workflow audit when needed
 - report failures to Telegram health immediately
 - self-heal only low-risk infrastructure problems when explicitly running in repair mode
@@ -310,16 +313,19 @@ The implementation path should prefer:
 
 When workflow health fails:
 
-1. tell Ben clearly in Telegram health what failed
-2. explain which expected evidence is missing
-3. send an approval-gated Linear draft for the fix in Telegram suggestions
-4. wait for approval before any Linear ticket is created
+1. tell Ben clearly in Telegram health what failed and which evidence is missing
+2. suggest a concrete fix (the exact command or the nature of the problem)
+3. offer an inline "Rerun <workflow>" button so Ben can trigger the fix with one tap
+4. send an approval-gated Linear draft for the fix in Telegram suggestions
+5. wait for approval before any Linear ticket is created
+
+Health alerts are deduped to once per day per failure set. The same missed workflow does not produce 30 alerts — it produces one, with a button.
 
 Health monitoring should not silently repair workflow failures.
 
 If a workflow breaks, the right next step is:
 
-- an immediate Telegram health alert
+- an immediate, actionable Telegram health alert with a rerun button
 - then an approval-gated Linear draft that can create a Linear ticket and delegate Cursor only after Ben approves it
 
 ### Linear For Workflow Failures
@@ -420,8 +426,10 @@ It is where Ben sees the outputs that matter.
 - keep messages concise and operational
 - post after real work, not before
 - do not force Ben to infer system state from vague wording
+- outbound posts default to plain text — opt in to Markdown only when the body is safe
+- messages containing $ amounts must use heredocs, `printf`, or `TELEGRAM_MESSAGE` to avoid shell expansion
 - approval and merge actions must be deterministic and idempotent
-- health failures should say exactly which workflow failed and what evidence is missing
+- health failures should say exactly which workflow failed, what evidence is missing, and offer a rerun button
 
 ### Telegram Audit Trail
 
@@ -471,6 +479,7 @@ Important properties:
 - failed suggestion approvals are not marked as complete
 - Linear drafts must be explicitly approved before Linear is created
 - merge actions trigger deployment after merge
+- rerun buttons trigger the named cron workflow immediately on the correct agent
 
 ## How Suggestions Become Linear Work
 
@@ -596,8 +605,9 @@ GrokClaw should become a system where:
 - workflow health means complete evidence, not just a live process
 - Telegram shows the right things to the right topic
 - Linear only appears when work has actually been approved or explicitly requested
-- broken workflows alert Telegram immediately and suggest a fix only through approval
+- broken workflows alert Telegram once with a one-tap rerun button, not 30 times
 - Grok reviews before Ben is asked to merge
 - health and reliability workflows keep the machine honest
+- no free-tier outage silently kills a job — fallbacks and alerting always fire
 
 That is the target state.

@@ -322,18 +322,32 @@ def runtime_cron_matches(root: Path) -> Tuple[bool, str]:
     return True, ""
 
 
+HUMAN_LABELS = {
+    "missing_run": "did not run",
+    "stale_run": "last run is stale",
+    "error_run": "last run errored",
+    "missing_research": "no research file written",
+    "missing_agent_report": "no agent report written",
+    "missing_audit": "no Telegram post found",
+    "missing_paperclip": "no Paperclip issue created",
+    "open_paperclip": "Paperclip issue left open",
+    "cron_drift": "cron config out of sync",
+    "non_core_paperclip": "non-core job touched Paperclip",
+    "paperclip_unavailable": "Paperclip is unreachable",
+}
+
 REMEDIATION_HINTS = {
-    "missing_run": "run it manually: OPENCLAW_AGENT_ID={agent} ./tools/run-openclaw-agent.sh",
-    "stale_run": "run it manually: OPENCLAW_AGENT_ID={agent} ./tools/run-openclaw-agent.sh",
-    "error_run": "check gateway-stderr.log for the root cause, then re-run",
-    "missing_research": "the agent ran but didn't write output — check the prompt or tool permissions",
-    "missing_agent_report": "agent-report.sh wasn't called — check the agent's cron prompt",
-    "missing_audit": "telegram-post.sh wasn't called — check the agent's cron prompt",
+    "missing_run": "tap Rerun below or: OPENCLAW_AGENT_ID={agent} ./tools/run-openclaw-agent.sh",
+    "stale_run": "tap Rerun below or: OPENCLAW_AGENT_ID={agent} ./tools/run-openclaw-agent.sh",
+    "error_run": "check gateway logs for the root cause, then re-run",
+    "missing_research": "the agent ran but didn't write output — check the prompt",
+    "missing_agent_report": "the agent didn't report — check the cron prompt",
+    "missing_audit": "the agent didn't post to Telegram — check the cron prompt",
     "missing_paperclip": "Paperclip lifecycle didn't start — check cron-paperclip-lifecycle.sh",
     "open_paperclip": "Paperclip issue wasn't closed — the agent likely crashed mid-run",
     "cron_drift": "sync cron: ./tools/sync-cron-jobs.sh --restart",
-    "non_core_paperclip": "a non-core job touched Paperclip — check cron-paperclip-lifecycle.sh guard",
-    "paperclip_unavailable": "Paperclip is down — run ./tools/paperclip-ctl.sh restart",
+    "non_core_paperclip": "a non-core job touched Paperclip — policy violation",
+    "paperclip_unavailable": "Paperclip is down — restart it",
 }
 
 WORKFLOW_AGENTS = {
@@ -351,6 +365,10 @@ def _remediation(failure: dict) -> str:
     return hint.format(agent=agent)
 
 
+def _human_label(kind: str) -> str:
+    return HUMAN_LABELS.get(kind, kind.replace("_", " "))
+
+
 def build_alert_message(failures: List[dict]) -> str:
     if not failures:
         return "Workflow health: all clear"
@@ -359,22 +377,22 @@ def build_alert_message(failures: List[dict]) -> str:
     for f in failures:
         by_workflow.setdefault(f["workflow"], []).append(f)
 
-    lines = ["Missed workflows:"]
+    lines = []
     for wf, wf_failures in by_workflow.items():
-        kinds = ", ".join(f["kind"] for f in wf_failures)
-        lines.append(f"  {wf}: {kinds}")
+        labels = ", ".join(_human_label(f["kind"]) for f in wf_failures)
+        lines.append(f"{wf}: {labels}")
 
     first = failures[0]
-    lines.append(f"Fix: {_remediation(first)}")
-
-    if len(by_workflow) > 1:
-        lines.append("Or run: ./tools/grokclaw-doctor.sh --heal")
+    lines.append("")
+    lines.append(_remediation(first))
 
     return "\n".join(lines)
 
 
 def build_draft(failures: List[dict], failure_hash: str) -> dict:
-    evidence_lines = "\n".join(f"- {failure['message']}" for failure in failures[:8])
+    evidence_lines = "\n".join(
+        f"- {f['workflow']}: {_human_label(f['kind'])}" for f in failures[:8]
+    )
     remediation_lines = "\n".join(
         f"- {f['workflow']}: {_remediation(f)}" for f in failures[:8]
     )
