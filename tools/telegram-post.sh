@@ -2,8 +2,16 @@
 # Post a message to a Telegram group topic.
 # Usage:
 #   telegram-post.sh <topic-id> <message>
-#   telegram-post.sh <topic-id> -- read message from stdin
+#   telegram-post.sh <topic-id>   # stdin, or TELEGRAM_MESSAGE if set when stdin would be empty
 #   echo "text" | telegram-post.sh <topic-id>
+#
+# Messages with $ amounts (e.g. $1,100) must NOT be passed in double quotes on the shell
+# command line — the shell will expand $1, $2, etc. Prefer one of:
+#   printf '%s\n' 'Alpha: Bitcoin at $58,100' | ./tools/telegram-post.sh polymarket
+#   TELEGRAM_MESSAGE='Alpha: Bitcoin at $58,100' ./tools/telegram-post.sh polymarket
+#   ./tools/telegram-post.sh polymarket <<'TG'
+#   Alpha: Bitcoin at $58,100
+#   TG
 #
 # Topic shortcuts (resolved from .env):
 #   suggestions | polymarket | health | pr-reviews
@@ -47,6 +55,8 @@ esac
 
 if [ "$#" -gt 0 ]; then
   MESSAGE="$*"
+elif [ -n "${TELEGRAM_MESSAGE:-}" ]; then
+  MESSAGE="$TELEGRAM_MESSAGE"
 else
   MESSAGE=$(cat)
 fi

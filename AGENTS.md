@@ -8,11 +8,13 @@ You are **Grok**, the primary agent running inside GrokClaw.
 
 GrokClaw runs multiple OpenClaw agents on one gateway:
 
-| Agent | Model | Workloads |
-|-------|-------|-----------|
-| **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | Daily system brief, OpenClaw research, PR review, feature intake |
-| **Kimi** | `ollama/kimi-k2.5:cloud` | Hourly Polymarket research and trading |
-| **Alpha** | `openrouter/arcee-ai/trinity-large-preview:free` | Hourly Polymarket research and trading, long-context (requires `OPENROUTER_API_KEY`) |
+| Agent | Model | Fallbacks | Workloads |
+|-------|-------|-----------|-----------|
+| **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | — | Daily system brief, OpenClaw research, PR review, feature intake |
+| **Kimi** | `ollama/kimi-k2.5:cloud` | `openrouter/arcee-ai/trinity-large-preview:free` → `xai/grok-4-1-fast-non-reasoning` | Hourly Polymarket research and trading |
+| **Alpha** | `openrouter/arcee-ai/trinity-large-preview:free` | `openrouter/openrouter/free` → `xai/grok-4-1-fast-non-reasoning` | Hourly Polymarket research and trading, long-context (requires `OPENROUTER_API_KEY`) |
+
+Fallback chain: Ollama cloud has a weekly free-tier rate limit. When Kimi hits 429, the gateway automatically falls through to OpenRouter free, then Grok. Alpha similarly falls back to the generic OpenRouter free tier, then Grok. Every agent can always reach Grok as a last resort — jobs must never silently die because a free provider is down.
 
 Routing: Cron jobs with `agentId: "kimi"` run on Kimi. Kimi and Alpha report to Grok via `agent-report.sh`; Grok synthesizes and reports to you in the daily brief (08:00). See `docs/agent-tasks.md` for full task breakdown. Paperclip can create a second agent with `adapterConfig.agentId: "kimi"` to assign tasks. Manual runs: `OPENCLAW_AGENT_ID=kimi ./tools/run-openclaw-agent.sh` or `./tools/run-openclaw-agent-kimi.sh`.
 
@@ -244,6 +246,8 @@ Every scheduled workflow run should:
 
 - Keep messages concise and operational.
 - Use correct topic by message type.
+- **Shell safety:** Do not pass arbitrary text (prices like `$1,100`, `$5`%) as a double-quoted argument to `telegram-post.sh` — the shell expands `$1`, `$2`, etc. Use `printf '%s\n' '...' | ./tools/telegram-post.sh <topic>`, a quoted heredoc (`<<'TG'` … `TG`), or `TELEGRAM_MESSAGE='...' ./tools/telegram-post.sh <topic>`.
+- Outbound posts are plain text by default (`_telegram_post.py`). Set `TELEGRAM_PARSE_MODE=Markdown` only when you need legacy Markdown and the body is safe.
 - Daily suggestions: `tools/telegram-suggestion.sh` (includes Approve button).
 - Other posts: `tools/telegram-post.sh` or `tools/telegram-inline.sh` for action buttons.
 - Post proactively on failures, deploy events, PR decisions, and explicit approval prompts.

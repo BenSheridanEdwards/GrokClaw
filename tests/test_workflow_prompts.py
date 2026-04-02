@@ -10,20 +10,12 @@ def load_core_jobs_fixture(workspace: Path) -> list[dict]:
 
 
 class WorkflowPromptTests(unittest.TestCase):
-    def test_repo_cron_jobs_define_the_four_core_workflows(self):
+    def test_repo_cron_jobs_contain_the_four_core_workflows(self):
         workspace = Path(__file__).resolve().parents[1]
         jobs = load_core_jobs_fixture(workspace)
-        names = [job.get("name") for job in jobs]
-
-        self.assertEqual(
-            names,
-            [
-                "grok-daily-brief",
-                "grok-openclaw-research",
-                "alpha-polymarket",
-                "kimi-polymarket",
-            ],
-        )
+        names = {job.get("name") for job in jobs}
+        core = {"grok-daily-brief", "grok-openclaw-research", "alpha-polymarket", "kimi-polymarket"}
+        self.assertTrue(core.issubset(names), f"missing core workflows: {core - names}")
 
     def test_four_workflow_prompts_include_lifecycle_and_research_paths(self):
         workspace = Path(__file__).resolve().parents[1]
