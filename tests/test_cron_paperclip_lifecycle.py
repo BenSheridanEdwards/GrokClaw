@@ -14,6 +14,9 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
     def _write_stub_api(self, workspace: Path) -> Path:
         tools_dir = workspace / "tools"
         tools_dir.mkdir(parents=True, exist_ok=True)
+        wh = self.repo_root / "tools" / "_workflow_health.py"
+        if wh.exists():
+            (tools_dir / "_workflow_health.py").symlink_to(wh)
         log_path = workspace / "paperclip-api.log"
         stub_path = tools_dir / "paperclip-api.sh"
         stub_path.write_text(

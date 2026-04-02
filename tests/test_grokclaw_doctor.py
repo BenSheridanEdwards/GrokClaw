@@ -17,62 +17,97 @@ class GrokClawDoctorTests(unittest.TestCase):
         path.write_text(body, encoding="utf-8")
         path.chmod(0o755)
 
-    def test_doctor_alerts_and_requests_linear_draft_on_new_failure(self):
+    def _build_doctor_workspace(self, tmp: Path, *, audit_exit: int = 1, audit_output: str = "alpha-polymarket missing research markdown"):
+        """Set up a temp workspace with stubs for all doctor external deps."""
+        home = tmp / "home"
+        workspace = tmp / "workspace"
+        tools_dir = workspace / "tools"
+        stubs_bin = tmp / "stubs"
+        health_log = workspace / "health.log"
+
+        self._write_executable(
+            tools_dir / "telegram-post.sh",
+            textwrap.dedent(
+                f"""\
+                #!/bin/sh
+                set -eu
+                printf '%s\\n' "$*" >> "{health_log}"
+                """
+            ),
+        )
+        self._write_executable(
+            tools_dir / "cron-jobs-tool.py",
+            "#!/usr/bin/env python3\nimport sys; sys.exit(0)\n",
+        )
+        self._write_executable(
+            tools_dir / "_workflow_health_audit.py",
+            textwrap.dedent(
+                f"""\
+                #!/usr/bin/env python3
+                import sys
+                msg = '''{audit_output}'''
+                if msg:
+                    print(msg)
+                sys.exit({audit_exit})
+                """
+            ),
+        )
+        self._write_executable(
+            tools_dir / "gateway-ctl.sh",
+            "#!/bin/sh\nexit 0\n",
+        )
+        self._write_executable(
+            tools_dir / "sync-cron-jobs.sh",
+            "#!/bin/sh\nexit 0\n",
+        )
+
+        stubs_bin.mkdir(parents=True, exist_ok=True)
+        self._write_executable(
+            stubs_bin / "curl",
+            "#!/bin/sh\nexit 0\n",
+        )
+        self._write_executable(
+            stubs_bin / "launchctl",
+            textwrap.dedent(
+                """\
+                #!/bin/sh
+                echo "com.grokclaw.gateway"
+                echo "com.grokclaw.paperclip"
+                """
+            ),
+        )
+        self._write_executable(
+            stubs_bin / "crontab",
+            '#!/bin/sh\necho "*/5 * * * * health-check.sh"\n',
+        )
+        self._write_executable(
+            stubs_bin / "openclaw",
+            "#!/bin/sh\nexit 0\n",
+        )
+
+        cron_dir = workspace / "cron"
+        cron_dir.mkdir(parents=True, exist_ok=True)
+        (cron_dir / "jobs.json").write_text('{"jobs":[]}', encoding="utf-8")
+        rt_dir = home / ".openclaw" / "cron"
+        rt_dir.mkdir(parents=True, exist_ok=True)
+        (rt_dir / "jobs.json").write_text('{"jobs":[]}', encoding="utf-8")
+
+        return home, workspace, health_log, stubs_bin
+
+    def test_doctor_alerts_on_workflow_health_failure(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
-            home = tmp / "home"
-            workspace = tmp / "workspace"
-            tools_dir = workspace / "tools"
-            health_log = workspace / "health.log"
-            draft_log = workspace / "draft.log"
-
-            audit_payload = {
-                "healthy": False,
-                "failureHash": "abc123",
-                "alertMessage": "Workflow health failure: alpha-polymarket missing research markdown",
-                "failures": [{"workflow": "alpha-polymarket", "message": "missing research markdown"}],
-                "draft": {
-                    "id": "workflow-health-abc123",
-                    "title": "Fix workflow health failure",
-                    "description": "Problem and acceptance criteria",
-                },
-            }
-
-            self._write_executable(
-                tools_dir / "telegram-post.sh",
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    set -eu
-                    printf '%s\\n' "$*" >> "{health_log}"
-                    """
-                ),
-            )
-            self._write_executable(
-                tools_dir / "linear-draft-approval.sh",
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    set -eu
-                    printf '%s\\n' "$*" >> "{draft_log}"
-                    """
-                ),
-            )
-            self._write_executable(
-                tools_dir / "_workflow_health.py",
-                textwrap.dedent(
-                    f"""\
-                    #!/usr/bin/env python3
-                    import json
-                    payload = {audit_payload!r}
-                    print(json.dumps(payload))
-                    """
-                ),
+            home, workspace, health_log, stubs_bin = self._build_doctor_workspace(
+                tmp,
+                audit_exit=1,
+                audit_output="alpha-polymarket missing research markdown",
             )
 
             env = os.environ.copy()
             env["HOME"] = str(home)
             env["WORKSPACE_ROOT"] = str(workspace)
+            env["PATH"] = f"{stubs_bin}:{env.get('PATH', '')}"
+            env["TELEGRAM_BOT_TOKEN"] = "test-token"
 
             result = subprocess.run(
                 ["sh", str(self.script), "--check"],
@@ -84,76 +119,26 @@ class GrokClawDoctorTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 1, msg=result.stderr or result.stdout)
-            self.assertIn("health Workflow health failure", health_log.read_text(encoding="utf-8"))
-            draft_text = draft_log.read_text(encoding="utf-8")
-            self.assertIn("request workflow-health-abc123 suggestion abc123 suggestions Fix workflow health failure Problem and acceptance criteria In Progress", draft_text)
+            alert_text = health_log.read_text(encoding="utf-8")
+            self.assertIn("GrokClaw Doctor", alert_text)
+            self.assertIn("Workflow health: alpha-polymarket missing research markdown", alert_text)
 
-    def test_doctor_dedupes_same_failure_hash(self):
+    def test_doctor_healthy_when_audit_passes(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
-            home = tmp / "home"
-            workspace = tmp / "workspace"
-            tools_dir = workspace / "tools"
-            health_log = workspace / "health.log"
-            draft_log = workspace / "draft.log"
-
-            audit_payload = {
-                "healthy": False,
-                "failureHash": "samehash",
-                "alertMessage": "Workflow health failure: repeated",
-                "failures": [{"workflow": "alpha-polymarket", "message": "repeated"}],
-                "draft": {
-                    "id": "workflow-health-samehash",
-                    "title": "Fix workflow health failure",
-                    "description": "Problem and acceptance criteria",
-                },
-            }
-
-            self._write_executable(
-                tools_dir / "telegram-post.sh",
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    set -eu
-                    printf '%s\\n' "$*" >> "{health_log}"
-                    """
-                ),
-            )
-            self._write_executable(
-                tools_dir / "linear-draft-approval.sh",
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    set -eu
-                    printf '%s\\n' "$*" >> "{draft_log}"
-                    """
-                ),
-            )
-            self._write_executable(
-                tools_dir / "_workflow_health.py",
-                textwrap.dedent(
-                    f"""\
-                    #!/usr/bin/env python3
-                    import json
-                    payload = {audit_payload!r}
-                    print(json.dumps(payload))
-                    """
-                ),
+            home, workspace, health_log, stubs_bin = self._build_doctor_workspace(
+                tmp,
+                audit_exit=0,
+                audit_output="",
             )
 
             env = os.environ.copy()
             env["HOME"] = str(home)
             env["WORKSPACE_ROOT"] = str(workspace)
+            env["PATH"] = f"{stubs_bin}:{env.get('PATH', '')}"
+            env["TELEGRAM_BOT_TOKEN"] = "test-token"
 
-            first = subprocess.run(
-                ["sh", str(self.script), "--check"],
-                cwd=str(self.workspace),
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            second = subprocess.run(
+            result = subprocess.run(
                 ["sh", str(self.script), "--check"],
                 cwd=str(self.workspace),
                 env=env,
@@ -162,10 +147,12 @@ class GrokClawDoctorTests(unittest.TestCase):
                 check=False,
             )
 
-            self.assertEqual(first.returncode, 1)
-            self.assertEqual(second.returncode, 1)
-            self.assertEqual(health_log.read_text(encoding="utf-8").count("health Workflow health failure"), 1)
-            self.assertEqual(draft_log.read_text(encoding="utf-8").count("request workflow-health-samehash"), 1)
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertIn("All checks passed", result.stdout)
+            self.assertFalse(
+                health_log.exists(),
+                "No Telegram alert when all checks pass",
+            )
 
 
 if __name__ == "__main__":
