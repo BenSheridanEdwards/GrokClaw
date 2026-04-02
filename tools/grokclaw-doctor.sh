@@ -116,6 +116,51 @@ else
   fi
 fi
 
+# --- 3b. Model fallback detection (once-per-day notification) ---
+log "Checking for model fallbacks..."
+FALLBACK_STATE="$HOME/.openclaw/state/model-fallback-notified.txt"
+FALLBACK_TODAY="$(date -u +%Y-%m-%d)"
+FALLBACK_LAST="$(cat "$FALLBACK_STATE" 2>/dev/null || echo "")"
+GATEWAY_STDERR="$HOME/.openclaw/logs/gateway-stderr.log"
+
+if [ "$FALLBACK_TODAY" != "$FALLBACK_LAST" ] && [ -f "$GATEWAY_STDERR" ]; then
+  fallback_summary="$(python3 -c "
+import re, sys
+from collections import OrderedDict
+hits = OrderedDict()
+for line in open('$GATEWAY_STDERR', encoding='utf-8', errors='replace'):
+    if '$FALLBACK_TODAY' not in line:
+        continue
+    m = re.search(r'decision=(?:fallback_model|surface_error).*reason=(\w+).*provider=(\S+)', line)
+    if m:
+        reason, provider = m.group(1), m.group(2)
+        provider_short = provider.split('/')[-1].split(':')[0] if '/' in provider else provider
+        key = (reason, provider_short)
+        hits[key] = hits.get(key, 0) + 1
+if not hits:
+    sys.exit(0)
+parts = []
+for (reason, prov), count in hits.items():
+    label = 'rate limit' if reason == 'rate_limit' else 'timeout' if reason == 'timeout' else reason
+    parts.append(f'{prov}: {label} ({count}x)')
+print('; '.join(parts))
+" 2>/dev/null || echo "")"
+
+  if [ -n "$fallback_summary" ]; then
+    log "  Model fallbacks today: $fallback_summary"
+    mkdir -p "$(dirname "$FALLBACK_STATE")"
+    printf '%s' "$FALLBACK_TODAY" > "$FALLBACK_STATE"
+    if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then
+      printf '%s\n' "Model fallbacks today: $fallback_summary. Agents fell back to next provider in chain." \
+        | "$WORKSPACE_ROOT/tools/telegram-post.sh" health 2>/dev/null || true
+    fi
+  else
+    log "  No model fallbacks today"
+  fi
+else
+  log "  Already notified today"
+fi
+
 # --- 4. Telegram connectivity ---
 log "Checking Telegram..."
 TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
