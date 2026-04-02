@@ -54,13 +54,16 @@ fi
 attempt=1
 delay=1
 max_attempts=3
+last_error=""
 while [ "$attempt" -le "$max_attempts" ]; do
-  if python3 "$WORKSPACE_ROOT/tools/_telegram_post.py" \
-    "$TELEGRAM_BOT_TOKEN" "$TELEGRAM_GROUP_ID" "$TOPIC_ID" "$MESSAGE"; then
+  if post_output="$(python3 "$WORKSPACE_ROOT/tools/_telegram_post.py" \
+    "$TELEGRAM_BOT_TOKEN" "$TELEGRAM_GROUP_ID" "$TOPIC_ID" "$MESSAGE" 2>&1)"; then
+    [ -n "$post_output" ] && printf '%s\n' "$post_output"
     python3 "$WORKSPACE_ROOT/tools/_audit_log.py" \
       telegram_post "$RAW_TOPIC" "$MESSAGE" "$TOPIC_ID" >/dev/null 2>&1 || true
     exit 0
   fi
+  last_error="$post_output"
   if [ "$attempt" -ge "$max_attempts" ]; then
     break
   fi
@@ -69,5 +72,8 @@ while [ "$attempt" -le "$max_attempts" ]; do
   attempt=$((attempt + 1))
 done
 
+python3 "$WORKSPACE_ROOT/tools/_audit_log.py" \
+  telegram_post_failed "$RAW_TOPIC" "$MESSAGE" "$TOPIC_ID" >/dev/null 2>&1 || true
+[ -n "$last_error" ] && printf '%s\n' "$last_error" >&2
 echo "telegram-post.sh: failed to deliver message after ${max_attempts} attempts" >&2
 exit 1

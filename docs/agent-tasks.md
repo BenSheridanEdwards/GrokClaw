@@ -6,7 +6,7 @@ All scheduled agent work is now organized around four core workflows.
 
 - Only the 4 core workflows are allowed to create Paperclip issues, and they do so with `tools/cron-paperclip-lifecycle.sh`.
 - Every scheduled workflow run appends a structured line to `data/cron-runs/*.jsonl` via `tools/cron-run-record.sh`.
-- Telegram posts and inline button messages append audit records to `data/audit-log/*.jsonl`.
+- Telegram outbound posts/inline messages and inbound action messages append audit records to `data/audit-log/*.jsonl`.
 - Telegram health posts are failure-only; normal `ok` and `skipped` runs leave evidence in Paperclip and `data/cron-runs/*.jsonl`.
 - Kimi and Alpha still report to Grok with `tools/agent-report.sh`.
 - Linear is only created from approved daily suggestions or direct user-requested bug/feature intake.
