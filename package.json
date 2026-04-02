@@ -1,0 +1,11 @@
+{
+  "name": "grokclaw",
+  "private": true,
+  "scripts": {
+    "test": "tools/test-all.sh",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

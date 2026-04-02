@@ -71,7 +71,7 @@ The health model is protected by a repo-managed test runner:
 ./tools/run-health-e2e-tests.sh
 ```
 
-That runner covers the mocked happy and sad paths for the 4 core workflow contracts plus the detector, watchdog, and doctor layers. `.githooks/pre-commit` calls it before each commit.
+That runner covers the mocked happy and sad paths for the 4 core workflow contracts plus the detector, watchdog, and doctor layers. Husky's pre-commit hook runs `tools/test-all.sh` which includes this suite.
 
 ## Environment variables
 

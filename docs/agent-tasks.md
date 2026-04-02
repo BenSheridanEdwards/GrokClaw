@@ -69,7 +69,7 @@ Non-core jobs must not call `cron-paperclip-lifecycle.sh start`; the script now 
 - If a core workflow fails that contract, the doctor posts a Telegram health alert and sends a draft Linear fix ticket to suggestions for approval
 - The doctor does not repair runtime drift or restart services automatically
 - `tests/test_workflow_health.py` keeps mocked happy and sad path coverage for each of the 4 core workflows
-- `tools/run-health-e2e-tests.sh` runs the health suite, and `.githooks/pre-commit` uses it as the commit gate
+- `tools/run-health-e2e-tests.sh` runs the health suite; Husky's pre-commit hook runs the full `tools/test-all.sh` gate
 
 ## PR review
 

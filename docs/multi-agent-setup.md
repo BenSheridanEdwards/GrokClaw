@@ -93,4 +93,4 @@ openclaw models list
 ./tools/pr-review-watch.sh
 ```
 
-The repo-managed `.githooks/pre-commit` hook runs `./tools/run-health-e2e-tests.sh` automatically before each commit.
+Husky runs `tools/test-all.sh` as a pre-commit hook (shell syntax, Python syntax, full unit suite, e2e smoke).

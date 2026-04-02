@@ -1,7 +1,0 @@
-#!/bin/sh
-set -eu
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-"$WORKSPACE_ROOT/tools/run-health-e2e-tests.sh"
