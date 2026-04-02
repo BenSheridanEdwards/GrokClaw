@@ -11,8 +11,8 @@ GrokClaw runs multiple OpenClaw agents on one gateway:
 | Agent | Model | Fallbacks | Workloads |
 |-------|-------|-----------|-----------|
 | **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | — | Daily system brief, OpenClaw research, PR review, feature intake |
-| **Kimi** | `ollama/kimi-k2.5:cloud` | `openrouter/arcee-ai/trinity-large-preview:free` → `xai/grok-4-1-fast-non-reasoning` | Hourly Polymarket research and trading |
-| **Alpha** | `openrouter/arcee-ai/trinity-large-preview:free` | `openrouter/openrouter/free` → `xai/grok-4-1-fast-non-reasoning` | Hourly Polymarket research and trading, long-context (requires `OPENROUTER_API_KEY`) |
+| **Kimi** | `ollama/kimi-k2.5:cloud` | `openrouter/qwen/qwen3.6-plus-preview:free` → `xai/grok-4-1-fast-non-reasoning` | Hourly Polymarket research and trading |
+| **Alpha** | `openrouter/qwen/qwen3.6-plus-preview:free` | `openrouter/openrouter/free` → `xai/grok-4-1-fast-non-reasoning` | Hourly Polymarket research and trading, long-context (requires `OPENROUTER_API_KEY`) |
 
 Fallback chain: Ollama cloud has a weekly free-tier rate limit. When Kimi hits 429, the gateway automatically falls through to OpenRouter free, then Grok. Alpha similarly falls back to the generic OpenRouter free tier, then Grok. Every agent can always reach Grok as a last resort — jobs must never silently die because a free provider is down.
 
