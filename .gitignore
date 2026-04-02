@@ -5,7 +5,9 @@ logs/
 .reliability-report-tmp
 .cursor
 .gateway-health-state
+.last-deploy-sha
 .openclaw/*.issue
+cron/jobs.json
 data/
 .worktrees/
 __pycache__/

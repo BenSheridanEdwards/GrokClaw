@@ -4,11 +4,15 @@ import unittest
 from pathlib import Path
 
 
+def load_core_jobs_fixture(workspace: Path) -> list[dict]:
+    fixture_path = workspace / "tests" / "fixtures" / "core-cron-jobs.json"
+    return json.loads(fixture_path.read_text(encoding="utf-8")).get("jobs", [])
+
+
 class WorkflowPromptTests(unittest.TestCase):
     def test_repo_cron_jobs_define_the_four_core_workflows(self):
         workspace = Path(__file__).resolve().parents[1]
-        jobs_path = workspace / "cron" / "jobs.json"
-        jobs = json.loads(jobs_path.read_text(encoding="utf-8")).get("jobs", [])
+        jobs = load_core_jobs_fixture(workspace)
         names = [job.get("name") for job in jobs]
 
         self.assertEqual(
@@ -23,10 +27,9 @@ class WorkflowPromptTests(unittest.TestCase):
 
     def test_four_workflow_prompts_include_lifecycle_and_research_paths(self):
         workspace = Path(__file__).resolve().parents[1]
-        jobs_path = workspace / "cron" / "jobs.json"
         jobs = {
             job["name"]: job
-            for job in json.loads(jobs_path.read_text(encoding="utf-8")).get("jobs", [])
+            for job in load_core_jobs_fixture(workspace)
         }
 
         daily_brief = jobs["grok-daily-brief"]["payload"]["message"]
@@ -57,8 +60,7 @@ class WorkflowPromptTests(unittest.TestCase):
 
     def test_repo_cron_jobs_have_no_scheduler_state(self):
         workspace = Path(__file__).resolve().parents[1]
-        jobs_path = workspace / "cron" / "jobs.json"
-        jobs = json.loads(jobs_path.read_text(encoding="utf-8")).get("jobs", [])
+        jobs = load_core_jobs_fixture(workspace)
         scheduler_keys = {"state", "createdAtMs", "updatedAtMs"}
         for job in jobs:
             name = job.get("name", "?")
@@ -72,8 +74,9 @@ class WorkflowPromptTests(unittest.TestCase):
     def test_cron_jobs_pass_telegram_delivery_validation(self):
         workspace = Path(__file__).resolve().parents[1]
         tool = workspace / "tools" / "cron-jobs-tool.py"
+        fixture_path = workspace / "tests" / "fixtures" / "core-cron-jobs.json"
         proc = subprocess.run(
-            ["python3", str(tool), "validate"],
+            ["python3", str(tool), "validate", str(fixture_path)],
             cwd=workspace,
             capture_output=True,
             text=True,
@@ -87,10 +90,9 @@ class WorkflowPromptTests(unittest.TestCase):
 
     def test_four_core_workflows_have_expected_schedules(self):
         workspace = Path(__file__).resolve().parents[1]
-        jobs_path = workspace / "cron" / "jobs.json"
         jobs = {
             job["name"]: job["schedule"]["expr"]
-            for job in json.loads(jobs_path.read_text(encoding="utf-8")).get("jobs", [])
+            for job in load_core_jobs_fixture(workspace)
         }
 
         self.assertEqual(jobs["grok-daily-brief"], "0 8 * * *")
