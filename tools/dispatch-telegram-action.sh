@@ -11,6 +11,7 @@
 #   approve_linear_draft:<id>     — creates Linear from a pending approved draft
 #   reject_linear_draft:<id>      — cancels a pending draft without creating Linear
 #   probe:<label>:<id>
+#   rerun_workflow:<job-name>         — triggers the named cron workflow immediately
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -101,6 +102,32 @@ case "$ACTION" in
     "$WORKSPACE_ROOT/tools/linear-draft-approval.sh" reject "$DRAFT_ID"
     printf '%s\n' "$TOKEN" >>"$SEEN_FILE"
     echo "Linear draft rejected: $DRAFT_ID"
+    ;;
+  rerun_workflow)
+    JOB_NAME="$PR_NUM"
+    AGENT="$(python3 -c "
+m={'grok-daily-brief':'grok','grok-openclaw-research':'grok','alpha-polymarket':'alpha','kimi-polymarket':'kimi'}
+print(m.get('$JOB_NAME','grok'))
+")"
+    CRON_MSG="$(python3 -c "
+import json
+jobs=json.load(open('$WORKSPACE_ROOT/cron/jobs.json')).get('jobs',[])
+hit=[j for j in jobs if j.get('name')=='$JOB_NAME']
+print(hit[0]['payload']['message'] if hit else '')
+" 2>/dev/null || echo "")"
+
+    if [ -z "$CRON_MSG" ]; then
+      echo "Unknown workflow: $JOB_NAME" >&2
+      exit 1
+    fi
+
+    printf '%s\n' "$TOKEN" >>"$SEEN_FILE"
+    printf '%s\n' "Rerunning $JOB_NAME on $AGENT..." \
+      | "$WORKSPACE_ROOT/tools/telegram-post.sh" health 2>/dev/null || true
+
+    OPENCLAW_AGENT_ID="$AGENT" OPENCLAW_MESSAGE="$CRON_MSG" \
+      "$WORKSPACE_ROOT/tools/run-openclaw-agent.sh" &
+    echo "Triggered rerun of $JOB_NAME on agent $AGENT"
     ;;
   *)
     echo "Unknown action token: $TOKEN" >&2

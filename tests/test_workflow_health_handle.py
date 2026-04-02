@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 import os
 import subprocess
@@ -117,11 +118,24 @@ class WorkflowHealthHandleTests(unittest.TestCase):
                     """
                 ),
             )
-            state_file.write_text(json.dumps({"hash": "samehash", "status": "open"}), encoding="utf-8")
+            failures = [{"workflow": "grok-daily-brief", "kind": "stale_run", "message": "stale at 08:00"}]
+            import hashlib
+            struct_hash = hashlib.sha256(
+                json.dumps(sorted({(f["workflow"], f["kind"]) for f in failures}), sort_keys=True).encode()
+            ).hexdigest()[:12]
+            today = dt.datetime.utcnow().strftime("%Y-%m-%d")
+
+            state_file.write_text(json.dumps({
+                "hash": "samehash",
+                "structHash": struct_hash,
+                "status": "open",
+                "last_seen": f"{today}T00:00:00Z",
+            }), encoding="utf-8")
 
             payload = {
                 "healthy": False,
                 "failureHash": "samehash",
+                "failures": failures,
                 "alertMessage": "Workflow health failure: repeated",
                 "draft": {
                     "id": "workflow-health-samehash",

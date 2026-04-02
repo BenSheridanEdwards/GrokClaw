@@ -322,27 +322,73 @@ def runtime_cron_matches(root: Path) -> Tuple[bool, str]:
     return True, ""
 
 
+REMEDIATION_HINTS = {
+    "missing_run": "run it manually: OPENCLAW_AGENT_ID={agent} ./tools/run-openclaw-agent.sh",
+    "stale_run": "run it manually: OPENCLAW_AGENT_ID={agent} ./tools/run-openclaw-agent.sh",
+    "error_run": "check gateway-stderr.log for the root cause, then re-run",
+    "missing_research": "the agent ran but didn't write output — check the prompt or tool permissions",
+    "missing_agent_report": "agent-report.sh wasn't called — check the agent's cron prompt",
+    "missing_audit": "telegram-post.sh wasn't called — check the agent's cron prompt",
+    "missing_paperclip": "Paperclip lifecycle didn't start — check cron-paperclip-lifecycle.sh",
+    "open_paperclip": "Paperclip issue wasn't closed — the agent likely crashed mid-run",
+    "cron_drift": "sync cron: ./tools/sync-cron-jobs.sh --restart",
+    "non_core_paperclip": "a non-core job touched Paperclip — check cron-paperclip-lifecycle.sh guard",
+    "paperclip_unavailable": "Paperclip is down — run ./tools/paperclip-ctl.sh restart",
+}
+
+WORKFLOW_AGENTS = {
+    "grok-daily-brief": "grok",
+    "grok-openclaw-research": "grok",
+    "alpha-polymarket": "alpha",
+    "kimi-polymarket": "kimi",
+}
+
+
+def _remediation(failure: dict) -> str:
+    kind = failure.get("kind", "")
+    hint = REMEDIATION_HINTS.get(kind, "investigate in gateway logs")
+    agent = WORKFLOW_AGENTS.get(failure.get("workflow", ""), "grok")
+    return hint.format(agent=agent)
+
+
+def build_alert_message(failures: List[dict]) -> str:
+    if not failures:
+        return "Workflow health: all clear"
+
+    by_workflow: dict[str, List[dict]] = {}
+    for f in failures:
+        by_workflow.setdefault(f["workflow"], []).append(f)
+
+    lines = ["Missed workflows:"]
+    for wf, wf_failures in by_workflow.items():
+        kinds = ", ".join(f["kind"] for f in wf_failures)
+        lines.append(f"  {wf}: {kinds}")
+
+    first = failures[0]
+    lines.append(f"Fix: {_remediation(first)}")
+
+    if len(by_workflow) > 1:
+        lines.append("Or run: ./tools/grokclaw-doctor.sh --heal")
+
+    return "\n".join(lines)
+
+
 def build_draft(failures: List[dict], failure_hash: str) -> dict:
     evidence_lines = "\n".join(f"- {failure['message']}" for failure in failures[:8])
+    remediation_lines = "\n".join(
+        f"- {f['workflow']}: {_remediation(f)}" for f in failures[:8]
+    )
     return {
         "id": f"workflow-health-{failure_hash[:12]}",
         "title": "Fix workflow health failure in core cron workflows",
         "description": (
             "Problem:\n"
-            "One or more of the 4 core GrokClaw workflows is no longer operationally complete.\n\n"
+            "One or more core workflows didn't complete.\n\n"
             "Evidence:\n"
             f"{evidence_lines}\n\n"
-            "Acceptance criteria:\n"
-            "- The failing core workflows run within their expected schedule windows.\n"
-            "- Each workflow writes the expected research/data artifacts.\n"
-            "- Each workflow leaves the expected cron run record and audit-log evidence.\n"
-            "- Each workflow creates and closes its Paperclip issue correctly.\n"
-            "- No non-core workflow can create Paperclip issues.\n\n"
-            "Implementation notes:\n"
-            "- Start with the workflow-health audit path and the Paperclip lifecycle guard.\n"
-            "- Preserve approval-gated remediation; do not add auto-repair.\n\n"
-            "Out of scope:\n"
-            "- Changing trading heuristics or unrelated OpenClaw prompts."
+            "Suggested fixes:\n"
+            f"{remediation_lines}\n\n"
+            "Or run: ./tools/grokclaw-doctor.sh --heal"
         ),
     }
 
@@ -351,12 +397,11 @@ def build_result(failures: List[dict]) -> dict:
     healthy = not failures
     failure_blob = json.dumps(sorted(failures, key=lambda item: (item["workflow"], item["kind"], item["message"])), sort_keys=True)
     failure_hash = hashlib.sha256(failure_blob.encode("utf-8")).hexdigest()[:12]
-    summary = "; ".join(failure["message"] for failure in failures[:4]) if failures else "workflow health is healthy"
     return {
         "healthy": healthy,
         "failureHash": failure_hash,
         "failures": failures,
-        "alertMessage": f"Workflow health failure: {summary}" if failures else "Workflow health: healthy",
+        "alertMessage": build_alert_message(failures),
         "draft": build_draft(failures, failure_hash) if failures else None,
     }
 

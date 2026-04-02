@@ -43,13 +43,22 @@ def write_state(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def post_health_alert(root: Path, message: str) -> None:
-    subprocess.run(
-        [str(root / "tools" / "telegram-post.sh"), "health", message],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+def post_health_alert(root: Path, message: str, buttons: list[dict] | None = None) -> None:
+    if buttons:
+        button_json = json.dumps(buttons)
+        subprocess.run(
+            [str(root / "tools" / "telegram-inline.sh"), "health", message, button_json, "plain"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    else:
+        subprocess.run(
+            [str(root / "tools" / "telegram-post.sh"), "health", message],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
 
 def request_draft(root: Path, payload: dict) -> None:
@@ -207,12 +216,26 @@ def should_request_draft(root: Path, payload: dict) -> bool:
     return True
 
 
+def structural_hash(failures: list[dict]) -> str:
+    """Hash workflow+kind pairs, ignoring timestamps in messages.
+
+    The old approach hashed full messages which contain shifting timestamps
+    (e.g. "expected run at 08:00 UTC" vs "09:00 UTC"), defeating dedup and
+    causing 30+ identical alerts per day.
+    """
+    import hashlib
+    keys = sorted({(f["workflow"], f["kind"]) for f in failures})
+    blob = json.dumps(keys, sort_keys=True)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:12]
+
+
 def main() -> int:
     payload = json.load(sys.stdin)
     root = workspace_root()
     state_path = state_file()
     state = read_state(state_path)
     now = utc_now()
+    today = now[:10]
 
     if payload.get("healthy"):
         if state:
@@ -221,17 +244,34 @@ def main() -> int:
             write_state(state_path, state)
         return 0
 
-    failure_hash = payload.get("failureHash", "")
-    if state.get("hash") == failure_hash and state.get("status") == "open":
+    struct_hash = structural_hash(payload.get("failures", []))
+    already_open = state.get("status") == "open" and state.get("structHash") == struct_hash
+    already_posted_today = already_open and state.get("last_seen", "")[:10] == today
+
+    if already_posted_today:
         return 0
 
-    post_health_alert(root, payload["alertMessage"])
+    RERUNNABLE_KINDS = {"missing_run", "stale_run", "error_run", "missing_research",
+                        "missing_agent_report", "missing_audit", "missing_paperclip", "open_paperclip"}
+    failed_workflows = []
+    for f in payload.get("failures", []):
+        wf = f.get("workflow", "")
+        if f.get("kind") in RERUNNABLE_KINDS and wf not in failed_workflows:
+            failed_workflows.append(wf)
+
+    buttons = [
+        {"text": f"Rerun {wf}", "callback_data": f"rerun_workflow:{wf}"}
+        for wf in failed_workflows[:4]
+    ]
+
+    post_health_alert(root, payload["alertMessage"], buttons=buttons or None)
     if payload.get("draft") and should_request_draft(root, payload):
         request_draft(root, payload)
 
     next_state = {
-        "hash": failure_hash,
-        "first_seen": state.get("first_seen", now) if state.get("hash") == failure_hash else now,
+        "hash": payload.get("failureHash", ""),
+        "structHash": struct_hash,
+        "first_seen": state.get("first_seen", now) if already_open else now,
         "last_seen": now,
         "status": "open",
     }
