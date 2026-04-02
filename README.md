@@ -46,6 +46,7 @@ If memory is stale, GrokClaw regresses and repeats work.
 - Retry wrapper: `tools/retry.sh`
 - Single-poller guard: `tools/telegram-poller-guard.sh`
 - Safe action dispatch (idempotent): `tools/dispatch-telegram-action.sh`
+- Telegram audit reporting: `tools/telegram-audit-report.sh`
 - Self-deploy on merged main: `tools/self-deploy.sh`
 
 ## Polymarket Strategy

@@ -423,6 +423,21 @@ It is where Ben sees the outputs that matter.
 - approval and merge actions must be deterministic and idempotent
 - health failures should say exactly which workflow failed and what evidence is missing
 
+### Telegram Audit Trail
+
+Telegram messaging should be fully auditable in both directions.
+
+- outbound sends are logged to `data/audit-log/*.jsonl` as `telegram_post` / `telegram_inline`
+- outbound delivery failures are also logged as `telegram_post_failed` / `telegram_inline_failed`
+- inbound action messages are logged as `telegram_incoming`
+- action dispatch remains idempotent, but duplicate inbound actions still appear in the audit trail
+
+Operators should use:
+
+- `tools/telegram-audit-report.sh`
+
+to review recent Telegram activity and message quality flags, including the flagged bad message and a suggested "improve to" rewrite.
+
 ### Suggestions In Telegram
 
 Grok can post a suggestion using:
@@ -555,7 +570,7 @@ The system should always leave evidence in four places:
 
 1. Paperclip for per-run lifecycle visibility
 2. `data/cron-runs/*.jsonl` for cron execution history
-3. Telegram for human-facing operational output
+3. Telegram evidence in `data/audit-log/*.jsonl` (inbound + outbound) for human-facing operational output and auditability
 4. `data/linear-creations/*.jsonl` for Linear creation policy enforcement
 
 If a workflow cannot be seen in those places, it is not operationally complete.

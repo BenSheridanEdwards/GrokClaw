@@ -32,6 +32,9 @@ ACTION="$(printf '%s' "$TOKEN" | cut -d: -f1)"
 PR_NUM="$(printf '%s' "$TOKEN" | cut -d: -f2)"
 ISSUE_ID="$(printf '%s' "$TOKEN" | cut -d: -f3)"
 
+python3 "$WORKSPACE_ROOT/tools/_audit_log.py" \
+  telegram_incoming "actions" "$RAW" "$TOKEN" >/dev/null 2>&1 || true
+
 mkdir -p "$STATE_DIR"
 [ -f "$SEEN_FILE" ] || : >"$SEEN_FILE"
 
