@@ -14,7 +14,7 @@ CORE_WORKFLOWS = {
     "grok-daily-brief": {
         "schedule": {"kind": "daily", "hours": (8,)},
         "grace_minutes": 20,
-        "audit_checks": [("suggestions", ("Daily system brief:", "Daily Suggestion #"))],
+        "audit_checks": [(("suggestions", "health"), ("Daily system brief:", "Daily Suggestion #", "Daily brief "))],
     },
     "grok-openclaw-research": {
         "schedule": {"kind": "daily", "hours": (7, 13, 19)},
@@ -49,7 +49,7 @@ def utc_now() -> dt.datetime:
 def parse_ts(raw: Optional[str]) -> Optional[dt.datetime]:
     if not raw:
         return None
-    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+    for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
         try:
             return dt.datetime.strptime(raw, fmt)
         except ValueError:
@@ -310,11 +310,15 @@ def runtime_cron_matches(root: Path) -> Tuple[bool, str]:
         return False, f"runtime cron missing at {rt_path}"
     repo_names = [job.get("name") for job in load_json(repo_path).get("jobs", [])]
     runtime_names = [job.get("name") for job in load_json(rt_path).get("jobs", [])]
-    expected = list(CORE_WORKFLOWS.keys())
-    if repo_names != expected:
-        return False, "repo cron/jobs.json does not define exactly the 4 core workflows"
-    if runtime_names != expected:
-        return False, "runtime cron does not match the 4 core workflows"
+    expected = set(CORE_WORKFLOWS.keys())
+    repo_set = set(repo_names)
+    runtime_set = set(runtime_names)
+    if not expected.issubset(repo_set):
+        missing = ", ".join(sorted(expected - repo_set))
+        return False, f"repo cron/jobs.json is missing core workflows: {missing}"
+    if not expected.issubset(runtime_set):
+        missing = ", ".join(sorted(expected - runtime_set))
+        return False, f"runtime cron is missing core workflows: {missing}"
     return True, ""
 
 

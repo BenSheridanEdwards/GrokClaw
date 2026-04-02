@@ -24,7 +24,7 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
                 f"""\
                 #!/bin/sh
                 set -eu
-                printf '%s\\n' "$*" >> "{log_path}"
+                printf 'NO_ASSIGNEE=%s %s\\n' "${{PAPERCLIP_NO_ASSIGNEE:-}}" "$*" >> "{log_path}"
                 case "$1" in
                   create-issue)
                     echo "Created: PAP-101 - $2"
@@ -71,6 +71,7 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
             calls = log_path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(calls), 2)
             self.assertIn("create-issue", calls[0])
+            self.assertIn("NO_ASSIGNEE=1", calls[0])
             self.assertIn("[alpha-polymarket] 2026-04-01 08:00 UTC", calls[0])
             self.assertIn("update-issue issue-uuid-123 in_progress", calls[1])
 
@@ -93,7 +94,7 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             calls = log_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(calls[0], "update-issue issue-uuid-123 done")
+            self.assertIn("update-issue issue-uuid-123 done", calls[0])
             self.assertIn("comment issue-uuid-123 [2026-04-01 08:00 UTC] ok -- posted daily brief", calls[1])
 
     def test_finish_marks_issue_failed_on_error(self):
@@ -115,7 +116,7 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             calls = log_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(calls[0], "update-issue issue-uuid-123 failed")
+            self.assertIn("update-issue issue-uuid-123 failed", calls[0])
             self.assertIn("comment issue-uuid-123 [2026-04-01 08:00 UTC] error -- trade validation failed", calls[1])
 
     def test_finish_marks_issue_cancelled_on_skip(self):
@@ -137,7 +138,7 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             calls = log_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(calls[0], "update-issue issue-uuid-123 cancelled")
+            self.assertIn("update-issue issue-uuid-123 cancelled", calls[0])
             self.assertIn("comment issue-uuid-123 [2026-04-01 08:00 UTC] skipped -- no candidate market found", calls[1])
 
     def test_start_refuses_non_core_job(self):

@@ -8,6 +8,8 @@ set -euo pipefail
 #   paperclip-api.sh comment <issue-id> <body>
 #   paperclip-api.sh list-issues [status]
 #   paperclip-api.sh create-issue <title> <description> [priority]
+# Env:
+#   PAPERCLIP_NO_ASSIGNEE=1  Create issue without assigneeAgentId
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 KEY_FILE="${HOME}/.openclaw/workspace/paperclip-claimed-api-key.json"
@@ -89,13 +91,15 @@ if not items:
     priority="${3:-medium}"
     payload=$(python3 -c "
 import json
-print(json.dumps({
+payload = {
     'title': '''$title''',
     'description': '''$description''',
     'status': 'todo',
     'priority': '$priority',
-    'assigneeAgentId': '$AGENT_ID'
-}))
+}
+if '${PAPERCLIP_NO_ASSIGNEE:-0}' != '1':
+    payload['assigneeAgentId'] = '$AGENT_ID'
+print(json.dumps(payload))
 ")
     curl -sf -X POST "${API_BASE}/companies/${COMPANY_ID}/issues" \
       -H "$(auth_header)" \

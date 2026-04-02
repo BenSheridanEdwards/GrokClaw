@@ -310,6 +310,47 @@ class WorkflowHealthTests(unittest.TestCase):
             self.assertTrue(report["healthy"])
             self.assertEqual(report["failures"], [])
 
+    def test_accepts_extra_non_core_cron_jobs_when_core_workflows_exist(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            repo_jobs = json.loads((workspace / "cron" / "jobs.json").read_text(encoding="utf-8"))
+            runtime_jobs = json.loads((workspace / ".openclaw" / "cron" / "jobs.json").read_text(encoding="utf-8"))
+            extra_job = {"id": "5", "name": "kimi-daily-brief", "schedule": {"kind": "cron", "expr": "0 */4 * * *"}, "payload": {}, "delivery": {}, "agentId": "kimi"}
+            repo_jobs["jobs"].append(extra_job)
+            runtime_jobs["jobs"].append(extra_job)
+            (workspace / "cron" / "jobs.json").write_text(json.dumps(repo_jobs), encoding="utf-8")
+            (workspace / ".openclaw" / "cron" / "jobs.json").write_text(json.dumps(runtime_jobs), encoding="utf-8")
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T10:10:00Z",
+                kimi_ts="2026-04-01T10:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+
+            report = self._run_audit(workspace, "2026-04-01T10:30:00Z", payload)
+            self.assertTrue(report["healthy"], msg=report)
+
+    def test_accepts_paperclip_issue_timestamps_with_milliseconds(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T10:10:00Z",
+                kimi_ts="2026-04-01T10:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+            payload_ms = []
+            for issue in payload:
+                updated = issue["updatedAt"].replace("Z", ".123Z")
+                payload_ms.append({**issue, "updatedAt": updated})
+
+            report = self._run_audit(workspace, "2026-04-01T10:30:00Z", payload_ms)
+            self.assertTrue(report["healthy"], msg=report)
+
     def test_reports_missing_evidence_and_non_core_paperclip_activity(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -442,6 +483,32 @@ class WorkflowHealthTests(unittest.TestCase):
 
             report = self._run_audit(workspace, "2026-04-01T08:30:00Z", payload)
             self.assertTrue(report["healthy"])
+
+    def test_daily_brief_accepts_health_topic_fallback_prefix(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T08:10:00Z",
+                kimi_ts="2026-04-01T08:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+            events = self._read_audit_events(workspace)
+            events = [event for event in events if event["topic"] != "suggestions"]
+            events.append(
+                {
+                    "ts": "2026-04-01T08:06:30Z",
+                    "kind": "telegram_post",
+                    "topic": "health",
+                    "message": "Daily brief 2026-04-01: core workflows healthy.",
+                }
+            )
+            self._write_audit_events(workspace, events)
+
+            report = self._run_audit(workspace, "2026-04-01T08:30:00Z", payload)
+            self.assertTrue(report["healthy"], msg=report)
 
     def test_daily_brief_sad_path_flags_missing_audit(self):
         with tempfile.TemporaryDirectory() as tmpdir:

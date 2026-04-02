@@ -5,6 +5,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from typing import Dict, Optional
 
 
 class WorkflowHealthHandleTests(unittest.TestCase):
@@ -17,10 +18,18 @@ class WorkflowHealthHandleTests(unittest.TestCase):
         path.write_text(body, encoding="utf-8")
         path.chmod(0o755)
 
-    def _run_handler(self, workspace: Path, payload: dict, state_file: Path) -> subprocess.CompletedProcess:
+    def _run_handler(
+        self,
+        workspace: Path,
+        payload: dict,
+        state_file: Path,
+        extra_env: Optional[Dict[str, str]] = None,
+    ) -> subprocess.CompletedProcess:
         env = os.environ.copy()
         env["WORKSPACE_ROOT"] = str(workspace)
         env["WORKFLOW_HEALTH_STATE_FILE"] = str(state_file)
+        if extra_env:
+            env.update(extra_env)
         return subprocess.run(
             ["python3", str(self.script)],
             cwd=str(self.workspace),
@@ -143,6 +152,169 @@ class WorkflowHealthHandleTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             saved = json.loads(state_file.read_text(encoding="utf-8"))
             self.assertEqual(saved["status"], "resolved")
+
+    def test_pending_workflow_health_draft_blocks_duplicate_request(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            health_log = workspace / "health.log"
+            draft_log = workspace / "draft.log"
+            state_file = workspace / "state.json"
+            (workspace / "data").mkdir(parents=True, exist_ok=True)
+            (workspace / "data" / "pending-linear-draft-workflow-health-old.json").write_text(
+                json.dumps(
+                    {
+                        "flow": "suggestion",
+                        "title": "Fix workflow health failure in core cron workflows",
+                        "description": "Existing draft",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            self._write_executable(
+                workspace / "tools" / "telegram-post.sh",
+                textwrap.dedent(
+                    f"""\
+                    #!/bin/sh
+                    set -eu
+                    printf '%s\\n' "$*" >> "{health_log}"
+                    """
+                ),
+            )
+            self._write_executable(
+                workspace / "tools" / "linear-draft-approval.sh",
+                textwrap.dedent(
+                    f"""\
+                    #!/bin/sh
+                    set -eu
+                    printf '%s\\n' "$*" >> "{draft_log}"
+                    """
+                ),
+            )
+
+            payload = {
+                "healthy": False,
+                "failureHash": "newhash",
+                "alertMessage": "Workflow health failure: repeated class",
+                "draft": {
+                    "id": "workflow-health-newhash",
+                    "title": "Fix workflow health failure in core cron workflows",
+                    "description": "Problem and acceptance criteria",
+                },
+            }
+
+            result = self._run_handler(workspace, payload, state_file)
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertTrue(health_log.exists(), "health alert should still be posted")
+            self.assertFalse(draft_log.exists(), "duplicate pending draft should suppress new draft request")
+
+    def test_open_linear_match_blocks_duplicate_request(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            health_log = workspace / "health.log"
+            draft_log = workspace / "draft.log"
+            state_file = workspace / "state.json"
+            open_linear_file = workspace / "open-linear.json"
+            open_linear_file.write_text(
+                json.dumps(["Fix workflow health failure in core cron workflows"]),
+                encoding="utf-8",
+            )
+
+            self._write_executable(
+                workspace / "tools" / "telegram-post.sh",
+                textwrap.dedent(
+                    f"""\
+                    #!/bin/sh
+                    set -eu
+                    printf '%s\\n' "$*" >> "{health_log}"
+                    """
+                ),
+            )
+            self._write_executable(
+                workspace / "tools" / "linear-draft-approval.sh",
+                textwrap.dedent(
+                    f"""\
+                    #!/bin/sh
+                    set -eu
+                    printf '%s\\n' "$*" >> "{draft_log}"
+                    """
+                ),
+            )
+
+            payload = {
+                "healthy": False,
+                "failureHash": "openlinearhash",
+                "alertMessage": "Workflow health failure: repeated class",
+                "draft": {
+                    "id": "workflow-health-openlinearhash",
+                    "title": "Fix workflow health failure in core cron workflows",
+                    "description": "Problem and acceptance criteria",
+                },
+            }
+
+            result = self._run_handler(
+                workspace,
+                payload,
+                state_file,
+                {"WORKFLOW_HEALTH_OPEN_LINEAR_TITLES_FILE": str(open_linear_file)},
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertTrue(health_log.exists(), "health alert should still be posted")
+            self.assertFalse(draft_log.exists(), "open Linear match should suppress new draft request")
+
+    def test_open_pr_match_blocks_duplicate_request(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            health_log = workspace / "health.log"
+            draft_log = workspace / "draft.log"
+            state_file = workspace / "state.json"
+            open_pr_file = workspace / "open-prs.json"
+            open_pr_file.write_text(
+                json.dumps(["Fix workflow health failure in core cron workflows"]),
+                encoding="utf-8",
+            )
+
+            self._write_executable(
+                workspace / "tools" / "telegram-post.sh",
+                textwrap.dedent(
+                    f"""\
+                    #!/bin/sh
+                    set -eu
+                    printf '%s\\n' "$*" >> "{health_log}"
+                    """
+                ),
+            )
+            self._write_executable(
+                workspace / "tools" / "linear-draft-approval.sh",
+                textwrap.dedent(
+                    f"""\
+                    #!/bin/sh
+                    set -eu
+                    printf '%s\\n' "$*" >> "{draft_log}"
+                    """
+                ),
+            )
+
+            payload = {
+                "healthy": False,
+                "failureHash": "openprhash",
+                "alertMessage": "Workflow health failure: repeated class",
+                "draft": {
+                    "id": "workflow-health-openprhash",
+                    "title": "Fix workflow health failure in core cron workflows",
+                    "description": "Problem and acceptance criteria",
+                },
+            }
+
+            result = self._run_handler(
+                workspace,
+                payload,
+                state_file,
+                {"WORKFLOW_HEALTH_OPEN_PR_TITLES_FILE": str(open_pr_file)},
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertTrue(health_log.exists(), "health alert should still be posted")
+            self.assertFalse(draft_log.exists(), "open PR match should suppress new draft request")
 
 
 if __name__ == "__main__":
