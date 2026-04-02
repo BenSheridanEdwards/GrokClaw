@@ -202,5 +202,55 @@ class CronRunRecordTests(unittest.TestCase):
             )
 
 
+    def test_env_var_takes_precedence_over_issue_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            lifecycle_log, _, _ = self._setup_workspace_tools(workspace)
+
+            issue_dir = workspace / ".openclaw"
+            issue_dir.mkdir(parents=True, exist_ok=True)
+            (issue_dir / "alpha-polymarket.issue").write_text("issue-from-file")
+
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["PAPERCLIP_ISSUE_UUID"] = "issue-from-env"
+
+            result = subprocess.run(
+                ["sh", str(self.script), "alpha-polymarket", "alpha", "ok", "trade placed"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertEqual(
+                lifecycle_log.read_text(encoding="utf-8").strip(),
+                "finish issue-from-env ok trade placed",
+            )
+
+    def test_no_env_var_and_no_issue_file_skips_paperclip(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            lifecycle_log, _, _ = self._setup_workspace_tools(workspace)
+
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env.pop("PAPERCLIP_ISSUE_UUID", None)
+
+            result = subprocess.run(
+                ["sh", str(self.script), "alpha-polymarket", "alpha", "ok", "no paperclip"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertFalse(lifecycle_log.exists(), "lifecycle should not run when no UUID is available")
+
+
 if __name__ == "__main__":
     unittest.main()
