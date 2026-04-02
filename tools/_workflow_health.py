@@ -156,6 +156,41 @@ def has_recent_file(root: Path, pattern: str, earliest: dt.datetime) -> bool:
     return False
 
 
+def _research_dir_from_glob(research_glob: str) -> Path:
+    """Directory part of a glob like data/alpha/research/*.md."""
+    if "*" in research_glob:
+        return Path(research_glob.split("*", 1)[0].rstrip("/"))
+    return Path(research_glob).parent
+
+
+def expected_research_path_for_record(root: Path, job: str, research_glob: str, record_ts: dt.datetime) -> Optional[Path]:
+    """Path the workflow prompt names for this job at record_ts (UTC), if known."""
+    base = root / _research_dir_from_glob(research_glob)
+    if job == "grok-openclaw-research":
+        slot = {7: "morning", 13: "afternoon", 19: "evening"}.get(record_ts.hour)
+        if not slot:
+            return None
+        return base / f"{record_ts.strftime('%Y-%m-%d')}-{slot}.md"
+    if job in ("alpha-polymarket", "kimi-polymarket"):
+        return base / f"{record_ts.strftime('%Y-%m-%d-%H')}.md"
+    return None
+
+
+def has_recent_research(
+    root: Path,
+    job: str,
+    research_glob: str,
+    earliest: dt.datetime,
+    record_ts: Optional[dt.datetime],
+) -> bool:
+    """True if expected markdown for this run exists or any matching file was modified since earliest."""
+    if record_ts:
+        expected = expected_research_path_for_record(root, job, research_glob, record_ts)
+        if expected is not None and expected.is_file():
+            return True
+    return has_recent_file(root, research_glob, earliest)
+
+
 def load_agent_reports(root: Path) -> List[dict]:
     reports: List[dict] = []
     directory = root / "data" / "agent-reports"
@@ -345,7 +380,7 @@ def audit_job(
         add_failure(failures, job, "error_run", f"{job} last run recorded error: {record.get('summary', '')}".strip())
 
     research_glob = meta.get("research_glob")
-    if research_glob and not has_recent_file(root, research_glob, earliest):
+    if research_glob and not has_recent_research(root, job, research_glob, earliest, record_ts):
         add_failure(failures, job, "missing_research", f"{job} is missing research markdown in {research_glob.rsplit('/', 1)[0]}")
 
     agent_report = meta.get("agent_report")

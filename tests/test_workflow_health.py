@@ -495,6 +495,58 @@ class WorkflowHealthTests(unittest.TestCase):
             messages = "\n".join(failure["message"] for failure in report["failures"])
             self.assertIn("grok-openclaw-research is missing research markdown", messages)
 
+    def test_research_passes_when_expected_file_exists_despite_stale_mtime(self):
+        """Git checkout preserves old mtimes; audit keys off cron record + prompt filename."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T13:10:00Z",
+                kimi_ts="2026-04-01T13:09:00Z",
+                research_ts="2026-04-01T13:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+            openclaw_dir = workspace / "data" / "research" / "openclaw"
+            (openclaw_dir / "2026-04-01.md").unlink(missing_ok=True)
+            afternoon = openclaw_dir / "2026-04-01-afternoon.md"
+            afternoon.write_text("# afternoon brief\n", encoding="utf-8")
+            os.utime(afternoon, (1, 1))
+
+            events = self._read_audit_events(workspace)
+            for event in events:
+                if event.get("topic") == "health" and "OpenClaw research" in event.get("message", ""):
+                    event["ts"] = "2026-04-01T13:06:00Z"
+                    event["message"] = "OpenClaw research (afternoon): headline"
+            self._write_audit_events(workspace, events)
+
+            payload = [issue for issue in payload if "grok-openclaw-research" not in issue.get("title", "")]
+            payload.append(
+                {
+                    "id": "issue-research-afternoon",
+                    "title": "[grok-openclaw-research] 2026-04-01 13:00 UTC",
+                    "status": "done",
+                    "updatedAt": "2026-04-01T13:06:00Z",
+                }
+            )
+
+            cron_path = workspace / "data" / "cron-runs" / "2026-04-01.jsonl"
+            lines = [json.loads(line) for line in cron_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            lines = [rec for rec in lines if rec.get("job") != "grok-openclaw-research"]
+            lines.append(
+                {
+                    "job": "grok-openclaw-research",
+                    "agent": "grok",
+                    "ts": "2026-04-01T13:06:00Z",
+                    "status": "ok",
+                    "summary": "saved afternoon research",
+                }
+            )
+            cron_path.write_text("\n".join(json.dumps(rec) for rec in lines) + "\n", encoding="utf-8")
+
+            report = self._run_audit(workspace, "2026-04-01T13:30:00Z", payload)
+            self.assertTrue(report["healthy"], msg=report.get("failures"))
+
     def test_alpha_happy_path_satisfies_contract(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
