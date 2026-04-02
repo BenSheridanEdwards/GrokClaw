@@ -56,7 +56,7 @@ Each scheduled run is a distinct Paperclip issue lifecycle:
 2. Each workflow prompt writes the returned issue UUID to `.openclaw/<job>.issue` immediately so the final record step can recover it safely
 3. The agent performs the workflow
 4. `PAPERCLIP_ISSUE_UUID=$(cat "$ISSUE_FILE") tools/cron-run-record.sh ...` records the result
-5. `cron-run-record.sh` closes the Paperclip issue as `done`, `failed`, or `cancelled` for a skipped run
+5. `cron-run-record.sh` closes the Paperclip issue as `done` (ok or error, with comment marking error) or `cancelled` for a skipped run
 6. `cron-run-record.sh` then runs the job-scoped workflow audit and hands it to the shared Python remediation handler
 7. On errors, `CRON_ERROR_DETAILS` can add an extra Paperclip comment with failure context
 

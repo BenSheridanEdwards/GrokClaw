@@ -96,7 +96,7 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
             self.assertEqual(calls[0], "update-issue issue-uuid-123 done")
             self.assertIn("comment issue-uuid-123 [2026-04-01 08:00 UTC] ok -- posted daily brief", calls[1])
 
-    def test_finish_marks_issue_failed_on_error(self):
+    def test_finish_marks_issue_done_on_error_with_error_in_comment(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             log_path = self._write_stub_api(workspace)
@@ -115,7 +115,7 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             calls = log_path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(calls[0], "update-issue issue-uuid-123 failed")
+            self.assertEqual(calls[0], "update-issue issue-uuid-123 done")
             self.assertIn("comment issue-uuid-123 [2026-04-01 08:00 UTC] error -- trade validation failed", calls[1])
 
     def test_finish_marks_issue_cancelled_on_skip(self):

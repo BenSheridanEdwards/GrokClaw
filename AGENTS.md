@@ -221,7 +221,7 @@ Paperclip is the orchestration dashboard for real work runs — it tracks per-ru
 - `tools/paperclip-api.sh comment <uuid> <body>` — add comment
 - `tools/paperclip-api.sh create-issue <title> <desc> [priority]` — create issue
 - `tools/cron-paperclip-lifecycle.sh start <job> <agent>` — create a fresh Paperclip issue for a workflow run
-- `tools/cron-paperclip-lifecycle.sh finish <issue-id> <ok|error|skipped> "<summary>"` — close the run issue as `done`, `failed`, or `cancelled`
+- `tools/cron-paperclip-lifecycle.sh finish <issue-id> <ok|error|skipped> "<summary>"` — close the run issue as `done` (ok or error) or `cancelled` (skipped); error runs still add a comment with `error`
 
 ### Paperclip second agent (Kimi)
 
@@ -235,7 +235,7 @@ To assign Paperclip issues to Kimi, create a second agent in the Paperclip UI:
 Every scheduled workflow run should:
 1. Create a Paperclip issue at the start of the run
 2. Stay `in_progress` while the agent is working
-3. End as `done` or `failed`
+3. End as `done` (success or error) or `cancelled` when skipped
 4. Carry the run summary and any error details as comments
 
 ---

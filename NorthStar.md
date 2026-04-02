@@ -360,8 +360,7 @@ Any non-core script or background check writing to Paperclip is a policy violati
 The issue should move through:
 
 - `in_progress` when the run starts
-- `done` when the run completes successfully
-- `failed` when the run fails
+- `done` when the run finishes (success or failure; failed runs are still `done` in Paperclip, with an `error` comment)
 - `cancelled` when the run is intentionally skipped
 
 ### Why Paperclip Exists

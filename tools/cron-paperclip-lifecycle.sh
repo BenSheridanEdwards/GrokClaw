@@ -63,7 +63,9 @@ finish_issue() {
       issue_status="done"
       ;;
     error)
-      issue_status="failed"
+      # Paperclip has no terminal "failed" status; close as done so the API accepts
+      # the transition. The finish comment still records "error" and CRON_ERROR_DETAILS.
+      issue_status="done"
       ;;
     skipped)
       issue_status="cancelled"
