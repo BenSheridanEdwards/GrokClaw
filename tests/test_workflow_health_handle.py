@@ -114,7 +114,19 @@ class WorkflowHealthHandleTests(unittest.TestCase):
                 },
             }
 
-            result = self._run_handler(workspace, payload, state_file)
+            # Isolate from host env: real LINEAR_API_KEY / gh can make should_request_draft skip the draft step.
+            no_match = workspace / "no-open-tickets.json"
+            no_match.write_text("[]", encoding="utf-8")
+            result = self._run_handler(
+                workspace,
+                payload,
+                state_file,
+                extra_env={
+                    "LINEAR_API_KEY": "",
+                    "WORKFLOW_HEALTH_OPEN_LINEAR_TITLES_FILE": str(no_match),
+                    "WORKFLOW_HEALTH_OPEN_PR_TITLES_FILE": str(no_match),
+                },
+            )
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             self.assertTrue(inline_log.exists(), "alert with rerun button should use telegram-inline.sh")
             inline_text = inline_log.read_text(encoding="utf-8")
