@@ -30,6 +30,21 @@ class WorkflowHealthTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         return json.loads(result.stdout)
 
+    def _run_json_command(self, workspace: Path, now: str, command: str, *args: str) -> dict:
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(workspace)
+        env["WORKFLOW_HEALTH_NOW"] = now
+        result = subprocess.run(
+            ["python3", str(self.script), command, *args],
+            cwd=str(self.workspace),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        return json.loads(result.stdout)
+
     def _seed_core_jobs(self, workspace: Path) -> None:
         (workspace / "cron").mkdir(parents=True, exist_ok=True)
         (workspace / ".openclaw" / "cron").mkdir(parents=True, exist_ok=True)
@@ -89,7 +104,7 @@ class WorkflowHealthTests(unittest.TestCase):
             "\n".join(
                 [
                     json.dumps({"ts": "2026-04-01T08:06:00Z", "kind": "telegram_post", "topic": "suggestions", "message": "Daily system brief: all core workflows healthy."}),
-                    json.dumps({"ts": research_ts, "kind": "telegram_post", "topic": "health-alerts", "message": "OpenClaw research (morning): all good"}),
+                    json.dumps({"ts": research_ts, "kind": "telegram_post", "topic": "health", "message": "OpenClaw research (morning): all good"}),
                     json.dumps({"ts": alpha_ts, "kind": "telegram_post", "topic": "polymarket", "message": "Alpha session: trade. Why: edge found."}),
                     json.dumps({"ts": kimi_ts, "kind": "telegram_post", "topic": "polymarket", "message": "Kimi session: skip. Why: no edge."}),
                 ]
@@ -238,7 +253,7 @@ class WorkflowHealthTests(unittest.TestCase):
                             {
                                 "ts": "2026-04-01T07:06:00Z",
                                 "kind": "telegram_post",
-                                "topic": "health-alerts",
+                                "topic": "health",
                                 "message": "OpenClaw research (morning): all good",
                             }
                         ),
@@ -547,6 +562,53 @@ class WorkflowHealthTests(unittest.TestCase):
             self.assertFalse(report["healthy"])
             messages = "\n".join(failure["message"] for failure in report["failures"])
             self.assertIn("kimi-polymarket is missing a recent Paperclip issue", messages)
+
+    def test_audit_one_uses_local_evidence_for_single_workflow(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T10:10:00Z",
+                kimi_ts="2026-04-01T10:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+
+            report = self._run_json_command(
+                workspace,
+                "2026-04-01T10:30:00Z",
+                "audit-one",
+                "alpha-polymarket",
+            )
+            self.assertTrue(report["healthy"])
+            self.assertEqual(report["failures"], [])
+
+    def test_audit_quick_flags_missing_hourly_run(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            (workspace / "data" / "cron-runs").mkdir(parents=True, exist_ok=True)
+            (workspace / "data" / "cron-runs" / "2026-04-01.jsonl").write_text(
+                "\n".join(
+                    [
+                        json.dumps({"job": "grok-daily-brief", "agent": "grok", "ts": "2026-04-01T08:05:00Z", "status": "ok", "summary": "posted brief"}),
+                        json.dumps({"job": "grok-openclaw-research", "agent": "grok", "ts": "2026-04-01T13:02:00Z", "status": "ok", "summary": "research saved"}),
+                        json.dumps({"job": "alpha-polymarket", "agent": "alpha", "ts": "2026-04-01T13:05:00Z", "status": "ok", "summary": "alpha ok"}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            report = self._run_json_command(
+                workspace,
+                "2026-04-01T14:00:00Z",
+                "audit-quick",
+            )
+            self.assertFalse(report["healthy"])
+            messages = "\n".join(failure["message"] for failure in report["failures"])
+            self.assertIn("kimi-polymarket", messages)
 
 
 if __name__ == "__main__":

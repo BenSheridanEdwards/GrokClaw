@@ -136,7 +136,7 @@ class CronRunRecordTests(unittest.TestCase):
             )
             self.assertEqual(
                 telegram_log.read_text(encoding="utf-8").strip(),
-                "health-alerts [kimi] kimi-polymarket: error -- trade loop failed",
+                "health [kimi] kimi-polymarket: error -- trade loop failed",
             )
             self.assertIn("comment issue-123 Error details:", paperclip_log.read_text(encoding="utf-8"))
             self.assertIn("Traceback: market validation failed", paperclip_log.read_text(encoding="utf-8"))
@@ -250,6 +250,117 @@ class CronRunRecordTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             self.assertFalse(lifecycle_log.exists(), "lifecycle should not run when no UUID is available")
+
+    def test_runs_audit_one_and_hands_payload_to_handler(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._setup_workspace_tools(workspace)
+            audit_log = workspace / "audit.log"
+            handler_log = workspace / "handler.log"
+
+            self._write_stub(
+                workspace / "tools" / "_workflow_health.py",
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env python3
+                    import json, sys
+                    with open("{audit_log}", "a", encoding="utf-8") as handle:
+                        handle.write(" ".join(sys.argv[1:]) + "\\n")
+                    print(json.dumps({{
+                        "healthy": False,
+                        "failureHash": "abc123",
+                        "alertMessage": "Workflow health failure: alpha missing research markdown",
+                        "draft": {{
+                            "id": "workflow-health-abc123",
+                            "title": "Fix workflow health failure in core cron workflows",
+                            "description": "Problem and acceptance criteria"
+                        }}
+                    }}))
+                    """
+                ),
+            )
+            self._write_stub(
+                workspace / "tools" / "_workflow_health_handle.py",
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env python3
+                    import sys
+                    with open("{handler_log}", "a", encoding="utf-8") as handle:
+                        handle.write(sys.stdin.read())
+                    """
+                ),
+            )
+
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+
+            result = subprocess.run(
+                ["sh", str(self.script), "alpha-polymarket", "alpha", "ok", "placed one trade"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertTrue(audit_log.exists(), "cron-run-record should invoke workflow audit")
+            self.assertIn("audit-one alpha-polymarket", audit_log.read_text(encoding="utf-8"))
+            self.assertTrue(handler_log.exists(), "cron-run-record should hand audit payload to the handler")
+            self.assertIn('"failureHash": "abc123"', handler_log.read_text(encoding="utf-8"))
+
+    def test_error_run_defers_to_workflow_health_handler_when_present(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            _, telegram_log, _ = self._setup_workspace_tools(workspace)
+            audit_log = workspace / "audit.log"
+            handler_log = workspace / "handler.log"
+
+            self._write_stub(
+                workspace / "tools" / "_workflow_health.py",
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env python3
+                    import json, sys
+                    with open("{audit_log}", "a", encoding="utf-8") as handle:
+                        handle.write(" ".join(sys.argv[1:]) + "\\n")
+                    print(json.dumps({{
+                        "healthy": False,
+                        "failureHash": "err123",
+                        "alertMessage": "Workflow health failure: kimi error",
+                        "draft": None
+                    }}))
+                    """
+                ),
+            )
+            self._write_stub(
+                workspace / "tools" / "_workflow_health_handle.py",
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env python3
+                    import sys
+                    with open("{handler_log}", "a", encoding="utf-8") as handle:
+                        handle.write(sys.stdin.read())
+                    """
+                ),
+            )
+
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+
+            result = subprocess.run(
+                ["sh", str(self.script), "kimi-polymarket", "kimi", "error", "trade loop failed"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertIn("audit-one kimi-polymarket", audit_log.read_text(encoding="utf-8"))
+            self.assertIn('"failureHash": "err123"', handler_log.read_text(encoding="utf-8"))
+            self.assertFalse(telegram_log.exists(), "direct telegram alert should be skipped when the workflow health handler is active")
 
 
 if __name__ == "__main__":

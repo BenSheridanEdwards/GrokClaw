@@ -166,6 +166,7 @@ Purpose:
 - hand off gateway repair to `tools/gateway-watchdog.sh`
 - alert Telegram health only if the watchdog handoff is unavailable
 - never own restart policy or workflow auditing
+- stay focused on infrastructure liveness, not workflow correctness
 
 ### GrokClaw Doctor
 
@@ -174,11 +175,13 @@ Schedule: launchd at `02,17,32,47`
 
 Purpose:
 
-- audit whether the 4 core workflows actually completed the work they were supposed to complete
-- check the latest expected run for each workflow after a grace period, not just any artifact inside a broad recent window
-- verify expected evidence exists across cron logs, artifacts, Telegram-facing outputs, and Paperclip
+- act as the missed-run and drift catch-all when event-driven checks could not fire
+- verify the runtime environment stays trustworthy: gateway, Paperclip, Ollama, Telegram connectivity, launchd, crontab, cron validation, cron sync, and gateway auth
+- detect when the 4 core workflows missed their expected schedule windows
+- escalate from missed-run detection into a full workflow audit when needed
 - report failures to Telegram health immediately
-- turn meaningful failures into approval-gated fix suggestions instead of repairing them automatically
+- self-heal only low-risk infrastructure problems when explicitly running in repair mode
+- turn meaningful workflow failures into approval-gated fix suggestions instead of repairing them automatically
 
 ### Gateway Watchdog
 
@@ -228,6 +231,13 @@ The question that matters is:
 - did it leave the expected Paperclip evidence
 
 A core workflow run is only healthy when its full contract is satisfied.
+
+The preferred architecture is:
+
+- event-driven workflow validation at the end of each core run
+- self-healing only for low-risk infrastructure failures
+- doctor as the missed-run and drift catch-all
+- approval-gated Linear remediation for workflow failures with code risk
 
 ### Per-Workflow Health Requirements
 
@@ -283,12 +293,18 @@ That means GrokClaw should keep:
 
 - mocked happy-path and sad-path tests for each of the 4 core workflows
 - tests that exercise the gateway detector, watchdog, and doctor separately
-- a pre-commit gate that runs the workflow-health end-to-end test suite and blocks commits when it fails
+- a Husky pre-commit gate that runs `tools/test-all.sh` and blocks commits when shell checks, Python checks, unit tests, or end-to-end smoke fail
 
-The workflow-health suite should prove both:
+The verification stack should prove both:
 
 - the core workflows are judged healthy when they leave the expected cron, research, audit, agent-report, and Paperclip evidence
 - the health system reacts correctly when any required part of that contract is missing
+
+The implementation path should prefer:
+
+- job-scoped event-driven checks after `cron-run-record.sh`
+- a lightweight missed-run detector inside the doctor
+- escalation to the full workflow audit only when the quick path finds something wrong
 
 ### What Health Monitoring Should Do
 
@@ -346,6 +362,7 @@ The issue should move through:
 - `in_progress` when the run starts
 - `done` when the run completes successfully
 - `failed` when the run fails
+- `cancelled` when the run is intentionally skipped
 
 ### Why Paperclip Exists
 

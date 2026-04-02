@@ -1,5 +1,5 @@
 #!/bin/sh
-# Check for new OpenClaw releases and post to health-alerts if an update is available.
+# Check for new OpenClaw releases and post to health if an update is available.
 # Uses GitHub releases API to compare against the installed version.
 #
 # Usage: changelog-check.sh [--dry-run]

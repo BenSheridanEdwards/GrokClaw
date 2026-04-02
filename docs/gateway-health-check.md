@@ -19,7 +19,7 @@ Gateway recovery is split cleanly:
 
 - `health-check.sh` detects failure fast and hands off
 - `gateway-watchdog.sh` owns bounded automatic repair, cooldowns, and failure alerts
-- `grokclaw-doctor.sh` audits workflow evidence only and never repairs the gateway
+- `grokclaw-doctor.sh` is the workflow cron-evidence catch-all; under `--heal` it may perform low-risk infrastructure repairs, but it is not the fast automatic repair loop
 
 ## Relationship to workflow health
 
@@ -27,7 +27,7 @@ This script is only the fast liveness probe.
 
 - `health-check.sh` answers: is the gateway up right now, and should the watchdog be asked to repair it?
 - `gateway-watchdog.sh` answers: can the runtime recover automatically right now?
-- `grokclaw-doctor.sh` answers: did the 4 core workflows actually run, write their evidence, and leave their Paperclip lifecycle?
+- `grokclaw-doctor.sh` answers: did the 4 core workflows actually run, write their evidence, and leave their Paperclip lifecycle, especially when the per-run audit path could not fire?
 
 If a workflow is unhealthy but the gateway is technically up, `health-check.sh` will still pass and the doctor will raise the failure separately.
 
@@ -61,7 +61,7 @@ Its plist is `launchd/com.grokclaw.gateway-watchdog.plist`.
 
 - `2,17,32,47`
 
-This keeps workflow auditing separate from gateway repair and aligned after the core workflow grace windows.
+This keeps workflow auditing separate from gateway repair and aligned after the core workflow grace windows. The doctor runs `tools/_workflow_health.py audit-quick` first, then escalates to the full workflow audit plus `tools/_workflow_health_handle.py` only when the quick path finds a missed run, stale cron evidence, or an error run record.
 
 ## Test gate
 

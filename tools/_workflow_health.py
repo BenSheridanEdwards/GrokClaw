@@ -308,6 +308,65 @@ def build_draft(failures: List[dict], failure_hash: str) -> dict:
     }
 
 
+def build_result(failures: List[dict]) -> dict:
+    healthy = not failures
+    failure_blob = json.dumps(sorted(failures, key=lambda item: (item["workflow"], item["kind"], item["message"])), sort_keys=True)
+    failure_hash = hashlib.sha256(failure_blob.encode("utf-8")).hexdigest()[:12]
+    summary = "; ".join(failure["message"] for failure in failures[:4]) if failures else "workflow health is healthy"
+    return {
+        "healthy": healthy,
+        "failureHash": failure_hash,
+        "failures": failures,
+        "alertMessage": f"Workflow health failure: {summary}" if failures else "Workflow health: healthy",
+        "draft": build_draft(failures, failure_hash) if failures else None,
+    }
+
+
+def audit_job(
+    root: Path,
+    now: dt.datetime,
+    job: str,
+    meta: dict,
+    records: List[dict],
+    failures: List[dict],
+    *,
+    issues: Optional[List[dict]] = None,
+) -> None:
+    earliest = required_run_start(now, meta)
+    record = latest_record_for(records, job)
+    if not record:
+        add_failure(failures, job, "missing_run", f"{job} has no cron-run evidence for expected run at {format_expected_run(earliest)}")
+        return
+    record_ts = parse_ts(record.get("ts"))
+    if not record_ts or record_ts < earliest:
+        add_failure(failures, job, "stale_run", f"{job} has not completed its expected run at {format_expected_run(earliest)}")
+        return
+    if record.get("status") == "error":
+        add_failure(failures, job, "error_run", f"{job} last run recorded error: {record.get('summary', '')}".strip())
+
+    research_glob = meta.get("research_glob")
+    if research_glob and not has_recent_file(root, research_glob, earliest):
+        add_failure(failures, job, "missing_research", f"{job} is missing research markdown in {research_glob.rsplit('/', 1)[0]}")
+
+    agent_report = meta.get("agent_report")
+    if agent_report and not has_recent_agent_report(root, agent_report[0], agent_report[1], earliest):
+        add_failure(failures, job, "missing_agent_report", f"{job} is missing a recent agent report")
+
+    audit_checks = meta.get("audit_checks", [])
+    for topic, prefixes in audit_checks:
+        if not has_recent_audit_event(root, topic, prefixes, earliest):
+            add_failure(failures, job, "missing_audit", f"{job} is missing recent audit-log evidence for topic {topic}")
+
+    if issues is None:
+        return
+
+    issue = find_recent_issue(issues, job, earliest)
+    if not issue:
+        add_failure(failures, job, "missing_paperclip", f"{job} is missing a recent Paperclip issue")
+    elif issue.get("status") not in {"done", "failed", "cancelled"}:
+        add_failure(failures, job, "open_paperclip", f"{job} Paperclip issue is not closed (status={issue.get('status')})")
+
+
 def audit() -> dict:
     root = workspace_root()
     now = utc_now()
@@ -337,7 +396,32 @@ def audit() -> dict:
         add_failure(failures, "paperclip", "non_core_paperclip", f"non-core workflow touched Paperclip: {job}")
 
     records = load_cron_records(root)
+    for job, meta in CORE_WORKFLOWS.items():
+        audit_job(root, now, job, meta, records, failures, issues=issues)
 
+    return build_result(failures)
+
+
+def audit_one(job: str) -> dict:
+    root = workspace_root()
+    now = utc_now()
+    failures: List[dict] = []
+    meta = CORE_WORKFLOWS[job]
+    records = load_cron_records(root)
+    audit_job(root, now, job, meta, records, failures, issues=None)
+    return build_result(failures)
+
+
+def audit_quick() -> dict:
+    root = workspace_root()
+    now = utc_now()
+    failures: List[dict] = []
+
+    cron_ok, cron_message = runtime_cron_matches(root)
+    if not cron_ok:
+        add_failure(failures, "scheduler", "cron_drift", cron_message)
+
+    records = load_cron_records(root)
     for job, meta in CORE_WORKFLOWS.items():
         earliest = required_run_start(now, meta)
         record = latest_record_for(records, job)
@@ -351,43 +435,12 @@ def audit() -> dict:
         if record.get("status") == "error":
             add_failure(failures, job, "error_run", f"{job} last run recorded error: {record.get('summary', '')}".strip())
 
-        research_glob = meta.get("research_glob")
-        if research_glob and not has_recent_file(root, research_glob, earliest):
-            add_failure(failures, job, "missing_research", f"{job} is missing research markdown in {research_glob.rsplit('/', 1)[0]}")
-
-        agent_report = meta.get("agent_report")
-        if agent_report and not has_recent_agent_report(root, agent_report[0], agent_report[1], earliest):
-            add_failure(failures, job, "missing_agent_report", f"{job} is missing a recent agent report")
-
-        audit_checks = meta.get("audit_checks", [])
-        for topic, prefixes in audit_checks:
-            if not has_recent_audit_event(root, topic, prefixes, earliest):
-                add_failure(failures, job, "missing_audit", f"{job} is missing recent audit-log evidence for topic {topic}")
-
-        issue = find_recent_issue(issues, job, earliest)
-        if not issue:
-            add_failure(failures, job, "missing_paperclip", f"{job} is missing a recent Paperclip issue")
-        elif issue.get("status") not in {"done", "failed", "cancelled"}:
-            add_failure(failures, job, "open_paperclip", f"{job} Paperclip issue is not closed (status={issue.get('status')})")
-
-    healthy = not failures
-    failure_blob = json.dumps(sorted(failures, key=lambda item: (item["workflow"], item["kind"], item["message"])), sort_keys=True)
-    failure_hash = hashlib.sha256(failure_blob.encode("utf-8")).hexdigest()[:12]
-    summary = "; ".join(failure["message"] for failure in failures[:4]) if failures else "workflow health is healthy"
-
-    result = {
-        "healthy": healthy,
-        "failureHash": failure_hash,
-        "failures": failures,
-        "alertMessage": f"Workflow health failure: {summary}" if failures else "Workflow health: healthy",
-        "draft": build_draft(failures, failure_hash) if failures else None,
-    }
-    return result
+    return build_result(failures)
 
 
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
-        print("usage: _workflow_health.py <audit|paperclip-allowed> [...]", file=sys.stderr)
+        print("usage: _workflow_health.py <audit|audit-one|audit-quick|paperclip-allowed> [...]", file=sys.stderr)
         return 1
 
     command = argv[1]
@@ -402,6 +455,21 @@ def main(argv: list[str]) -> int:
 
     if command == "audit":
         print(json.dumps(audit(), ensure_ascii=False))
+        return 0
+
+    if command == "audit-one":
+        if len(argv) != 3:
+            print("usage: _workflow_health.py audit-one <job>", file=sys.stderr)
+            return 1
+        job = argv[2]
+        if job not in CORE_WORKFLOWS:
+            print(f"unknown core workflow: {job}", file=sys.stderr)
+            return 1
+        print(json.dumps(audit_one(job), ensure_ascii=False))
+        return 0
+
+    if command == "audit-quick":
+        print(json.dumps(audit_quick(), ensure_ascii=False))
         return 0
 
     print(f"unknown command: {command}", file=sys.stderr)

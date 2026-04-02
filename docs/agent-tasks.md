@@ -10,8 +10,8 @@ All scheduled agent work is now organized around four core workflows.
 - Telegram health posts are failure-only; normal `ok` and `skipped` runs leave evidence in Paperclip and `data/cron-runs/*.jsonl`.
 - Kimi and Alpha still report to Grok with `tools/agent-report.sh`.
 - Linear is only created from approved daily suggestions or direct user-requested bug/feature intake.
-- Gateway uptime is protected by a split health path: `tools/health-check.sh` detects quickly, `tools/gateway-watchdog.sh` repairs the gateway, and `tools/grokclaw-doctor.sh` audits workflow contracts.
-- Workflow-health failures do not auto-repair. `tools/grokclaw-doctor.sh` alerts Telegram health and sends an approval-gated Linear draft to suggestions when a core workflow misses its contract.
+- Gateway uptime is protected by a split health path: `tools/health-check.sh` detects quickly, `tools/gateway-watchdog.sh` repairs the gateway, and `tools/grokclaw-doctor.sh` acts as the missed-run/drift catch-all for workflow contracts.
+- Workflow-health failures do not auto-repair. `tools/cron-run-record.sh` runs `tools/_workflow_health.py audit-one <job>` after each core workflow and passes the JSON into `tools/_workflow_health_handle.py`. The doctor runs `audit-quick` and escalates to the full `audit` plus the same handler only when the quick path finds a missed run, stale cron evidence, or an error run record.
 
 ## Shared workspace
 
@@ -57,17 +57,19 @@ Each scheduled run is a distinct Paperclip issue lifecycle:
 3. The agent performs the workflow
 4. `PAPERCLIP_ISSUE_UUID=$(cat "$ISSUE_FILE") tools/cron-run-record.sh ...` records the result
 5. `cron-run-record.sh` closes the Paperclip issue as `done`, `failed`, or `cancelled` for a skipped run
-6. On errors, `CRON_ERROR_DETAILS` can add an extra Paperclip comment with failure context
+6. `cron-run-record.sh` then runs the job-scoped workflow audit and hands it to the shared Python remediation handler
+7. On errors, `CRON_ERROR_DETAILS` can add an extra Paperclip comment with failure context
 
 Non-core jobs must not call `cron-paperclip-lifecycle.sh start`; the script now rejects them.
 
 ## Workflow health auditing
 
-- `tools/grokclaw-doctor.sh --check` audits whether each core workflow ran within its expected window
-- It uses schedule-aware grace windows so the doctor checks the latest expected run, not just any recent artifact inside a broad time window
-- It verifies cron evidence, required research files, required Telegram audit-log evidence, agent reports, and recent Paperclip lifecycle evidence
-- If a core workflow fails that contract, the doctor posts a Telegram health alert and sends a draft Linear fix ticket to suggestions for approval
-- The doctor does not repair runtime drift or restart services automatically
+- `tools/cron-run-record.sh` performs the first workflow-health check immediately after each core run with `tools/_workflow_health.py audit-one <job>`
+- `tools/grokclaw-doctor.sh --check` is the catch-all. It runs `tools/_workflow_health.py audit-quick` to detect missed runs or stale cron evidence, then escalates into the full `audit` only when needed
+- The full audit verifies cron evidence, required research files, required Telegram audit-log evidence, agent reports, and recent Paperclip lifecycle evidence
+- `tools/_workflow_health_handle.py` owns Telegram health alerting, approval-gated draft creation, and failure dedup state
+- If a core workflow fails that contract, the handler posts to Telegram health and requests a draft Linear fix ticket in suggestions for approval
+- The doctor does not repair workflow failures automatically; it only self-heals low-risk infrastructure issues under `--heal`
 - `tests/test_workflow_health.py` keeps mocked happy and sad path coverage for each of the 4 core workflows
 - `tools/run-health-e2e-tests.sh` runs the health suite; Husky's pre-commit hook runs the full `tools/test-all.sh` gate
 

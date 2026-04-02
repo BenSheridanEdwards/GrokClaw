@@ -1,7 +1,7 @@
 #!/bin/sh
 # GrokClaw self-healing doctor.
 # Diagnoses system health and auto-heals what it can.
-# What it can't fix, it reports to Telegram health-alerts.
+# What it can't fix, it reports to Telegram health.
 #
 # Modes:
 #   --check    Read-only diagnostics (default)
@@ -34,6 +34,7 @@ fi
 ISSUES=""
 HEALED=""
 FAILED=""
+WORKFLOW_FAILURE_ESCALATED=0
 
 log() {
   [ "$QUIET" -eq 0 ] && echo "$1" || true
@@ -159,7 +160,7 @@ else
   add_issue "health-check.sh not in system crontab"
   if [ "$HEAL" -eq 1 ]; then
     log "  Healing: adding health-check to crontab..."
-    (crontab -l 2>/dev/null; echo "*/5 * * * * $WORKSPACE_ROOT/tools/health-check.sh >> /tmp/openclaw-health.log 2>&1") | crontab -
+    (crontab -l 2>/dev/null; echo "*/2 * * * * $WORKSPACE_ROOT/tools/health-check.sh >> /tmp/openclaw-health.log 2>&1") | crontab -
     add_healed "health-check.sh added to crontab"
   fi
 fi
@@ -231,18 +232,29 @@ else
   fi
 fi
 
-# --- 9. Core workflow health (read-only audit) ---
+# --- 9. Core workflow health (quick detect + full escalation) ---
 log "Checking core workflow run evidence (cron-runs)..."
-WH_LOG="$(mktemp)"
-if python3 "$WORKSPACE_ROOT/tools/_workflow_health_audit.py" --failures-only >"$WH_LOG" 2>&1; then
+WH_QUICK="$(mktemp)"
+if python3 "$WORKSPACE_ROOT/tools/_workflow_health.py" audit-quick >"$WH_QUICK" 2>&1; then
+  quick_healthy="$(python3 -c 'import json,sys; print("1" if json.load(open(sys.argv[1], encoding="utf-8")).get("healthy") else "0")' "$WH_QUICK" 2>/dev/null || echo "0")"
+else
+  quick_healthy="0"
+fi
+
+if [ "$quick_healthy" = "1" ]; then
   log "  Core workflows: recent runs recorded"
 else
-  while IFS= read -r line || [ -n "$line" ]; do
-    [ -z "$line" ] && continue
-    add_issue "Workflow health: $line"
-  done <"$WH_LOG"
+  WH_FULL="$(mktemp)"
+  if python3 "$WORKSPACE_ROOT/tools/_workflow_health.py" audit >"$WH_FULL" 2>/dev/null; then
+    python3 "$WORKSPACE_ROOT/tools/_workflow_health_handle.py" <"$WH_FULL" >/dev/null 2>&1 || true
+    WORKFLOW_FAILURE_ESCALATED=1
+    log "  Core workflows: failure escalated through workflow health handler"
+  else
+    add_issue "Workflow health: full audit failed"
+  fi
+  rm -f "$WH_FULL"
 fi
-rm -f "$WH_LOG"
+rm -f "$WH_QUICK"
 
 # --- 10. Gateway CLI auth ---
 log "Checking gateway auth..."
@@ -253,7 +265,7 @@ else
 fi
 
 # --- Summary and alerting ---
-if [ -z "$ISSUES" ] && [ -z "$FAILED" ]; then
+if [ -z "$ISSUES" ] && [ -z "$FAILED" ] && [ "$WORKFLOW_FAILURE_ESCALATED" -eq 0 ]; then
   log ""
   log "All checks passed."
   exit 0
@@ -268,6 +280,9 @@ if [ -n "$FAILED" ]; then
 fi
 if [ -n "$ISSUES" ] && [ "$HEAL" -eq 0 ]; then
   summary="${summary}Issues found (run with --heal to fix):\n${ISSUES}\n"
+fi
+if [ "$WORKFLOW_FAILURE_ESCALATED" -eq 1 ]; then
+  summary="${summary}Workflow failures were escalated through the approval-gated health handler.\n"
 fi
 
 log ""
@@ -289,6 +304,10 @@ if [ -n "$FAILED" ] || { [ -n "$ISSUES" ] && [ "$HEAL" -eq 0 ]; }; then
   if [ -n "$TELEGRAM_BOT_TOKEN" ] && curl -sf --connect-timeout 3 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe" >/dev/null 2>&1; then
     "$WORKSPACE_ROOT/tools/telegram-post.sh" health "$(printf '%b' "$alert_body")" 2>/dev/null || true
   fi
+  exit 1
+fi
+
+if [ "$WORKFLOW_FAILURE_ESCALATED" -eq 1 ]; then
   exit 1
 fi
 

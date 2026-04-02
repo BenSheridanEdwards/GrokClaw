@@ -68,7 +68,13 @@ PY
 TELEGRAM_POST="$WORKSPACE_ROOT/tools/telegram-post.sh"
 LIFECYCLE="$WORKSPACE_ROOT/tools/cron-paperclip-lifecycle.sh"
 PAPERCLIP_API="$WORKSPACE_ROOT/tools/paperclip-api.sh"
+WORKFLOW_HEALTH_AUDIT="$WORKSPACE_ROOT/tools/_workflow_health.py"
+WORKFLOW_HEALTH_HANDLE="$WORKSPACE_ROOT/tools/_workflow_health_handle.py"
 TELEGRAM_MESSAGE="[$AGENT] $JOB: $STATUS -- $SUMMARY"
+WORKFLOW_HEALTH_READY=0
+if [ -f "$WORKFLOW_HEALTH_AUDIT" ] && [ -f "$WORKFLOW_HEALTH_HANDLE" ]; then
+  WORKFLOW_HEALTH_READY=1
+fi
 
 if [ -n "$ISSUE_UUID" ]; then
   LIFECYCLE_STATUS="$STATUS"
@@ -79,6 +85,14 @@ if [ -n "$ISSUE_UUID" ]; then
   fi
 fi
 
-if [ "$STATUS" = "error" ]; then
-  "$TELEGRAM_POST" health-alerts "$TELEGRAM_MESSAGE"
+if [ "$STATUS" = "error" ] && [ "$WORKFLOW_HEALTH_READY" -eq 0 ]; then
+  "$TELEGRAM_POST" health "$TELEGRAM_MESSAGE"
+fi
+
+if [ "$WORKFLOW_HEALTH_READY" -eq 1 ]; then
+  AUDIT_RESULT="$(mktemp)"
+  if python3 "$WORKFLOW_HEALTH_AUDIT" audit-one "$JOB" >"$AUDIT_RESULT" 2>/dev/null; then
+    python3 "$WORKFLOW_HEALTH_HANDLE" <"$AUDIT_RESULT" >/dev/null 2>&1 || true
+  fi
+  rm -f "$AUDIT_RESULT"
 fi

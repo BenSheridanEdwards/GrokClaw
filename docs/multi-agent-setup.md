@@ -46,8 +46,17 @@ These are outside the four core cron jobs but are still part of the live runtime
 
 - `tools/health-check.sh` from system cron every 2 minutes for fast gateway death detection and watchdog handoff
 - `tools/gateway-watchdog.sh` via launchd `com.grokclaw.gateway-watchdog` at `01,06,11,16,21,26,31,36,41,46,51,56` for bounded automatic gateway repair
-- `tools/grokclaw-doctor.sh --check --quiet` via launchd `com.grokclaw.doctor` at `02,17,32,47` for workflow-health auditing
+- `tools/grokclaw-doctor.sh --check --quiet` via launchd `com.grokclaw.doctor` at `02,17,32,47` as the workflow missed-run/drift catch-all
 - `tools/pr-review-watch.sh` via launchd `com.grokclaw.pr-review-watch` to wake Grok when the PR review queue changes
+
+## Workflow health flow
+
+Workflow validation is split intentionally:
+
+- `tools/cron-run-record.sh` records the run, closes Paperclip, then runs `tools/_workflow_health.py audit-one <job>` and pipes the JSON to `tools/_workflow_health_handle.py`
+- `tools/grokclaw-doctor.sh` runs `tools/_workflow_health.py audit-quick` after the workflow grace windows
+- If `audit-quick` finds a missed run, stale cron evidence, or an error run record, the doctor escalates to `tools/_workflow_health.py audit` and passes that full JSON to the same handler
+- `tools/_workflow_health_handle.py` posts Telegram health alerts, requests approval-gated Linear drafts, and dedupes repeated failures in `~/.openclaw/state/workflow-health-failures.json`
 
 ## Cron sync
 
