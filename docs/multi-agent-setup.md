@@ -1,6 +1,6 @@
 # Multi-Agent Setup
 
-`North Star.md` is the policy document. This file is the runtime setup companion for the current 4-workflow system.
+`NorthStar.md` is the policy document. This file is the runtime setup companion for the current 4-workflow system.
 
 ## Current agent routing
 

@@ -1,6 +1,6 @@
 # Polymarket Workflow
 
-`North Star.md` is the policy source of truth. This file documents the live Polymarket operating shape after the 4-workflow cleanup.
+`NorthStar.md` is the policy source of truth. This file documents the live Polymarket operating shape after the 4-workflow cleanup.
 
 ## Current runtime
 
