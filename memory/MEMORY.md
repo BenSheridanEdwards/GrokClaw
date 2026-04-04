@@ -14,6 +14,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-04-02** — GRO-44: Alpha primary OpenRouter model and Kimi’s OpenRouter fallback (after Ollama) documented as `openrouter/qwen/qwen3.6-plus-preview:free` (Qwen3.6 Plus Preview free on OpenRouter). Updated `AGENTS.md`, `docs/multi-agent-setup.md`, `README.md`, and this file. Operators align `~/.openclaw/openclaw.json` with those ids; repo has no checked-in gateway JSON.
 - **2026-04-02** — GRO-43: Workflow health research check no longer depends solely on file mtime. `_workflow_health.py` accepts the prompt-named markdown path derived from the latest cron record timestamp (slot/hour for OpenClaw research and hourly Polymarket jobs), with mtime glob scan as fallback—fixes false failures after git checkout or copies preserve old mtimes. PR #37; test `test_research_passes_when_expected_file_exists_despite_stale_mtime`.
 - **2026-04-01** — `tests/test_polymarket_digest.py`: dry-run test now invokes `tools/polymarket-digest.sh` via repo root from `__file__` instead of a hardcoded Mac path so the suite passes in CI and other workspaces.
 - **2026-04-01** — `.gitignore`: ignore `__pycache__/` and `*.py[cod]`; removed previously committed `tests/__pycache__` and `tools/__pycache__` bytecode from the repo.
@@ -118,7 +119,8 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 | Runtime | OpenClaw v2026.3.28 |
 | Grok model | `xai/grok-4-1-fast-non-reasoning` (alias: `grok-fast`) |
 | Kimi model | `ollama/kimi-k2.5:cloud` (Ollama cloud, free) |
-| Alpha model | `openrouter/arcee-ai/trinity-large-preview:free` (OpenRouter free, requires `OPENROUTER_API_KEY`) |
+| Kimi OpenRouter fallback | `openrouter/qwen/qwen3.6-plus-preview:free` (after Ollama 429 / rate limit) |
+| Alpha model | `openrouter/qwen/qwen3.6-plus-preview:free` (OpenRouter free, requires `OPENROUTER_API_KEY`) |
 | Workspace | `/Users/jarvis/Engineering/Projects/GrokClaw` |
 | Config | `~/.openclaw/openclaw.json` |
 | Cron jobs | 4 core jobs across 3 agents (Grok, Kimi, Alpha); see `docs/agent-tasks.md` |

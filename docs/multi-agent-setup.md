@@ -8,7 +8,7 @@
 |-------|-------|-------------|
 | Grok | `xai/grok-4-1-fast-non-reasoning` | Daily system brief, OpenClaw research, PR review, Telegram/Linear coordination |
 | Kimi | `ollama/kimi-k2.5:cloud` | Hourly Polymarket research and trading |
-| Alpha | `openrouter/arcee-ai/trinity-large-preview:free` | Hourly Polymarket research and trading |
+| Alpha | `openrouter/qwen/qwen3.6-plus-preview:free` (Qwen3.6 Plus Preview free on OpenRouter) | Hourly Polymarket research and trading |
 
 ## Prerequisites
 
@@ -22,7 +22,8 @@
 ### Alpha
 
 1. Add `OPENROUTER_API_KEY` to `.env`.
-2. Restart the gateway with `./tools/gateway-ctl.sh restart`.
+2. In `~/.openclaw/openclaw.json`, set the Alpha agent primary model to `openrouter/qwen/qwen3.6-plus-preview:free` and Kimi’s OpenRouter fallback (first slot after Ollama) to the same id — see `AGENTS.md` for the full fallback chains.
+3. Restart the gateway with `./tools/gateway-ctl.sh restart`.
 
 ## Active scheduled workflows
 
