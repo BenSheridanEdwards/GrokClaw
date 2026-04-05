@@ -87,6 +87,59 @@ class CronRunRecordTests(unittest.TestCase):
             )
             self.assertFalse(telegram_log.exists(), "successful runs should not post routine health confirmations")
 
+    def test_started_run_records_without_finishing_paperclip_or_auditing(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            lifecycle_log, telegram_log, _ = self._setup_workspace_tools(workspace)
+            audit_log = workspace / "audit.log"
+            handler_log = workspace / "handler.log"
+
+            self._write_stub(
+                workspace / "tools" / "_workflow_health.py",
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env python3
+                    import sys
+                    with open("{audit_log}", "a", encoding="utf-8") as handle:
+                        handle.write(" ".join(sys.argv[1:]) + "\\n")
+                    """
+                ),
+            )
+            self._write_stub(
+                workspace / "tools" / "_workflow_health_handle.py",
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env python3
+                    import sys
+                    with open("{handler_log}", "a", encoding="utf-8") as handle:
+                        handle.write(sys.stdin.read())
+                    """
+                ),
+            )
+
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["PAPERCLIP_ISSUE_UUID"] = "issue-123"
+
+            result = subprocess.run(
+                ["sh", str(self.script), "alpha-polymarket", "alpha", "started", "run started"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+
+            today_file = next((workspace / "data" / "cron-runs").glob("*.jsonl"))
+            record = json.loads(today_file.read_text(encoding="utf-8").strip())
+            self.assertEqual(record["status"], "started")
+            self.assertFalse(lifecycle_log.exists(), "started runs should not close Paperclip yet")
+            self.assertFalse(telegram_log.exists(), "started runs should not post health alerts")
+            self.assertFalse(audit_log.exists(), "started runs should not audit completion yet")
+            self.assertFalse(handler_log.exists(), "started runs should not call the health handler")
+
     def test_skipped_run_closes_issue_as_ok(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -305,7 +358,7 @@ class CronRunRecordTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             self.assertTrue(audit_log.exists(), "cron-run-record should invoke workflow audit")
-            self.assertIn("audit-one alpha-polymarket", audit_log.read_text(encoding="utf-8"))
+            self.assertIn("audit-one alpha-polymarket --include-paperclip", audit_log.read_text(encoding="utf-8"))
             self.assertTrue(handler_log.exists(), "cron-run-record should hand audit payload to the handler")
             self.assertIn('"failureHash": "abc123"', handler_log.read_text(encoding="utf-8"))
 
@@ -358,7 +411,7 @@ class CronRunRecordTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-            self.assertIn("audit-one kimi-polymarket", audit_log.read_text(encoding="utf-8"))
+            self.assertIn("audit-one kimi-polymarket --include-paperclip", audit_log.read_text(encoding="utf-8"))
             self.assertIn('"failureHash": "err123"', handler_log.read_text(encoding="utf-8"))
             self.assertFalse(telegram_log.exists(), "direct telegram alert should be skipped when the workflow health handler is active")
 

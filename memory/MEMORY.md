@@ -14,6 +14,8 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-04-05** — Hardened OpenClaw workflow reliability: core cron prompts now write an early `started` record before long-running work, `cron-run-record.sh` supports `started` plus Paperclip-aware `audit-one --include-paperclip`, `_workflow_health.py` flags in-progress runs stuck past grace, `grokclaw-doctor.sh` validates the full workflow contract before declaring green, `run-openclaw-agent.sh` accepts timeout/retry env knobs, and Telegram posting now uses an explicit API timeout. Verified with `./tools/test-all.sh` including the reliability e2e smoke.
+
 - **2026-04-02** — GRO-44: Alpha primary OpenRouter model and Kimi’s OpenRouter fallback (after Ollama) documented as `openrouter/qwen/qwen3.6-plus-preview:free` (Qwen3.6 Plus Preview free on OpenRouter). Updated `AGENTS.md`, `docs/multi-agent-setup.md`, `README.md`, and this file. Operators align `~/.openclaw/openclaw.json` with those ids; repo has no checked-in gateway JSON.
 - **2026-04-02** — GRO-43: Workflow health research check no longer depends solely on file mtime. `_workflow_health.py` accepts the prompt-named markdown path derived from the latest cron record timestamp (slot/hour for OpenClaw research and hourly Polymarket jobs), with mtime glob scan as fallback—fixes false failures after git checkout or copies preserve old mtimes. PR #37; test `test_research_passes_when_expected_file_exists_despite_stale_mtime`.
 - **2026-04-01** — `tests/test_polymarket_digest.py`: dry-run test now invokes `tools/polymarket-digest.sh` via repo root from `__file__` instead of a hardcoded Mac path so the suite passes in CI and other workspaces.
@@ -108,7 +110,7 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 - No retry logic on failed tool calls (linear-ticket.sh or create-pr.sh)
 - Session summarization threshold may need tuning
 - ~~OpenClaw changelog / release notes~~ — addressed: `tools/changelog-check.sh` + `changelog-weekly-check` cron job (re-implemented 2026-03-30)
-- Cron observability still depends on jobs reaching `tools/cron-run-record.sh`; if a run fails before that step, `data/cron-runs/*.jsonl` will stay thin and the daily brief will have less execution evidence to inspect
+- ~~Cron observability still depends on jobs reaching `tools/cron-run-record.sh`~~ — mitigated 2026-04-05 by writing an early `started` record before long-running workflow work, then validating final completion against Paperclip and audit evidence.
 
 ---
 

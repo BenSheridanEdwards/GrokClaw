@@ -325,6 +325,7 @@ def runtime_cron_matches(root: Path) -> Tuple[bool, str]:
 HUMAN_LABELS = {
     "missing_run": "did not run",
     "stale_run": "last run is stale",
+    "in_progress_run": "still in progress",
     "error_run": "last run errored",
     "missing_research": "no research file written",
     "missing_agent_report": "no agent report written",
@@ -339,6 +340,7 @@ HUMAN_LABELS = {
 REMEDIATION_HINTS = {
     "missing_run": "tap Rerun below or: OPENCLAW_AGENT_ID={agent} ./tools/run-openclaw-agent.sh",
     "stale_run": "tap Rerun below or: OPENCLAW_AGENT_ID={agent} ./tools/run-openclaw-agent.sh",
+    "in_progress_run": "check the active run, then re-run if it is stuck",
     "error_run": "check gateway logs for the root cause, then re-run",
     "missing_research": "the agent ran but didn't write output — check the prompt",
     "missing_agent_report": "the agent didn't report — check the cron prompt",
@@ -443,6 +445,9 @@ def audit_job(
     if not record_ts or record_ts < earliest:
         add_failure(failures, job, "stale_run", f"{job} has not completed its expected run at {format_expected_run(earliest)}")
         return
+    if record.get("status") == "started":
+        add_failure(failures, job, "in_progress_run", f"{job} started at {record.get('ts', 'unknown time')} and is still in progress after the grace window")
+        return
     if record.get("status") == "error":
         add_failure(failures, job, "error_run", f"{job} last run recorded error: {record.get('summary', '')}".strip())
 
@@ -504,13 +509,14 @@ def audit() -> dict:
     return build_result(failures)
 
 
-def audit_one(job: str) -> dict:
+def audit_one(job: str, *, include_paperclip: bool = False) -> dict:
     root = workspace_root()
     now = utc_now()
     failures: List[dict] = []
     meta = CORE_WORKFLOWS[job]
     records = load_cron_records(root)
-    audit_job(root, now, job, meta, records, failures, issues=None)
+    issues = fetch_paperclip_issues() if include_paperclip else None
+    audit_job(root, now, job, meta, records, failures, issues=issues)
     return build_result(failures)
 
 
@@ -533,6 +539,9 @@ def audit_quick() -> dict:
         record_ts = parse_ts(record.get("ts"))
         if not record_ts or record_ts < earliest:
             add_failure(failures, job, "stale_run", f"{job} has not completed its expected run at {format_expected_run(earliest)}")
+            continue
+        if record.get("status") == "started":
+            add_failure(failures, job, "in_progress_run", f"{job} started at {record.get('ts', 'unknown time')} and is still in progress after the grace window")
             continue
         if record.get("status") == "error":
             add_failure(failures, job, "error_run", f"{job} last run recorded error: {record.get('summary', '')}".strip())
@@ -560,14 +569,18 @@ def main(argv: list[str]) -> int:
         return 0
 
     if command == "audit-one":
-        if len(argv) != 3:
-            print("usage: _workflow_health.py audit-one <job>", file=sys.stderr)
+        if len(argv) not in {3, 4}:
+            print("usage: _workflow_health.py audit-one <job> [--include-paperclip]", file=sys.stderr)
             return 1
         job = argv[2]
         if job not in CORE_WORKFLOWS:
             print(f"unknown core workflow: {job}", file=sys.stderr)
             return 1
-        print(json.dumps(audit_one(job), ensure_ascii=False))
+        include_paperclip = len(argv) == 4 and argv[3] == "--include-paperclip"
+        if len(argv) == 4 and not include_paperclip:
+            print("usage: _workflow_health.py audit-one <job> [--include-paperclip]", file=sys.stderr)
+            return 1
+        print(json.dumps(audit_one(job, include_paperclip=include_paperclip), ensure_ascii=False))
         return 0
 
     if command == "audit-quick":
