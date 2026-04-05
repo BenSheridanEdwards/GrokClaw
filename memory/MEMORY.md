@@ -14,6 +14,8 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-04-05** — Aligned the checked-in repo source of truth to the live 3-workflow runtime: removed stale Kimi cron jobs from `cron/jobs.json` and the core cron fixture, reduced workflow-health auditing and Paperclip gating to the active 3-workflow contract, and updated operator docs (`AGENTS.md`, `NorthStar.md`, `README.md`, `docs/multi-agent-setup.md`, `docs/agent-tasks.md`, `docs/gateway-health-check.md`, `docs/polymarket-paper-trading.md`) plus related tests to stop describing Kimi as an active scheduled worker. **Verify:** focused workflow suite (`python3 -m unittest ...` for prompts, workflow health, Paperclip lifecycle, cron-run-record, alert formatting), `python3 tools/cron-jobs-tool.py validate tests/fixtures/core-cron-jobs.json`, `git diff --check`.
+- **2026-04-05** — Reconciled the local `main` checkout back to `origin/main` without losing local-only history (checkpointed on a backup branch first), audited the live `~/.openclaw` runtime against repo docs, and added `docs/system-architecture.md` as a diagrammatic map of the live system. Key drift found: runtime is currently on OpenClaw `2026.4.2`, runs 3 active OpenClaw cron workflows, uses Alpha on `openrouter/nvidia/nemotron-3-super-120b-a12b:free` with Grok fallback, and keeps Kimi as a placeholder shell that still inherits defaults if manually targeted.
 - **2026-04-05** — Hardened OpenClaw workflow reliability: core cron prompts now write an early `started` record before long-running work, `cron-run-record.sh` supports `started` plus Paperclip-aware `audit-one --include-paperclip`, `_workflow_health.py` flags in-progress runs stuck past grace, `grokclaw-doctor.sh` validates the full workflow contract before declaring green, `run-openclaw-agent.sh` accepts timeout/retry env knobs, and Telegram posting now uses an explicit API timeout. Verified with `./tools/test-all.sh` including the reliability e2e smoke.
 
 - **2026-04-02** — GRO-44: Alpha primary OpenRouter model and Kimi’s OpenRouter fallback (after Ollama) documented as `openrouter/qwen/qwen3.6-plus-preview:free` (Qwen3.6 Plus Preview free on OpenRouter). Updated `AGENTS.md`, `docs/multi-agent-setup.md`, `README.md`, and this file. Operators align `~/.openclaw/openclaw.json` with those ids; repo has no checked-in gateway JSON.
@@ -118,14 +120,13 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 
 | Setting | Value |
 |---------|-------|
-| Runtime | OpenClaw v2026.3.28 |
+| Runtime | OpenClaw v2026.4.2 |
 | Grok model | `xai/grok-4-1-fast-non-reasoning` (alias: `grok-fast`) |
-| Kimi model | `ollama/kimi-k2.5:cloud` (Ollama cloud, free) |
-| Kimi OpenRouter fallback | `openrouter/qwen/qwen3.6-plus-preview:free` (after Ollama 429 / rate limit) |
-| Alpha model | `openrouter/qwen/qwen3.6-plus-preview:free` (OpenRouter free, requires `OPENROUTER_API_KEY`) |
+| Kimi model | placeholder shell only; no active scheduled work or dedicated model block |
+| Alpha model | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` with Grok fallback (requires `OPENROUTER_API_KEY`) |
 | Workspace | `/Users/jarvis/Engineering/Projects/GrokClaw` |
 | Config | `~/.openclaw/openclaw.json` |
-| Cron jobs | 4 core jobs across 3 agents (Grok, Kimi, Alpha); see `docs/agent-tasks.md` |
+| Cron jobs | 3 active OpenClaw cron jobs across 2 active agents (Grok, Alpha) plus Kimi placeholder shell; see `docs/system-architecture.md` |
 | GitHub repo | `BenSheridanEdwards/GrokClaw` |
 | Linear team | `GrokClaw` (`3f1b1054-07c6-4aad-a02c-89c78a43946b`) |
 | Telegram group | `-1003831656556` (topics: suggestions=2, polymarket=3, health=4, pr-reviews=5) |

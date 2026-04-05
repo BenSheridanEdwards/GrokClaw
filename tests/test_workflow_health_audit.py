@@ -57,7 +57,6 @@ class WorkflowHealthAuditTests(unittest.TestCase):
                                 "schedule": {"expr": "0 7,13,19 * * *"},
                             },
                             {"name": "alpha-polymarket", "schedule": {"expr": "0 * * * *"}},
-                            {"name": "kimi-polymarket", "schedule": {"expr": "0 * * * *"}},
                         ],
                     }
                 ),
@@ -92,15 +91,6 @@ class WorkflowHealthAuditTests(unittest.TestCase):
                         "summary": "alpha ok",
                     }
                 ),
-                json.dumps(
-                    {
-                        "job": "kimi-polymarket",
-                        "agent": "kimi",
-                        "ts": "2026-04-01T13:10:00Z",
-                        "status": "ok",
-                        "summary": "kimi ok",
-                    }
-                ),
             ]
             day_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -108,7 +98,7 @@ class WorkflowHealthAuditTests(unittest.TestCase):
             now = datetime(2026, 4, 1, 13, 45, tzinfo=timezone.utc)
             ok_msgs, fail_msgs = wha.audit(now=now, repo=root)
             self.assertEqual(fail_msgs, [])
-            self.assertEqual(len(ok_msgs), 4)
+            self.assertEqual(len(ok_msgs), 3)
 
     def test_audit_fails_when_hourly_missing(self):
         import tempfile
@@ -129,7 +119,6 @@ class WorkflowHealthAuditTests(unittest.TestCase):
                                 "schedule": {"expr": "0 7,13,19 * * *"},
                             },
                             {"name": "alpha-polymarket", "schedule": {"expr": "0 * * * *"}},
-                            {"name": "kimi-polymarket", "schedule": {"expr": "0 * * * *"}},
                         ],
                     }
                 ),
@@ -169,7 +158,7 @@ class WorkflowHealthAuditTests(unittest.TestCase):
 
             now = datetime(2026, 4, 1, 14, 0, tzinfo=timezone.utc)
             _ok, fail_msgs = wha.audit(now=now, repo=root)
-            self.assertTrue(any("kimi-polymarket" in m for m in fail_msgs))
+            self.assertTrue(any("alpha-polymarket" in m for m in fail_msgs))
 
 
 if __name__ == "__main__":

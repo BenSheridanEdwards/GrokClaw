@@ -174,7 +174,7 @@ class CronRunRecordTests(unittest.TestCase):
             env["CRON_ERROR_DETAILS"] = "Traceback: market validation failed"
 
             result = subprocess.run(
-                ["sh", str(self.script), "kimi-polymarket", "kimi", "error", "trade loop failed"],
+                ["sh", str(self.script), "alpha-polymarket", "alpha", "error", "trade loop failed"],
                 cwd=str(self.workspace),
                 env=env,
                 capture_output=True,
@@ -189,7 +189,7 @@ class CronRunRecordTests(unittest.TestCase):
             )
             self.assertEqual(
                 telegram_log.read_text(encoding="utf-8").strip(),
-                "health [kimi] kimi-polymarket: error -- trade loop failed",
+                "health [alpha] alpha-polymarket: error -- trade loop failed",
             )
             self.assertIn("comment issue-123 Error details:", paperclip_log.read_text(encoding="utf-8"))
             self.assertIn("Traceback: market validation failed", paperclip_log.read_text(encoding="utf-8"))
@@ -234,13 +234,13 @@ class CronRunRecordTests(unittest.TestCase):
             lifecycle_log, _, _ = self._setup_workspace_tools(workspace)
             oc = workspace / ".openclaw"
             oc.mkdir(parents=True)
-            (oc / "kimi-polymarket.issue").write_text("issue-from-file\n", encoding="utf-8")
+            (oc / "alpha-polymarket.issue").write_text("issue-from-file\n", encoding="utf-8")
             env = os.environ.copy()
             env["WORKSPACE_ROOT"] = str(workspace)
             env.pop("PAPERCLIP_ISSUE_UUID", None)
 
             result = subprocess.run(
-                ["sh", str(self.script), "kimi-polymarket", "kimi", "ok", "session complete"],
+                ["sh", str(self.script), "alpha-polymarket", "alpha", "ok", "session complete"],
                 cwd=str(self.workspace),
                 env=env,
                 capture_output=True,
@@ -402,7 +402,7 @@ class CronRunRecordTests(unittest.TestCase):
             env["WORKSPACE_ROOT"] = str(workspace)
 
             result = subprocess.run(
-                ["sh", str(self.script), "kimi-polymarket", "kimi", "error", "trade loop failed"],
+                ["sh", str(self.script), "alpha-polymarket", "alpha", "error", "trade loop failed"],
                 cwd=str(self.workspace),
                 env=env,
                 capture_output=True,
@@ -411,7 +411,7 @@ class CronRunRecordTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-            self.assertIn("audit-one kimi-polymarket --include-paperclip", audit_log.read_text(encoding="utf-8"))
+            self.assertIn("audit-one alpha-polymarket --include-paperclip", audit_log.read_text(encoding="utf-8"))
             self.assertIn('"failureHash": "err123"', handler_log.read_text(encoding="utf-8"))
             self.assertFalse(telegram_log.exists(), "direct telegram alert should be skipped when the workflow health handler is active")
 

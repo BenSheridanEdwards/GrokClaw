@@ -111,7 +111,7 @@ Include the test output in your PR description under a **Verification** section.
 ├── cron/jobs.json         # OpenClaw scheduled jobs
 ├── tools/
 │   ├── telegram-post.sh       # Post to Telegram topics
-│   ├── agent-report.sh        # Kimi/Alpha report to Grok (data/agent-reports/)
+│   ├── agent-report.sh        # Secondary agents report to Grok (data/agent-reports/)
 │   ├── cron-run-record.sh     # Append one line to data/cron-runs/*.jsonl (end of each cron job)
 │   ├── grok-daily-brief.sh    # Output today's reports for Grok to synthesize
 │   ├── telegram-suggestion.sh # Post daily suggestions with Approve button
@@ -122,7 +122,6 @@ Include the test output in your PR description under a **Verification** section.
 │   ├── health-check.sh        # Health check for OpenClaw gateway process
 │   ├── pr-review-watch.sh     # Wake Grok when PR review queue changes
 │   ├── run-openclaw-agent.sh  # Run agent (Grok default; OPENCLAW_AGENT_ID for override)
-│   ├── run-openclaw-agent-kimi.sh  # Run Kimi agent (ollama/kimi-k2.5:cloud)
 │   └── browser-e2e-test.sh   # E2E browser automation test (docs → snapshot → Telegram)
 └── docs/                  # Documentation for tools and integrations
 ```

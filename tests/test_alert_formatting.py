@@ -34,11 +34,11 @@ class AlertMessageFormattingTests(unittest.TestCase):
         failures = [
             {"workflow": "alpha-polymarket", "kind": "missing_run", "message": "..."},
             {"workflow": "alpha-polymarket", "kind": "missing_research", "message": "..."},
-            {"workflow": "kimi-polymarket", "kind": "error_run", "message": "..."},
+            {"workflow": "grok-openclaw-research", "kind": "error_run", "message": "..."},
         ]
         msg = wh.build_alert_message(failures)
         self.assertIn("alpha-polymarket: did not run, no research file written", msg)
-        self.assertIn("kimi-polymarket: last run errored", msg)
+        self.assertIn("grok-openclaw-research: last run errored", msg)
 
     def test_no_internal_kind_names_in_alert(self):
         for kind in INTERNAL_KINDS:
@@ -50,7 +50,7 @@ class AlertMessageFormattingTests(unittest.TestCase):
             )
 
     def test_alert_includes_remediation(self):
-        failures = [{"workflow": "kimi-polymarket", "kind": "missing_run", "message": "..."}]
+        failures = [{"workflow": "alpha-polymarket", "kind": "missing_run", "message": "..."}]
         msg = wh.build_alert_message(failures)
         self.assertIn("Rerun", msg)
 

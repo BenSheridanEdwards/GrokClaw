@@ -10,14 +10,16 @@ def load_core_jobs_fixture(workspace: Path) -> list[dict]:
 
 
 class WorkflowPromptTests(unittest.TestCase):
-    def test_repo_cron_jobs_contain_the_four_core_workflows(self):
+    def test_repo_cron_jobs_contain_the_three_core_workflows(self):
         workspace = Path(__file__).resolve().parents[1]
         jobs = load_core_jobs_fixture(workspace)
         names = {job.get("name") for job in jobs}
-        core = {"grok-daily-brief", "grok-openclaw-research", "alpha-polymarket", "kimi-polymarket"}
+        core = {"grok-daily-brief", "grok-openclaw-research", "alpha-polymarket"}
         self.assertTrue(core.issubset(names), f"missing core workflows: {core - names}")
+        self.assertNotIn("kimi-polymarket", names)
+        self.assertNotIn("kimi-daily-brief", names)
 
-    def test_four_workflow_prompts_include_lifecycle_and_research_paths(self):
+    def test_three_workflow_prompts_include_lifecycle_and_research_paths(self):
         workspace = Path(__file__).resolve().parents[1]
         jobs = {
             job["name"]: job
@@ -47,12 +49,6 @@ class WorkflowPromptTests(unittest.TestCase):
         self.assertIn('./tools/cron-run-record.sh alpha-polymarket alpha started', alpha)
         self.assertIn("data/alpha/research/", alpha)
         self.assertIn("./tools/agent-report.sh alpha alpha-polymarket", alpha)
-
-        kimi = jobs["kimi-polymarket"]["payload"]["message"]
-        self.assertIn("./tools/cron-paperclip-lifecycle.sh start kimi-polymarket kimi", kimi)
-        self.assertIn('./tools/cron-run-record.sh kimi-polymarket kimi started', kimi)
-        self.assertIn("data/kimi/research/", kimi)
-        self.assertIn("./tools/agent-report.sh kimi kimi-polymarket", kimi)
 
     def test_repo_cron_jobs_have_no_scheduler_state(self):
         workspace = Path(__file__).resolve().parents[1]
@@ -84,7 +80,7 @@ class WorkflowPromptTests(unittest.TestCase):
             proc.stderr or proc.stdout or "validate failed",
         )
 
-    def test_four_core_workflows_have_expected_schedules(self):
+    def test_three_core_workflows_have_expected_schedules(self):
         workspace = Path(__file__).resolve().parents[1]
         jobs = {
             job["name"]: job["schedule"]["expr"]
@@ -94,7 +90,7 @@ class WorkflowPromptTests(unittest.TestCase):
         self.assertEqual(jobs["grok-daily-brief"], "0 8 * * *")
         self.assertEqual(jobs["grok-openclaw-research"], "0 7,13,19 * * *")
         self.assertEqual(jobs["alpha-polymarket"], "0 * * * *")
-        self.assertEqual(jobs["kimi-polymarket"], "0 * * * *")
+        self.assertNotIn("kimi-polymarket", jobs)
 
 
 if __name__ == "__main__":

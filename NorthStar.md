@@ -4,7 +4,7 @@ This document is the source of truth for what GrokClaw is being built to do.
 
 It defines:
 
-- the 4 core workflows
+- the 3 core workflows
 - the supporting reliability and health workflows
 - how Paperclip is used
 - how Telegram is used
@@ -14,11 +14,11 @@ The goal is a system that is simple, inspectable, and operationally honest. Ever
 
 ## System Goal
 
-GrokClaw is a multi-agent OpenClaw system with 3 operating agents:
+GrokClaw is a multi-agent OpenClaw system with 3 configured agents:
 
 - `Grok` is the coordinator, reviewer, and system operator (xai/grok)
-- `Alpha` is an hourly Polymarket research and trading agent (openrouter free → grok fallback)
-- `Kimi` is an hourly Polymarket research and trading agent (ollama → openrouter free → grok fallback)
+- `Alpha` is the hourly Polymarket research and trading agent (NVIDIA primary → Grok fallback)
+- `Kimi` is an empty reusable shell retained for future reassignment
 
 Every agent has a fallback chain so jobs never silently die when a free-tier provider hits rate limits. The gateway falls through automatically; the doctor reports fallback activity once per day.
 
@@ -26,10 +26,10 @@ The system should do four things well:
 
 1. Tell Ben what happened in the system and what needs attention.
 2. Keep the deployment current with OpenClaw and ecosystem changes.
-3. Run two independent Polymarket research and trading loops every hour.
+3. Run one reliable Polymarket research and trading loop every hour.
 4. Leave a clean operational trail in Paperclip, cron logs, Telegram, and Linear.
 
-## The 4 Core Workflows
+## The 3 Core Workflows
 
 These are the only OpenClaw cron workflows that matter.
 
@@ -49,7 +49,7 @@ What it reads:
 - `data/cron-runs/*.jsonl`
 - `data/audit-log/*.jsonl` when present
 - `data/linear-creations/*.jsonl`
-- agent reports from Alpha and Kimi
+- agent reports from Alpha
 - health signals for gateway, Paperclip, Telegram, and Ollama
 
 What it produces:
@@ -126,36 +126,9 @@ What "good" looks like:
 - Alpha leaves behind a readable research trail
 - every run has a concrete outcome: trade, skip, or failure with reason
 
-### 4. Kimi Polymarket Research and Trading
-
-Agent: `Kimi`  
-Schedule: `hourly`
-
-Purpose:
-
-- Run the same Polymarket workflow as Alpha on a second model for diversity and broader market coverage.
-
-What it does:
-
-- follows the same loop: context, research, candidate evaluation, trade or skip, resolve, report
-
-What it produces:
-
-- markdown research files in `data/kimi/research/`
-- a Telegram summary in the polymarket topic
-- an agent report to Grok
-- one saved autoresearch report
-- one Paperclip issue per run
-- one cron run record
-
-What "good" looks like:
-
-- Kimi and Alpha are complementary, not redundant
-- model diversity improves market coverage and research quality
-
 ## Supporting Reliability And Health Workflows
 
-These are not part of the 4 core OpenClaw jobs, but they are required to keep the system alive and trustworthy.
+These are not part of the 3 core OpenClaw jobs, but they are required to keep the system alive and trustworthy.
 
 ### Health Check
 
@@ -179,7 +152,7 @@ Purpose:
 
 - act as the missed-run and drift catch-all when event-driven checks could not fire
 - verify the runtime environment stays trustworthy: gateway, Paperclip, Ollama, Telegram connectivity, launchd, crontab, cron validation, cron sync, and gateway auth
-- detect when the 4 core workflows missed their expected schedule windows
+- detect when the 3 core workflows missed their expected schedule windows
 - detect model fallbacks (rate limits, timeouts) and notify once per day
 - escalate from missed-run detection into a full workflow audit when needed
 - report failures to Telegram health immediately
@@ -268,14 +241,6 @@ For each core workflow, GrokClaw should be able to verify the most recent expect
 - an agent report was written for Grok
 - the run created and closed a Paperclip issue
 
-`kimi-polymarket`
-
-- a recent `data/cron-runs/*.jsonl` record exists for the run
-- a markdown research file exists in `data/kimi/research/`
-- a Telegram summary was posted to polymarket
-- an agent report was written for Grok
-- the run created and closed a Paperclip issue
-
 ### Workflow Health Outcomes
 
 If any required evidence is missing, the workflow is not healthy.
@@ -294,7 +259,7 @@ This contract must stay executable, not just descriptive.
 
 That means GrokClaw should keep:
 
-- mocked happy-path and sad-path tests for each of the 4 core workflows
+- mocked happy-path and sad-path tests for each of the 3 core workflows
 - tests that exercise the gateway detector, watchdog, and doctor separately
 - a Husky pre-commit gate that runs `tools/test-all.sh` and blocks commits when shell checks, Python checks, unit tests, or end-to-end smoke fail
 
@@ -353,7 +318,7 @@ It is not noise storage. It should represent meaningful run lifecycles.
 
 Every core workflow run creates its own Paperclip issue.
 
-Only the 4 core workflows are allowed to touch Paperclip.
+Only the 3 core workflows are allowed to touch Paperclip.
 
 That means:
 
@@ -417,7 +382,7 @@ It is where Ben sees the outputs that matter.
 ### Topics
 
 - `suggestions` — daily brief, suggestions, approval outcomes
-- `polymarket` — Alpha and Kimi trading summaries
+- `polymarket` — Alpha trading summaries
 - `health` — health confirmations, OpenClaw research headlines, failures, deploy results
 - `pr-reviews` — PRs that Grok has already reviewed and approved on GitHub
 
@@ -600,7 +565,7 @@ It defines the operating model and the source-of-truth behavior.
 
 GrokClaw should become a system where:
 
-- the 4 core workflows are clear and stable
+- the 3 core workflows are clear and stable
 - every meaningful run is represented in Paperclip
 - workflow health means complete evidence, not just a live process
 - Telegram shows the right things to the right topic

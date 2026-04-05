@@ -1,29 +1,22 @@
 # Multi-Agent Setup
 
-`NorthStar.md` is the policy document. This file is the runtime setup companion for the current 4-workflow system.
+`NorthStar.md` is the policy document. This file is the runtime setup companion for the current 3-workflow system.
 
 ## Current agent routing
 
 | Agent | Model | Active work |
 |-------|-------|-------------|
 | Grok | `xai/grok-4-1-fast-non-reasoning` | Daily system brief, OpenClaw research, PR review, Telegram/Linear coordination |
-| Kimi | `ollama/kimi-k2.5:cloud` | Hourly Polymarket research and trading |
-| Alpha | `openrouter/qwen/qwen3.6-plus-preview:free` (Qwen3.6 Plus Preview free on OpenRouter) | Hourly Polymarket research and trading |
+| Alpha | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Hourly Polymarket research and trading |
+| Kimi | placeholder shell | Reserved for future reassignment; no active jobs, memory, or runtime state |
 
 ## Prerequisites
-
-### Kimi
-
-1. Install [Ollama](https://ollama.ai) and ensure it is running.
-2. Sign in for cloud models with `ollama signin`.
-3. Pull Kimi with `ollama pull kimi-k2.5:cloud`.
-4. Verify with `ollama list`.
 
 ### Alpha
 
 1. Add `OPENROUTER_API_KEY` to `.env`.
-2. In `~/.openclaw/openclaw.json`, set the Alpha agent primary model to `openrouter/qwen/qwen3.6-plus-preview:free` and Kimi’s OpenRouter fallback (first slot after Ollama) to the same id — see `AGENTS.md` for the full fallback chains.
-3. Restart the gateway with `./tools/gateway-ctl.sh restart`.
+2. Restart the gateway with `./tools/gateway-ctl.sh restart`.
+3. Verify agent model routing with `openclaw agents list` and a quick `openclaw agent --agent alpha --message "reply OK" --json`.
 
 ## Active scheduled workflows
 
@@ -32,7 +25,6 @@ The only OpenClaw cron jobs that should exist are:
 - `grok-daily-brief`
 - `grok-openclaw-research`
 - `alpha-polymarket`
-- `kimi-polymarket`
 
 Validate with:
 
@@ -43,7 +35,7 @@ openclaw cron list
 
 ## Supporting reliability workflows
 
-These are outside the four core cron jobs but are still part of the live runtime:
+These are outside the three core cron jobs but are still part of the live runtime:
 
 - `tools/health-check.sh` from system cron every 2 minutes for fast gateway death detection and watchdog handoff
 - `tools/gateway-watchdog.sh` via launchd `com.grokclaw.gateway-watchdog` at `01,06,11,16,21,26,31,36,41,46,51,56` for bounded automatic gateway repair
@@ -81,9 +73,6 @@ python3 tools/cron-jobs-tool.py strip
 ```bash
 # Grok
 ./tools/run-openclaw-agent.sh
-
-# Kimi
-OPENCLAW_AGENT_ID=kimi ./tools/run-openclaw-agent.sh
 
 # Alpha
 OPENCLAW_AGENT_ID=alpha ./tools/run-openclaw-agent.sh

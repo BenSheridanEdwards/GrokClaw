@@ -27,7 +27,7 @@ This script is only the fast liveness probe.
 
 - `health-check.sh` answers: is the gateway up right now, and should the watchdog be asked to repair it?
 - `gateway-watchdog.sh` answers: can the runtime recover automatically right now?
-- `grokclaw-doctor.sh` answers: did the 4 core workflows actually run, write their evidence, and leave their Paperclip lifecycle, especially when the per-run audit path could not fire?
+- `grokclaw-doctor.sh` answers: did the 3 core workflows actually run, write their evidence, and leave their Paperclip lifecycle, especially when the per-run audit path could not fire?
 
 If a workflow is unhealthy but the gateway is technically up, `health-check.sh` will still pass and the doctor will raise the failure separately.
 
@@ -71,7 +71,7 @@ The health model is protected by a repo-managed test runner:
 ./tools/run-health-e2e-tests.sh
 ```
 
-That runner covers the mocked happy and sad paths for the 4 core workflow contracts plus the detector, watchdog, and doctor layers. Husky's pre-commit hook runs `tools/test-all.sh` which includes this suite.
+That runner covers the mocked happy and sad paths for the 3 core workflow contracts plus the detector, watchdog, and doctor layers. Husky's pre-commit hook runs `tools/test-all.sh` which includes this suite.
 
 ## Environment variables
 

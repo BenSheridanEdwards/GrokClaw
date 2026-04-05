@@ -11,12 +11,12 @@ GrokClaw runs multiple OpenClaw agents on one gateway:
 | Agent | Model | Fallbacks | Workloads |
 |-------|-------|-----------|-----------|
 | **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | — | Daily system brief, OpenClaw research, PR review, feature intake |
-| **Kimi** | `ollama/kimi-k2.5:cloud` | `openrouter/qwen/qwen3.6-plus-preview:free` → `xai/grok-4-1-fast-non-reasoning` | Hourly Polymarket research and trading |
-| **Alpha** | `openrouter/qwen/qwen3.6-plus-preview:free` | `openrouter/openrouter/free` → `xai/grok-4-1-fast-non-reasoning` | Hourly Polymarket research and trading, long-context (requires `OPENROUTER_API_KEY`) |
+| **Alpha** | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | `xai/grok-4-1-fast-non-reasoning` | Hourly Polymarket research and trading, long-context (requires `OPENROUTER_API_KEY`) |
+| **Kimi** | placeholder shell | — | Reserved for future reassignment; no active jobs, memory, or runtime state |
 
-Fallback chain: Ollama cloud has a weekly free-tier rate limit. When Kimi hits 429, the gateway automatically falls through to OpenRouter free, then Grok. Alpha similarly falls back to the generic OpenRouter free tier, then Grok. Every agent can always reach Grok as a last resort — jobs must never silently die because a free provider is down.
+Fallback chain: Alpha uses NVIDIA Nemotron 3 Super (free on OpenRouter, 120B MoE) as primary, then Grok as last resort. Jobs must never silently die because a free provider is down.
 
-Routing: Cron jobs with `agentId: "kimi"` run on Kimi. Kimi and Alpha report to Grok via `agent-report.sh`; Grok synthesizes and reports to you in the daily brief (08:00). See `docs/agent-tasks.md` for full task breakdown. Paperclip can create a second agent with `adapterConfig.agentId: "kimi"` to assign tasks. Manual runs: `OPENCLAW_AGENT_ID=kimi ./tools/run-openclaw-agent.sh` or `./tools/run-openclaw-agent-kimi.sh`.
+Routing: Cron jobs with `agentId: "alpha"` run on Alpha. Alpha reports to Grok via `agent-report.sh`; Grok synthesizes and reports to you in the daily brief (08:00). See `docs/agent-tasks.md` for the active task breakdown. Paperclip may target Alpha or another future shell explicitly via `adapterConfig.agentId`. Manual runs: `OPENCLAW_AGENT_ID=alpha ./tools/run-openclaw-agent.sh`.
 
 ---
 
@@ -65,7 +65,7 @@ Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profi
 - Gateway process manager: `tools/gateway-ctl.sh`
 - Paperclip board (launchd): `tools/paperclip-ctl.sh` — `install` copies `launchd/com.grokclaw.paperclip.plist` to `~/Library/LaunchAgents`, then loads; use `restart` / `status` / `logs` like the gateway
 - Cron → Telegram: use job-level `delivery` in `cron/jobs.json` (`announce` + `telegram` + group id). Use `payload.kind: "agentTurn"` for isolated scheduled agent turns. Validate: `python3 tools/cron-jobs-tool.py validate`; sync runtime: `./tools/sync-cron-jobs.sh --restart` (see `docs/multi-agent-setup.md`)
-- Scheduled workflow lifecycle: only the 4 core workflows may create Paperclip issues. They do so with `tools/cron-paperclip-lifecycle.sh start`, immediately write a `started` record via `tools/cron-run-record.sh`, then write the final `ok|error|skipped` result. Final records close the Paperclip issue and run `tools/_workflow_health.py audit-one <job> --include-paperclip`, piping the JSON into `tools/_workflow_health_handle.py`.
+- Scheduled workflow lifecycle: only the 3 core workflows may create Paperclip issues. They do so with `tools/cron-paperclip-lifecycle.sh start`, immediately write a `started` record via `tools/cron-run-record.sh`, then write the final `ok|error|skipped` result. Final records close the Paperclip issue and run `tools/_workflow_health.py audit-one <job> --include-paperclip`, piping the JSON into `tools/_workflow_health_handle.py`.
 - Workflow-health doctor: `tools/grokclaw-doctor.sh` — keeps infrastructure checks separate from workflow remediation. It runs `tools/_workflow_health.py audit-quick` as the fast cron-evidence catch-all for missed runs, stale records, in-progress runs past grace, and error runs, then validates the full workflow contract with `tools/_workflow_health.py audit` before declaring green. Any failing full audit is handed to `tools/_workflow_health_handle.py` for Telegram health alerting and approval-gated Linear draft creation. Under `--heal`, it may perform low-risk infrastructure repairs. Use `--check` for normal auditing and `--quiet` to suppress stdout. Runs via launchd at `02,17,32,47` (`com.grokclaw.doctor`).
 - External watchdog: `tools/gateway-watchdog.sh` — the primary automatic gateway repair loop. It runs via launchd at `01,06,11,16,21,26,31,36,41,46,51,56`, attempts bounded runtime repair, and alerts Telegram only if repair is exhausted or the gateway later recovers after a reported failure.
 - Health probe: `tools/health-check.sh` — runs every 2min via system crontab. Detects gateway death fast, hands off to the watchdog, and only alerts if the watchdog handoff itself is unavailable.
@@ -105,16 +105,15 @@ Do not skip these updates. Skipping memory causes repeated work and regressions.
 
 ---
 
-## Four workflow schedule
+## Core workflow schedule
 
-OpenClaw cron now runs exactly four workflows:
+OpenClaw cron now runs exactly three workflows:
 
 1. `grok-daily-brief` at 08:00 — the last 24h of GrokClaw: Paperclip issues, cron runs, audit logs, health checks, agent reports, and Linear-usage violations.
 2. `grok-openclaw-research` at 07:00 / 13:00 / 19:00 — latest stable version, ecosystem changes, new integrations, and notable OpenClaw chatter.
 3. `alpha-polymarket` hourly — Polymarket research, trader discovery, trade decisions, markdown research output, Telegram post, report to Grok.
-4. `kimi-polymarket` hourly — same as Alpha on a second model for broader coverage.
 
-All four workflows create a fresh Paperclip issue per run.
+All three workflows create a fresh Paperclip issue per run.
 
 ---
 
@@ -225,12 +224,12 @@ Paperclip is the orchestration dashboard for real work runs — it tracks per-ru
 - `tools/cron-paperclip-lifecycle.sh start <job> <agent>` — create a fresh Paperclip issue for a workflow run
 - `tools/cron-paperclip-lifecycle.sh finish <issue-id> <ok|error|skipped> "<summary>"` — close the run issue as `done`, `failed`, or `cancelled`
 
-### Paperclip second agent (Kimi)
+### Paperclip second agent
 
-To assign Paperclip issues to Kimi, create a second agent in the Paperclip UI:
+To assign Paperclip issues to a secondary worker, create a second agent in the Paperclip UI:
 - Adapter: `openclaw_gateway`
 - Same URL, auth, and gateway token as Grok
-- In adapter config, set `agentId` (or `payloadTemplate.agentId`) to `"kimi"`
+- In adapter config, set `agentId` (or `payloadTemplate.agentId`) to the active target such as `"alpha"`
 
 ### Per-run workflow issues
 

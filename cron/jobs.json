@@ -64,50 +64,6 @@
         "message": "You are Alpha. First create the Paperclip issue for this run: mkdir -p .openclaw && ISSUE_FILE=.openclaw/alpha-polymarket.issue && ISSUE_UUID=$(./tools/cron-paperclip-lifecycle.sh start alpha-polymarket alpha) && printf '%s' \"$ISSUE_UUID\" > \"$ISSUE_FILE\" && PAPERCLIP_ISSUE_UUID=$(cat \"$ISSUE_FILE\") ./tools/cron-run-record.sh alpha-polymarket alpha started 'run started'. Read memory/MEMORY.md Polymarket section and run ./tools/polymarket-context.sh. This is hourly autoresearch-enabled Polymarket research and trading. Look for markets to trade and profitable traders and what they are doing. Use ./tools/polymarket-trade.sh to fetch candidates, web_search to validate, ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<reasoning>\" when you have an edge, ./tools/polymarket-report.sh after a trade or skip, and ./tools/polymarket-resolve-turn.sh when you need to resolve pending paper trades. Save research markdown to data/alpha/research/YYYY-MM-DD-HH.md with sections: trader signals, market candidates, action taken, and next questions. Post to Telegram with a quoted heredoc (required — double-quoted argv makes the shell eat $1, $2, etc. in prices): ./tools/telegram-post.sh polymarket <<'TG'\nAlpha session: <trade or skip>. Why: <one sentence>.\nTG\n Report to Grok with ./tools/agent-report.sh alpha alpha-polymarket \"<same concise summary>\". Final step: replace STATUS with exactly one of ok, error, or skipped, then run CRON_ERROR_DETAILS=\"<root cause if error>\" PAPERCLIP_ISSUE_UUID=$(cat \"$ISSUE_FILE\") ./tools/cron-run-record.sh alpha-polymarket alpha STATUS 'one-line factual outcome'; rm -f \"$ISSUE_FILE\""
       },
       "deleteAfterRun": false
-    },
-    {
-      "id": "9c1b0a7d4e2f1004",
-      "name": "kimi-polymarket",
-      "agentId": "kimi",
-      "enabled": true,
-      "sessionTarget": "isolated",
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 * * * *"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "-1003831656556",
-        "bestEffort": true
-      },
-      "payload": {
-        "kind": "agentTurn",
-        "message": "You are Kimi. First create the Paperclip issue for this run: mkdir -p .openclaw && ISSUE_FILE=.openclaw/kimi-polymarket.issue && ISSUE_UUID=$(./tools/cron-paperclip-lifecycle.sh start kimi-polymarket kimi) && printf '%s' \"$ISSUE_UUID\" > \"$ISSUE_FILE\" && PAPERCLIP_ISSUE_UUID=$(cat \"$ISSUE_FILE\") ./tools/cron-run-record.sh kimi-polymarket kimi started 'run started'. Read memory/MEMORY.md Polymarket section and run ./tools/polymarket-context.sh. This is hourly autoresearch-enabled Polymarket research and trading. Look for markets to trade and profitable traders and what they are doing. Use ./tools/polymarket-trade.sh to fetch candidates, web_search to validate, ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<reasoning>\" when you have an edge, ./tools/polymarket-report.sh after a trade or skip, and ./tools/polymarket-resolve-turn.sh when you need to resolve pending paper trades. Save research markdown to data/kimi/research/YYYY-MM-DD-HH.md with sections: trader signals, market candidates, action taken, and next questions. Post to Telegram with a quoted heredoc (required — double-quoted argv makes the shell eat $1, $2, etc. in prices): ./tools/telegram-post.sh polymarket <<'TG'\nKimi session: <trade or skip>. Why: <one sentence>.\nTG\n Report to Grok with ./tools/agent-report.sh kimi kimi-polymarket \"<same concise summary>\". Final step: replace STATUS with exactly one of ok, error, or skipped, then run CRON_ERROR_DETAILS=\"<root cause if error>\" PAPERCLIP_ISSUE_UUID=$(cat \"$ISSUE_FILE\") ./tools/cron-run-record.sh kimi-polymarket kimi STATUS 'one-line factual outcome'; rm -f \"$ISSUE_FILE\""
-      },
-      "deleteAfterRun": false
-    },
-    {
-      "id": "9c1b0a7d4e2f1005",
-      "name": "kimi-daily-brief",
-      "agentId": "kimi",
-      "enabled": true,
-      "sessionTarget": "isolated",
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 */4 * * *"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "-1003831656556",
-        "bestEffort": true
-      },
-      "payload": {
-        "kind": "agentTurn",
-        "message": "You are Kimi. First create the Paperclip issue for this run: mkdir -p .openclaw && ISSUE_FILE=.openclaw/kimi-daily-brief.issue && ISSUE_UUID=$(./tools/cron-paperclip-lifecycle.sh start kimi-daily-brief kimi) && printf '%s' \"$ISSUE_UUID\" > \"$ISSUE_FILE\". Read memory/MEMORY.md Kimi section and run ./tools/polymarket-context.sh. This is hourly autoresearch-enabled Polymarket research and trading. Look for markets to trade and profitable traders and what they are doing. Use ./tools/polymarket-trade.sh to fetch candidates, web_search to validate, ./tools/polymarket-decide.sh <side> <probability> <confidence> \"<reasoning>\" when you have an edge, ./tools/polymarket-report.sh after a trade or skip, and ./tools/polymarket-resolve-turn.sh when you need to resolve pending paper trades. Save research markdown to data/kimi/research/YYYY-MM-DD-HH.md with sections: trader signals, market candidates, action taken, and next questions. Post to Telegram with a quoted heredoc (required — double-quoted argv makes the shell eat $1, $2, etc. in prices): ./tools/telegram-post.sh polymarket <<'TG'\nKimi session: <trade or skip>. Why: <one sentence>.\nTG\n Report to Grok with ./tools/agent-report.sh kimi kimi-polymarket \"<same concise summary>\". Final step: replace STATUS with exactly one of ok, error, or skipped, then run CRON_ERROR_DETAILS=\"<root cause if error>\" PAPERCLIP_ISSUE_UUID=$(cat \"$ISSUE_FILE\") ./tools/cron-run-record.sh kimi-daily-brief kimi STATUS 'one-line factual outcome'; rm -f \"$ISSUE_FILE\""
-      },
-      "deleteAfterRun": false
     }
   ]
 }

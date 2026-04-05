@@ -29,13 +29,6 @@ CORE_WORKFLOWS = {
         "agent_report": ("alpha", "alpha-polymarket"),
         "audit_checks": [("polymarket", ("Alpha session:",))],
     },
-    "kimi-polymarket": {
-        "schedule": {"kind": "hourly", "minute": 0},
-        "grace_minutes": 20,
-        "research_glob": "data/kimi/research/*.md",
-        "agent_report": ("kimi", "kimi-polymarket"),
-        "audit_checks": [("polymarket", ("Kimi session:",))],
-    },
 }
 
 
@@ -171,7 +164,7 @@ def expected_research_path_for_record(root: Path, job: str, research_glob: str, 
         if not slot:
             return None
         return base / f"{record_ts.strftime('%Y-%m-%d')}-{slot}.md"
-    if job in ("alpha-polymarket", "kimi-polymarket"):
+    if job == "alpha-polymarket":
         return base / f"{record_ts.strftime('%Y-%m-%d-%H')}.md"
     return None
 
@@ -356,7 +349,6 @@ WORKFLOW_AGENTS = {
     "grok-daily-brief": "grok",
     "grok-openclaw-research": "grok",
     "alpha-polymarket": "alpha",
-    "kimi-polymarket": "kimi",
 }
 
 

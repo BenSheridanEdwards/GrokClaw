@@ -1,17 +1,16 @@
 # Polymarket Workflow
 
-`NorthStar.md` is the policy source of truth. This file documents the live Polymarket operating shape after the 4-workflow cleanup.
+`NorthStar.md` is the policy source of truth. This file documents the live Polymarket operating shape after the 3-workflow cleanup.
 
 ## Current runtime
 
 The legacy three-job Polymarket schedule is retired.
 
-The live system now runs two hourly workflows:
+The live system now runs one hourly workflow:
 
 - `alpha-polymarket`
-- `kimi-polymarket`
 
-Both agents should:
+Alpha should:
 
 1. research candidate markets and profitable traders
 2. save markdown notes to their own research directory
@@ -22,7 +21,6 @@ Both agents should:
 ## Research outputs
 
 - `data/alpha/research/`
-- `data/kimi/research/`
 
 These markdown files are part of the evidence trail and should explain what the agent saw, what it considered, and why it traded or skipped.
 
