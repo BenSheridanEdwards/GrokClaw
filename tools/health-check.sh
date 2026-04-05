@@ -56,8 +56,7 @@ alert_telegram() {
 
 handoff_to_watchdog() {
   [ -x "$WATCHDOG_SCRIPT" ] || return 1
-  "$WATCHDOG_SCRIPT" health-check >/dev/null 2>&1 || true
-  return 0
+  "$WATCHDOG_SCRIPT" health-check >/dev/null 2>&1
 }
 
 alive=$(gateway_alive && echo "alive" || echo "dead")

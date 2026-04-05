@@ -3,7 +3,7 @@
 # Every scheduled agent job should call this as its final step with a factual one-line summary.
 #
 # Usage:
-#   cron-run-record.sh <job_name> <agent> <ok|error|skipped> "<summary>"
+#   cron-run-record.sh <job_name> <agent> <started|ok|error|skipped> "<summary>"
 #   printf '%s' "summary" | cron-run-record.sh <job_name> <agent> ok -
 #
 # agent: grok | kimi | alpha (who ran the job)
@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 [ "$#" -ge 4 ] || {
-  echo "usage: cron-run-record.sh <job_name> <agent> <ok|error|skipped> <summary|- for stdin>" >&2
+  echo "usage: cron-run-record.sh <job_name> <agent> <started|ok|error|skipped> <summary|- for stdin>" >&2
   exit 1
 }
 
@@ -28,8 +28,8 @@ else
   SUMMARY="$*"
 fi
 
-case "$STATUS" in ok|error|skipped) ;; *)
-  echo "cron-run-record.sh: status must be ok, error, or skipped" >&2
+case "$STATUS" in started|ok|error|skipped) ;; *)
+  echo "cron-run-record.sh: status must be started, ok, error, or skipped" >&2
   exit 1
   ;;
 esac
@@ -65,6 +65,10 @@ with open(path, "a", encoding="utf-8") as f:
     f.write(line + "\n")
 PY
 
+if [ "$STATUS" = "started" ]; then
+  exit 0
+fi
+
 TELEGRAM_POST="$WORKSPACE_ROOT/tools/telegram-post.sh"
 LIFECYCLE="$WORKSPACE_ROOT/tools/cron-paperclip-lifecycle.sh"
 PAPERCLIP_API="$WORKSPACE_ROOT/tools/paperclip-api.sh"
@@ -91,7 +95,7 @@ fi
 
 if [ "$WORKFLOW_HEALTH_READY" -eq 1 ]; then
   AUDIT_RESULT="$(mktemp)"
-  if python3 "$WORKFLOW_HEALTH_AUDIT" audit-one "$JOB" >"$AUDIT_RESULT" 2>/dev/null; then
+  if python3 "$WORKFLOW_HEALTH_AUDIT" audit-one "$JOB" --include-paperclip >"$AUDIT_RESULT" 2>/dev/null; then
     python3 "$WORKFLOW_HEALTH_HANDLE" <"$AUDIT_RESULT" >/dev/null 2>&1 || true
   fi
   rm -f "$AUDIT_RESULT"

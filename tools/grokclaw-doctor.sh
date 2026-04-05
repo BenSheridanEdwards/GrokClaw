@@ -277,7 +277,7 @@ else
   fi
 fi
 
-# --- 9. Core workflow health (quick detect + full escalation) ---
+# --- 9. Core workflow health (quick detect + full contract verification) ---
 log "Checking core workflow run evidence (cron-runs)..."
 WH_QUICK="$(mktemp)"
 if python3 "$WORKSPACE_ROOT/tools/_workflow_health.py" audit-quick >"$WH_QUICK" 2>&1; then
@@ -286,20 +286,21 @@ else
   quick_healthy="0"
 fi
 
-if [ "$quick_healthy" = "1" ]; then
-  log "  Core workflows: recent runs recorded"
-else
-  WH_FULL="$(mktemp)"
-  if python3 "$WORKSPACE_ROOT/tools/_workflow_health.py" audit >"$WH_FULL" 2>/dev/null; then
+WH_FULL="$(mktemp)"
+if python3 "$WORKSPACE_ROOT/tools/_workflow_health.py" audit >"$WH_FULL" 2>/dev/null; then
+  full_healthy="$(python3 -c 'import json,sys; print("1" if json.load(open(sys.argv[1], encoding="utf-8")).get("healthy") else "0")' "$WH_FULL" 2>/dev/null || echo "0")"
+  if [ "$quick_healthy" = "1" ] && [ "$full_healthy" = "1" ]; then
+    log "  Core workflows: recent runs recorded"
+  else
     python3 "$WORKSPACE_ROOT/tools/_workflow_health_handle.py" <"$WH_FULL" >/dev/null 2>&1 || true
     WORKFLOW_FAILURE_ESCALATED=1
     log "  Core workflows: failure escalated through workflow health handler"
-  else
-    add_issue "Workflow health: full audit failed"
   fi
-  rm -f "$WH_FULL"
+else
+  add_issue "Workflow health: full audit failed"
 fi
 rm -f "$WH_QUICK"
+rm -f "$WH_FULL"
 
 # --- 10. Gateway CLI auth ---
 log "Checking gateway auth..."

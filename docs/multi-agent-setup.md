@@ -54,9 +54,9 @@ These are outside the four core cron jobs but are still part of the live runtime
 
 Workflow validation is split intentionally:
 
-- `tools/cron-run-record.sh` records the run, closes Paperclip, then runs `tools/_workflow_health.py audit-one <job>` and pipes the JSON to `tools/_workflow_health_handle.py`
+- `tools/cron-run-record.sh` writes a `started` record as soon as the run issue is created, then writes the final result, closes Paperclip, and runs `tools/_workflow_health.py audit-one <job> --include-paperclip`, piping the JSON to `tools/_workflow_health_handle.py`
 - `tools/grokclaw-doctor.sh` runs `tools/_workflow_health.py audit-quick` after the workflow grace windows
-- If `audit-quick` finds a missed run, stale cron evidence, or an error run record, the doctor escalates to `tools/_workflow_health.py audit` and passes that full JSON to the same handler
+- The doctor now runs `tools/_workflow_health.py audit` before declaring green, so “fresh cron evidence” and “full run contract healthy” stay aligned
 - `tools/_workflow_health_handle.py` posts Telegram health alerts, requests approval-gated Linear drafts, and dedupes repeated failures in `~/.openclaw/state/workflow-health-failures.json`
 
 ## Cron sync
@@ -87,6 +87,9 @@ OPENCLAW_AGENT_ID=kimi ./tools/run-openclaw-agent.sh
 
 # Alpha
 OPENCLAW_AGENT_ID=alpha ./tools/run-openclaw-agent.sh
+
+# Bound long runs or add one retry for transient provider failures
+OPENCLAW_AGENT_TIMEOUT_SECONDS=900 OPENCLAW_AGENT_RETRIES=1 ./tools/run-openclaw-agent.sh
 
 # PR queue wake check
 ./tools/pr-review-watch.sh

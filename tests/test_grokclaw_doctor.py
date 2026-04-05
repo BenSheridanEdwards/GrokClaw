@@ -277,6 +277,96 @@ class GrokClawDoctorTests(unittest.TestCase):
             self.assertTrue(handler_log.exists(), "doctor should hand full-audit payload to the handler")
             self.assertIn('"failureHash": "abc123"', handler_log.read_text(encoding="utf-8"))
 
+    def test_doctor_escalates_full_audit_when_quick_check_is_green_but_contract_is_broken(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            home = tmp / "home"
+            workspace = tmp / "workspace"
+            tools_dir = workspace / "tools"
+            stubs_bin = tmp / "stubs"
+            audit_log = workspace / "audit.log"
+            handler_log = workspace / "handler.log"
+
+            self._write_executable(tools_dir / "telegram-post.sh", "#!/bin/sh\nexit 0\n")
+            self._write_executable(tools_dir / "cron-jobs-tool.py", "#!/usr/bin/env python3\nimport sys; sys.exit(0)\n")
+            self._write_executable(
+                tools_dir / "_workflow_health.py",
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env python3
+                    import json, sys
+                    with open("{audit_log}", "a", encoding="utf-8") as handle:
+                        handle.write(" ".join(sys.argv[1:]) + "\\n")
+                    if sys.argv[1] == "audit-quick":
+                        print(json.dumps({{"healthy": True, "failures": []}}))
+                    elif sys.argv[1] == "audit":
+                        print(json.dumps({{
+                            "healthy": False,
+                            "failureHash": "deep123",
+                            "alertMessage": "Workflow health failure: alpha issue left open",
+                            "draft": {{
+                                "id": "workflow-health-deep123",
+                                "title": "Fix workflow health failure in core cron workflows",
+                                "description": "Problem and acceptance criteria"
+                            }}
+                        }}))
+                    else:
+                        raise SystemExit(1)
+                    """
+                ),
+            )
+            self._write_executable(
+                tools_dir / "_workflow_health_handle.py",
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env python3
+                    import sys
+                    with open("{handler_log}", "a", encoding="utf-8") as handle:
+                        handle.write(sys.stdin.read())
+                    """
+                ),
+            )
+            self._write_executable(tools_dir / "gateway-ctl.sh", "#!/bin/sh\nexit 0\n")
+            self._write_executable(tools_dir / "sync-cron-jobs.sh", "#!/bin/sh\nexit 0\n")
+
+            stubs_bin.mkdir(parents=True, exist_ok=True)
+            self._write_executable(stubs_bin / "curl", "#!/bin/sh\nexit 0\n")
+            self._write_executable(
+                stubs_bin / "launchctl",
+                '#!/bin/sh\necho "com.grokclaw.gateway"\necho "com.grokclaw.paperclip"\n',
+            )
+            self._write_executable(stubs_bin / "crontab", '#!/bin/sh\necho "*/5 * * * * health-check.sh"\n')
+            self._write_executable(stubs_bin / "openclaw", "#!/bin/sh\nexit 0\n")
+
+            cron_dir = workspace / "cron"
+            cron_dir.mkdir(parents=True, exist_ok=True)
+            (cron_dir / "jobs.json").write_text('{"jobs":[]}', encoding="utf-8")
+            rt_dir = home / ".openclaw" / "cron"
+            rt_dir.mkdir(parents=True, exist_ok=True)
+            (rt_dir / "jobs.json").write_text('{"jobs":[]}', encoding="utf-8")
+
+            env = os.environ.copy()
+            env["HOME"] = str(home)
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["PATH"] = f"{stubs_bin}:{env.get('PATH', '')}"
+            env["TELEGRAM_BOT_TOKEN"] = "test-token"
+
+            result = subprocess.run(
+                ["sh", str(self.script), "--check"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 1, msg=result.stderr or result.stdout)
+            log_text = audit_log.read_text(encoding="utf-8")
+            self.assertIn("audit-quick", log_text)
+            self.assertIn("audit", log_text)
+            self.assertTrue(handler_log.exists(), "doctor should still escalate the deep failure")
+            self.assertIn('"failureHash": "deep123"', handler_log.read_text(encoding="utf-8"))
+
     def test_doctor_heal_restores_two_minute_health_check_crontab(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)

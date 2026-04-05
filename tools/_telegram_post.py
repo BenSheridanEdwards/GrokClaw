@@ -1,29 +1,66 @@
 #!/usr/bin/env python3
 """Post a message to a Telegram group topic via Bot API."""
-import json, os, sys, urllib.request
 
-token, chat_id, thread_id, message = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+from __future__ import annotations
 
-# Default plain text: agent-generated copy often contains $1,234-style prices and underscores
-# that break legacy Markdown. Set TELEGRAM_PARSE_MODE=Markdown (or HTML) to opt in.
-payload = {"chat_id": int(chat_id), "text": message}
-parse_mode = (os.environ.get("TELEGRAM_PARSE_MODE") or "").strip()
-if parse_mode:
-    payload["parse_mode"] = parse_mode
-if thread_id:
-    payload["message_thread_id"] = int(thread_id)
+import json
+import os
+import sys
+import urllib.request
 
-req = urllib.request.Request(
-    f"https://api.telegram.org/bot{token}/sendMessage",
-    data=json.dumps(payload).encode(),
-    headers={"Content-Type": "application/json"},
-    method="POST",
-)
-with urllib.request.urlopen(req) as resp:
-    data = json.load(resp)
 
-if not data.get("ok"):
-    print(f"ERROR: {data.get('description', 'unknown')}", file=sys.stderr)
-    sys.exit(1)
+DEFAULT_TIMEOUT_SECONDS = 10
 
-print(data["result"]["message_id"])
+
+def build_payload(chat_id: str, thread_id: str, message: str) -> dict:
+    # Default plain text: agent-generated copy often contains $1,234-style prices and underscores
+    # that break legacy Markdown. Set TELEGRAM_PARSE_MODE=Markdown (or HTML) to opt in.
+    payload = {"chat_id": int(chat_id), "text": message}
+    parse_mode = (os.environ.get("TELEGRAM_PARSE_MODE") or "").strip()
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
+    if thread_id:
+        payload["message_thread_id"] = int(thread_id)
+    return payload
+
+
+def request_timeout_seconds() -> int:
+    raw = (os.environ.get("TELEGRAM_API_TIMEOUT_SECONDS") or "").strip()
+    if not raw:
+        return DEFAULT_TIMEOUT_SECONDS
+    try:
+        timeout = int(raw)
+    except ValueError as exc:  # pragma: no cover - defensive, exercised via caller usage
+        raise SystemExit(f"Invalid TELEGRAM_API_TIMEOUT_SECONDS: {raw}") from exc
+    if timeout <= 0:
+        raise SystemExit("TELEGRAM_API_TIMEOUT_SECONDS must be positive")
+    return timeout
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if len(argv) != 4:
+        print("usage: _telegram_post.py <token> <chat_id> <thread_id> <message>", file=sys.stderr)
+        return 1
+
+    token, chat_id, thread_id, message = argv
+    payload = build_payload(chat_id, thread_id, message)
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=request_timeout_seconds()) as resp:
+        data = json.load(resp)
+
+    if not data.get("ok"):
+        print(f"ERROR: {data.get('description', 'unknown')}", file=sys.stderr)
+        return 1
+
+    print(data["result"]["message_id"])
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

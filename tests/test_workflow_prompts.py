@@ -26,6 +26,7 @@ class WorkflowPromptTests(unittest.TestCase):
 
         daily_brief = jobs["grok-daily-brief"]["payload"]["message"]
         self.assertIn("./tools/cron-paperclip-lifecycle.sh start grok-daily-brief grok", daily_brief)
+        self.assertIn('./tools/cron-run-record.sh grok-daily-brief grok started', daily_brief)
         self.assertIn("Paperclip issues from the last 24 hours", daily_brief)
         self.assertIn("audit log", daily_brief.lower())
         self.assertIn("data/linear-creations/", daily_brief)
@@ -35,6 +36,7 @@ class WorkflowPromptTests(unittest.TestCase):
 
         openclaw = jobs["grok-openclaw-research"]["payload"]["message"]
         self.assertIn("./tools/cron-paperclip-lifecycle.sh start grok-openclaw-research grok", openclaw)
+        self.assertIn('./tools/cron-run-record.sh grok-openclaw-research grok started', openclaw)
         self.assertIn("morning", openclaw.lower())
         self.assertIn("afternoon", openclaw.lower())
         self.assertIn("evening", openclaw.lower())
@@ -42,11 +44,13 @@ class WorkflowPromptTests(unittest.TestCase):
 
         alpha = jobs["alpha-polymarket"]["payload"]["message"]
         self.assertIn("./tools/cron-paperclip-lifecycle.sh start alpha-polymarket alpha", alpha)
+        self.assertIn('./tools/cron-run-record.sh alpha-polymarket alpha started', alpha)
         self.assertIn("data/alpha/research/", alpha)
         self.assertIn("./tools/agent-report.sh alpha alpha-polymarket", alpha)
 
         kimi = jobs["kimi-polymarket"]["payload"]["message"]
         self.assertIn("./tools/cron-paperclip-lifecycle.sh start kimi-polymarket kimi", kimi)
+        self.assertIn('./tools/cron-run-record.sh kimi-polymarket kimi started', kimi)
         self.assertIn("data/kimi/research/", kimi)
         self.assertIn("./tools/agent-report.sh kimi kimi-polymarket", kimi)
 

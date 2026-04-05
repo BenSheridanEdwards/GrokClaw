@@ -8,6 +8,8 @@ WORKSPACE="${PAPERCLIP_WORKSPACE_CWD:-/Users/jarvis/Engineering/Projects/GrokCla
 WAKE_REASON="${PAPERCLIP_WAKE_REASON:-}"
 AGENT_ID="${OPENCLAW_AGENT_ID:-grok}"
 MESSAGE_OVERRIDE="${OPENCLAW_MESSAGE:-}"
+TIMEOUT_SECONDS="${OPENCLAW_AGENT_TIMEOUT_SECONDS:-}"
+RETRIES="${OPENCLAW_AGENT_RETRIES:-0}"
 
 SESSION_KEY="paperclip-ephemeral-${RUN_ID}"
 
@@ -43,4 +45,21 @@ else
 fi
 
 cd "$WORKSPACE"
-exec openclaw agent --agent "$AGENT_ID" --message "$MESSAGE" --session-id "$SESSION_KEY"
+
+run_agent() {
+  local -a command=(openclaw agent --agent "$AGENT_ID" --message "$MESSAGE" --session-id "$SESSION_KEY")
+  if [ -n "$TIMEOUT_SECONDS" ]; then
+    command+=(--timeout "$TIMEOUT_SECONDS")
+  fi
+  "${command[@]}"
+}
+
+attempt=0
+max_attempts=$((RETRIES + 1))
+until run_agent; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge "$max_attempts" ]; then
+    exit 1
+  fi
+  sleep 1
+done

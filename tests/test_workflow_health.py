@@ -703,6 +703,39 @@ class WorkflowHealthTests(unittest.TestCase):
             self.assertTrue(report["healthy"])
             self.assertEqual(report["failures"], [])
 
+    def test_audit_one_can_include_paperclip_checks(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            payload = self._seed_full_evidence(
+                workspace,
+                alpha_ts="2026-04-01T10:10:00Z",
+                kimi_ts="2026-04-01T10:09:00Z",
+                research_ts="2026-04-01T07:06:00Z",
+                brief_ts="2026-04-01T08:05:00Z",
+            )
+            payload = [issue for issue in payload if "alpha-polymarket" not in issue.get("title", "")]
+            paperclip_file = workspace / "paperclip-issues.json"
+            paperclip_file.write_text(json.dumps(payload), encoding="utf-8")
+
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["WORKFLOW_HEALTH_NOW"] = "2026-04-01T10:30:00Z"
+            env["WORKFLOW_HEALTH_PAPERCLIP_ISSUES_FILE"] = str(paperclip_file)
+            result = subprocess.run(
+                ["python3", str(self.script), "audit-one", "alpha-polymarket", "--include-paperclip"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            report = json.loads(result.stdout)
+            self.assertFalse(report["healthy"])
+            messages = "\n".join(failure["message"] for failure in report["failures"])
+            self.assertIn("alpha-polymarket is missing a recent Paperclip issue", messages)
+
     def test_audit_quick_flags_missing_hourly_run(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -728,6 +761,34 @@ class WorkflowHealthTests(unittest.TestCase):
             self.assertFalse(report["healthy"])
             messages = "\n".join(failure["message"] for failure in report["failures"])
             self.assertIn("kimi-polymarket", messages)
+
+    def test_started_run_after_grace_is_reported_as_stuck(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            (workspace / "data" / "cron-runs").mkdir(parents=True, exist_ok=True)
+            (workspace / "data" / "cron-runs" / "2026-04-01.jsonl").write_text(
+                "\n".join(
+                    [
+                        json.dumps({"job": "grok-daily-brief", "agent": "grok", "ts": "2026-04-01T08:05:00Z", "status": "ok", "summary": "posted brief"}),
+                        json.dumps({"job": "grok-openclaw-research", "agent": "grok", "ts": "2026-04-01T13:02:00Z", "status": "ok", "summary": "research saved"}),
+                        json.dumps({"job": "alpha-polymarket", "agent": "alpha", "ts": "2026-04-01T14:01:00Z", "status": "started", "summary": "run started"}),
+                        json.dumps({"job": "kimi-polymarket", "agent": "kimi", "ts": "2026-04-01T14:03:00Z", "status": "ok", "summary": "kimi ok"}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            report = self._run_json_command(
+                workspace,
+                "2026-04-01T14:30:00Z",
+                "audit-quick",
+            )
+            self.assertFalse(report["healthy"])
+            messages = "\n".join(failure["message"] for failure in report["failures"])
+            self.assertIn("alpha-polymarket", messages)
+            self.assertIn("still in progress", messages)
 
 
 if __name__ == "__main__":
