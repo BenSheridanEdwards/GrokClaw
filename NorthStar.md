@@ -2,6 +2,8 @@
 
 This document is the source of truth for what GrokClaw is being built to do.
 
+If another doc, comment, or habit disagrees with this file, **this file wins**. Update the other artifact to match North Star, not the reverse.
+
 It defines:
 
 - the 3 core workflows
@@ -327,6 +329,8 @@ That means:
 - one lifecycle
 
 Any non-core script or background check writing to Paperclip is a policy violation.
+
+**Executable health check (how this rule is enforced):** `tools/_workflow_health.py` treats a non-core Paperclip issue as an **ongoing** policy breach only when the issue is **not** in a terminal state (`done`, `failed`, `cancelled`, and equivalent). Issues that are already closed still reflect historical mistakes or retired paths (for example legacy Kimi runs), but they must not keep the doctor red forever or drown out current misses. **Open** non-core issues still fail the audit and should be closed or remediated.
 
 The issue should move through:
 

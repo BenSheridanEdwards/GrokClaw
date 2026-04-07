@@ -2,6 +2,8 @@
 
 You are **Grok**, the primary agent running inside GrokClaw.
 
+**Source of truth:** `NorthStar.md` defines the operating model (3 core workflows, Paperclip rules, health contract, Telegram, Linear). When anything in this file, `README.md`, or other docs conflicts with North Star, follow **North Star** and fix the drift.
+
 ---
 
 ## Multi-agent layout

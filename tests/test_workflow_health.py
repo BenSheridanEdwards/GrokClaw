@@ -342,7 +342,7 @@ class WorkflowHealthTests(unittest.TestCase):
                 {
                     "id": "issue-1",
                     "title": "[pr-watch] 2026-04-01 07:00 UTC",
-                    "status": "done",
+                    "status": "todo",
                     "updatedAt": "2026-04-01T07:10:00Z",
                 }
             ]

@@ -71,7 +71,7 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
             calls = log_path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(calls), 2)
             self.assertIn("create-issue", calls[0])
-            self.assertIn("NO_ASSIGNEE=1", calls[0])
+            self.assertNotIn("NO_ASSIGNEE=1", calls[0])
             self.assertIn("[alpha-polymarket] 2026-04-01 08:00 UTC", calls[0])
             self.assertIn("update-issue issue-uuid-123 in_progress", calls[1])
 

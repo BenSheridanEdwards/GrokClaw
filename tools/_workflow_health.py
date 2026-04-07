@@ -10,6 +10,12 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 
+# NorthStar.md — "How Paperclip Is Used": only core workflows may touch Paperclip.
+# Executable check: flag non-core titles only for non-terminal issues (ongoing breach vs closed lifecycle).
+TERMINAL_PAPERCLIP_ISSUE_STATUSES = frozenset(
+    {"done", "failed", "cancelled", "canceled", "duplicate", "completed"}
+)
+
 CORE_WORKFLOWS = {
     "grok-daily-brief": {
         "schedule": {"kind": "daily", "hours": (8,)},
@@ -256,16 +262,17 @@ def fetch_paperclip_issues() -> List[dict]:
         except Exception:
             token = ""
 
-    headers = {
-        "Content-Type": "application/json",
-        "X-Paperclip-Local": "true" if not token else "",
-    }
-    if token:
+    headers: dict = {"Content-Type": "application/json"}
+    # Match tools/paperclip-api.sh: loopback trusts X-Paperclip-Local; Bearer breaks some routes.
+    use_bearer = (os.environ.get("PAPERCLIP_USE_BEARER") or "").strip().lower() in ("1", "true", "yes")
+    if use_bearer and token:
         headers["Authorization"] = f"Bearer {token}"
+    else:
+        headers["X-Paperclip-Local"] = "true"
 
     request = urllib.request.Request(
         "http://127.0.0.1:3100/api/companies/2e003f55-4bdf-465b-acd3-143ce3745aa8/issues",
-        headers={key: value for key, value in headers.items() if value},
+        headers=headers,
     )
     with urllib.request.urlopen(request, timeout=5) as response:
         payload = json.load(response)
@@ -489,6 +496,9 @@ def audit() -> dict:
             continue
         job = match.group(1)
         timestamp = issue_timestamp(issue)
+        status = (issue.get("status") or "").strip().lower()
+        if status in TERMINAL_PAPERCLIP_ISSUE_STATUSES:
+            continue
         if job not in CORE_WORKFLOWS and timestamp and timestamp >= now - dt.timedelta(hours=48):
             non_core_seen.add(job)
     for job in sorted(non_core_seen):

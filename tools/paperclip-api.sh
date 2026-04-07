@@ -10,6 +10,7 @@ set -euo pipefail
 #   paperclip-api.sh create-issue <title> <description> [priority]
 # Env:
 #   PAPERCLIP_NO_ASSIGNEE=1  Create issue without assigneeAgentId
+#   PAPERCLIP_USE_BEARER=1   Force Bearer token on loopback (default: local header on 127.0.0.1)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 KEY_FILE="${HOME}/.openclaw/workspace/paperclip-claimed-api-key.json"
@@ -23,13 +24,24 @@ else
   TOKEN=""
 fi
 
-auth_header() {
-  if [ -n "$TOKEN" ]; then
-    echo "Authorization: Bearer $TOKEN"
-  else
-    echo "X-Paperclip-Local: true"
-  fi
+# Local Paperclip (127.0.0.1 / localhost) expects X-Paperclip-Local for write paths; Bearer
+# returns 401 "Agent run id required" and breaks cron-paperclip-lifecycle.sh.
+paperclip_is_loopback() {
+  case "$API_BASE" in
+    http://127.0.0.1*|http://localhost*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
+
+if [ "${PAPERCLIP_USE_BEARER:-0}" = "1" ] && [ -n "$TOKEN" ]; then
+  AUTH_ARGS=(-H "Authorization: Bearer $TOKEN")
+elif paperclip_is_loopback; then
+  AUTH_ARGS=(-H "X-Paperclip-Local: true")
+elif [ -n "$TOKEN" ]; then
+  AUTH_ARGS=(-H "Authorization: Bearer $TOKEN")
+else
+  AUTH_ARGS=(-H "X-Paperclip-Local: true")
+fi
 
 cmd="${1:-help}"
 shift || true
@@ -38,7 +50,7 @@ case "$cmd" in
   get-issue)
     issue_id="${1:?Usage: paperclip-api.sh get-issue <issue-id>}"
     curl -sf "${API_BASE}/issues/${issue_id}" \
-      -H "$(auth_header)" \
+      "${AUTH_ARGS[@]}" \
       -H "Content-Type: application/json" | python3 -m json.tool
     ;;
 
@@ -51,7 +63,7 @@ case "$cmd" in
       payload=$(python3 -c "import json; print(json.dumps({'status':'${status}','comment':'${comment}'}))")
     fi
     curl -sf -X PATCH "${API_BASE}/issues/${issue_id}" \
-      -H "$(auth_header)" \
+      "${AUTH_ARGS[@]}" \
       -H "Content-Type: application/json" \
       -d "$payload" | python3 -m json.tool
     ;;
@@ -61,7 +73,7 @@ case "$cmd" in
     body="${2:?Missing comment body}"
     payload=$(python3 -c "import json; print(json.dumps({'body': '$body'}))")
     curl -sf -X POST "${API_BASE}/issues/${issue_id}/comments" \
-      -H "$(auth_header)" \
+      "${AUTH_ARGS[@]}" \
       -H "Content-Type: application/json" \
       -d "$payload" | python3 -m json.tool
     ;;
@@ -73,7 +85,7 @@ case "$cmd" in
       url="${url}?status=${status_filter}&assigneeAgentId=${AGENT_ID}"
     fi
     curl -sf "$url" \
-      -H "$(auth_header)" \
+      "${AUTH_ARGS[@]}" \
       -H "Content-Type: application/json" | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
@@ -102,7 +114,7 @@ if '${PAPERCLIP_NO_ASSIGNEE:-0}' != '1':
 print(json.dumps(payload))
 ")
     curl -sf -X POST "${API_BASE}/companies/${COMPANY_ID}/issues" \
-      -H "$(auth_header)" \
+      "${AUTH_ARGS[@]}" \
       -H "Content-Type: application/json" \
       -d "$payload" | python3 -c "
 import json, sys

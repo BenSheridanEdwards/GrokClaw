@@ -41,7 +41,8 @@ create_issue() {
   title="[$job_name] $now_display"
   description="Cron run for $job_name by $agent started at $now_display."
 
-  output="$(PAPERCLIP_NO_ASSIGNEE=1 "$PAPERCLIP_API" create-issue "$title" "$description")"
+  # Default assignee is required: Paperclip rejects in_progress without assigneeAgentId.
+  output="$("$PAPERCLIP_API" create-issue "$title" "$description")"
   issue_id="$(printf '%s\n' "$output" | python3 -c 'import re, sys; text=sys.stdin.read(); match=re.search(r"^ID:\s*(.+)$", text, re.M); print(match.group(1) if match else "")')"
   [ -n "$issue_id" ] || {
     echo "cron-paperclip-lifecycle.sh: failed to parse issue ID" >&2
