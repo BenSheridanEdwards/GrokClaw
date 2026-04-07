@@ -6,6 +6,7 @@ OpenClaw maps legacy payload { deliver: false, channel, to } → delivery.mode "
 which disables Telegram completion announcements. Isolated agentTurn jobs should use
 top-level delivery: { mode: announce, channel: telegram, to: <group> }.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -69,15 +70,20 @@ def validate_jobs(data: dict[str, Any]) -> list[str]:
     return errors
 
 
-def merge_runtime_fields(repo_jobs: dict[str, Any], target_path: Path) -> dict[str, Any]:
-    """Preserve OpenClaw scheduler state when syncing from git."""
+def merge_runtime_fields(
+    repo_jobs: dict[str, Any], target_path: Path
+) -> dict[str, Any]:
+    """Preserve OpenClaw scheduler state when syncing from git; include orphan old jobs."""
     if not target_path.is_file():
         return repo_jobs
     try:
         old = load_json(target_path)
     except (OSError, json.JSONDecodeError):
         return repo_jobs
-    old_by_id = {j["id"]: j for j in old.get("jobs", []) if isinstance(j, dict) and "id" in j}
+    old_by_id = {
+        j["id"]: j for j in old.get("jobs", []) if isinstance(j, dict) and "id" in j
+    }
+    repo_ids = {j["id"] for j in repo_jobs.get("jobs", []) if isinstance(j, dict)}
     out = dict(repo_jobs)
     merged: list[dict[str, Any]] = []
     for job in repo_jobs.get("jobs", []):
@@ -85,7 +91,7 @@ def merge_runtime_fields(repo_jobs: dict[str, Any], target_path: Path) -> dict[s
             merged.append(job)
             continue
         j = dict(job)
-        oid = old_by_id.get(j.get("id", ""))
+        oid = old_by_id.get(j.get("id", ""), "")
         if isinstance(oid, dict):
             if "state" in oid:
                 j["state"] = oid["state"]
@@ -93,6 +99,9 @@ def merge_runtime_fields(repo_jobs: dict[str, Any], target_path: Path) -> dict[s
                 if key in oid:
                     j[key] = oid[key]
         merged.append(j)
+    for old_job in old.get("jobs", []):
+        if isinstance(old_job, dict) and old_job.get("id") not in repo_ids:
+            merged.append(old_job)
     out["jobs"] = merged
     return out
 

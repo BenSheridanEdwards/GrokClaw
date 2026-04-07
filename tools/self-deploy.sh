@@ -67,8 +67,7 @@ fi
 new_sha="$(git rev-parse HEAD)"
 printf '%s\n' "$new_sha" > "$STATE_FILE"
 
-"$WORKSPACE_ROOT/tools/sync-cron-jobs.sh"
-"$WORKSPACE_ROOT/tools/gateway-ctl.sh" restart
+"$WORKSPACE_ROOT/tools/sync-cron-jobs.sh" --restart
 sleep 10
 
 if "$WORKSPACE_ROOT/tools/health-check.sh" >/dev/null 2>&1; then

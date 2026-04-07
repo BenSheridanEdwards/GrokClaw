@@ -3,6 +3,7 @@
 Evaluate a staged Polymarket candidate using Grok's estimate plus deterministic gates.
 Stdlib only. Called from polymarket-decide.sh.
 """
+
 import json
 import math
 import os
@@ -21,7 +22,8 @@ SKIPS_FILE = "data/polymarket-skips.json"
 
 MIN_EDGE = 0.05
 MIN_CONFIDENCE = 0.55
-MIN_VOLUME = 10000.0
+MIN_VOLUME = 5000.0
+MIN_VOLUME_WHALE_BACKED = 3000.0
 MAX_STAKE_FRACTION = 0.02
 MAX_OPEN_EXPOSURE_FRACTION = 0.10
 FRACTIONAL_KELLY = 0.25
@@ -42,7 +44,9 @@ def probability_yes(side, selected_probability):
 
 def kelly_fraction(market_probability, estimated_probability):
     market_probability = validate_probability(market_probability, "market probability")
-    estimated_probability = validate_probability(estimated_probability, "estimated probability")
+    estimated_probability = validate_probability(
+        estimated_probability, "estimated probability"
+    )
     net_odds = (1.0 / market_probability) - 1.0
     loss_probability = 1.0 - estimated_probability
     return max(0.0, ((net_odds * estimated_probability) - loss_probability) / net_odds)
@@ -56,8 +60,12 @@ def append_skip(workspace_root, record):
     metrics.append_jsonl(metrics.jsonl_path(workspace_root, SKIPS_FILE), record)
 
 
-def build_record(candidate, side, selected_probability, confidence, reasoning, bankroll_before):
-    market_probability = candidate["odds_yes"] if side == "YES" else candidate["odds_no"]
+def build_record(
+    candidate, side, selected_probability, confidence, reasoning, bankroll_before
+):
+    market_probability = (
+        candidate["odds_yes"] if side == "YES" else candidate["odds_no"]
+    )
     edge = selected_probability - market_probability
     raw_kelly = kelly_fraction(market_probability, selected_probability)
     stake_fraction = min(raw_kelly * FRACTIONAL_KELLY, MAX_STAKE_FRACTION)
@@ -69,14 +77,23 @@ def build_record(candidate, side, selected_probability, confidence, reasoning, b
         gate_failures.append("edge_below_threshold")
     if confidence < MIN_CONFIDENCE:
         gate_failures.append("confidence_below_threshold")
-    if float(candidate.get("volume", 0.0) or 0.0) < MIN_VOLUME:
+    volume = float(candidate.get("volume", 0.0) or 0.0)
+    copy_strat = candidate.get("copy_strategy") or {}
+    traders = int(copy_strat.get("traders_with_matching_positions", 0) or 0)
+    min_vol = MIN_VOLUME_WHALE_BACKED if traders >= 2 else MIN_VOLUME
+    if volume < min_vol:
         gate_failures.append("volume_below_threshold")
     if stake_fraction <= 0:
         gate_failures.append("stake_non_positive")
-    if bankroll_before > 0 and ((open_exposure + stake_amount) / bankroll_before) > MAX_OPEN_EXPOSURE_FRACTION:
+    if (
+        bankroll_before > 0
+        and ((open_exposure + stake_amount) / bankroll_before)
+        > MAX_OPEN_EXPOSURE_FRACTION
+    ):
         gate_failures.append("open_exposure_cap")
 
     action = "trade" if not gate_failures else "skip"
+    copy_strat = candidate.get("copy_strategy") or {}
     return {
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "market_id": candidate["market_id"],
@@ -93,13 +110,19 @@ def build_record(candidate, side, selected_probability, confidence, reasoning, b
         "bankroll_before": round(bankroll_before, 2),
         "open_exposure": round(open_exposure, 2),
         "volume": float(candidate.get("volume", 0.0) or 0.0),
+        "whale_consensus_probability": copy_strat.get("consensus_probability_yes"),
+        "whale_confidence": copy_strat.get("confidence"),
+        "whale_traders": copy_strat.get("traders_with_matching_positions"),
+        "selection_source": candidate.get("selection_source"),
         "reasoning": reasoning,
         "action": action,
         "gate_failures": gate_failures,
     }
 
 
-def evaluate_staged_candidate(workspace_root, side, model_probability, confidence, reasoning):
+def evaluate_staged_candidate(
+    workspace_root, side, model_probability, confidence, reasoning
+):
     candidate = trade.load_staged_candidate(str(workspace_root))
     if candidate is None:
         raise ValueError("no staged candidate for today")
@@ -110,7 +133,9 @@ def evaluate_staged_candidate(workspace_root, side, model_probability, confidenc
     confidence = validate_probability(confidence, "confidence")
     bankroll_before = metrics.current_bankroll(str(workspace_root))
     candidate["workspace_root"] = str(workspace_root)
-    record = build_record(candidate, side, selected_probability, confidence, reasoning, bankroll_before)
+    record = build_record(
+        candidate, side, selected_probability, confidence, reasoning, bankroll_before
+    )
     append_decision(str(workspace_root), record)
 
     if record["action"] == "trade":
@@ -185,7 +210,9 @@ def main():
     mode = sys.argv[2]
 
     if mode == "SKIP":
-        reasoning = " ".join(sys.argv[3:]) if len(sys.argv) > 3 else "No trade selected."
+        reasoning = (
+            " ".join(sys.argv[3:]) if len(sys.argv) > 3 else "No trade selected."
+        )
         print(json.dumps(record_explicit_skip(workspace_root, reasoning)))
         return
 
@@ -197,7 +224,13 @@ def main():
     model_probability = sys.argv[3]
     confidence = sys.argv[4]
     reasoning = " ".join(sys.argv[5:])
-    print(json.dumps(evaluate_staged_candidate(workspace_root, side, model_probability, confidence, reasoning)))
+    print(
+        json.dumps(
+            evaluate_staged_candidate(
+                workspace_root, side, model_probability, confidence, reasoning
+            )
+        )
+    )
 
 
 if __name__ == "__main__":
