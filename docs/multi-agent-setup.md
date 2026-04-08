@@ -36,6 +36,8 @@ The only OpenClaw cron jobs that should exist are:
 
 Each of these uses a **thin** `agentTurn` message: run **`./tools/cron-core-workflow-run.sh <job> <agent>`** from the GrokClaw repo root. That script starts Paperclip, records `started`, runs one `openclaw agent` turn from `docs/prompts/cron-work-<job>.md`, and **always** records a terminal line + finishes Paperclip on exit (including failures). Tune agent wall time with `OPENCLAW_AGENT_TIMEOUT_SECONDS` (especially for Alpha).
 
+**Telegram completion announce:** Grok jobs use `delivery.mode: "announce"` so OpenClaw posts a short job-complete notice to the forum. **`alpha-polymarket` uses `delivery.mode: "none"`** because the agent often emits a very long transcript; posting that as the completion message exceeds Telegram’s **4096-character** limit and surfaces as a client-side “something went wrong.” The hourly Polymarket topic is still updated by the workflow itself via **`tools/telegram-post.sh polymarket`** (see `docs/prompts/cron-work-alpha-polymarket.md`). `tools/_telegram_post.py` also truncates any single message over 4096 chars as a safety net.
+
 Validate with:
 
 ```bash
