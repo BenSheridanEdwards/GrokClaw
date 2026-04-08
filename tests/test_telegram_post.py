@@ -69,6 +69,34 @@ class TelegramPostTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(captured["timeout"], 3)
 
+    def test_main_truncates_message_over_telegram_limit(self):
+        module = _load_module()
+        long_text = "x" * 5000
+        captured_body = {}
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return json.dumps({"ok": True, "result": {"message_id": 2}}).encode("utf-8")
+
+        def fake_urlopen(request, timeout=None):
+            captured_body["raw"] = request.data
+            return _Resp()
+
+        with patch("urllib.request.urlopen", fake_urlopen), patch("builtins.print"):
+            exit_code = module.main(["token", "123", "4", long_text])
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(captured_body["raw"].decode())
+        text = payload["text"]
+        self.assertLessEqual(len(text), module.TELEGRAM_MAX_MESSAGE_LENGTH)
+        self.assertIn(module.TRUNCATION_SUFFIX.strip(), text)
+
 
 if __name__ == "__main__":
     unittest.main()

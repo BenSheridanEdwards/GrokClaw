@@ -1,5 +1,6 @@
 import json
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -37,6 +38,14 @@ class WorkflowPromptTests(unittest.TestCase):
         alpha = jobs["alpha-polymarket"]["payload"]["message"]
         self.assertIn("./tools/cron-core-workflow-run.sh alpha-polymarket alpha", alpha)
         self.assertNotIn("cron-paperclip-lifecycle.sh start", alpha)
+
+    def test_alpha_polymarket_disables_cron_completion_telegram_announce(self):
+        """Full agent transcripts exceed Telegram 4096; hourly summary uses telegram-post.sh."""
+        workspace = Path(__file__).resolve().parents[1]
+        jobs = {job["name"]: job for job in load_core_jobs_fixture(workspace)}
+        self.assertEqual(jobs["alpha-polymarket"]["delivery"]["mode"], "none")
+        self.assertEqual(jobs["grok-daily-brief"]["delivery"]["mode"], "announce")
+        self.assertEqual(jobs["grok-openclaw-research"]["delivery"]["mode"], "announce")
 
     def test_work_prompt_files_contain_task_bodies(self):
         workspace = Path(__file__).resolve().parents[1]
@@ -87,6 +96,37 @@ class WorkflowPromptTests(unittest.TestCase):
             0,
             proc.stderr or proc.stdout or "validate failed",
         )
+
+    def test_validate_rejects_delivery_none_for_non_whitelisted_job(self):
+        workspace = Path(__file__).resolve().parents[1]
+        fixture_path = workspace / "tests" / "fixtures" / "core-cron-jobs.json"
+        data = json.loads(fixture_path.read_text(encoding="utf-8"))
+        for job in data["jobs"]:
+            if job.get("name") == "grok-daily-brief":
+                job["delivery"] = {"mode": "none", "bestEffort": True}
+                break
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        ) as f:
+            json.dump(data, f)
+            tmp_path = f.name
+        try:
+            proc = subprocess.run(
+                [
+                    "python3",
+                    str(workspace / "tools" / "cron-jobs-tool.py"),
+                    "validate",
+                    tmp_path,
+                ],
+                cwd=workspace,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(proc.returncode, 0, proc.stderr)
+            self.assertIn("delivery.mode", proc.stderr)
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
 
     def test_three_core_workflows_have_expected_schedules(self):
         workspace = Path(__file__).resolve().parents[1]

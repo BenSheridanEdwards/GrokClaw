@@ -10,6 +10,18 @@ import urllib.request
 
 
 DEFAULT_TIMEOUT_SECONDS = 10
+# https://core.telegram.org/bots/api#sendmessage
+TELEGRAM_MAX_MESSAGE_LENGTH = 4096
+TRUNCATION_SUFFIX = "\n\n[truncated: Telegram sendMessage limit 4096 chars]"
+
+
+def truncate_for_telegram(message: str, max_len: int = TELEGRAM_MAX_MESSAGE_LENGTH) -> str:
+    if len(message) <= max_len:
+        return message
+    budget = max_len - len(TRUNCATION_SUFFIX)
+    if budget < 1:
+        return TRUNCATION_SUFFIX.strip()
+    return message[:budget].rstrip() + TRUNCATION_SUFFIX
 
 
 def build_payload(chat_id: str, thread_id: str, message: str) -> dict:
@@ -44,6 +56,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     token, chat_id, thread_id, message = argv
+    message = truncate_for_telegram(message)
     payload = build_payload(chat_id, thread_id, message)
     req = urllib.request.Request(
         f"https://api.telegram.org/bot{token}/sendMessage",

@@ -54,9 +54,7 @@
         "expr": "0 * * * *"
       },
       "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "-1003831656556",
+        "mode": "none",
         "bestEffort": true
       },
       "payload": {

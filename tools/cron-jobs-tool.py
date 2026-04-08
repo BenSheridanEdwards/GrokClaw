@@ -3,8 +3,12 @@
 Validate and sync GrokClaw OpenClaw cron jobs.
 
 OpenClaw maps legacy payload { deliver: false, channel, to } → delivery.mode "none",
-which disables Telegram completion announcements. Isolated agentTurn jobs should use
+which disables Telegram completion announcements. Most agentTurn jobs use
 top-level delivery: { mode: announce, channel: telegram, to: <group> }.
+
+Jobs that post their own short summary via tools/telegram-post.sh (e.g. alpha-polymarket)
+may use mode "none" so the gateway does not try to send a multi-thousand-line completion
+transcript (Telegram sendMessage max 4096 chars).
 """
 
 from __future__ import annotations
@@ -20,6 +24,8 @@ LEGACY_DELIVERY_KEYS = frozenset(
 )
 TELEGRAM_GROUP_PREFIX = "-100"
 AGENT_TURN_KINDS = frozenset({"agentTurn", "agent_turn"})
+# Cron completion announce disabled; workflow still posts to Telegram via telegram-post.sh
+SELF_ANNOUNCE_DELIVERY_NONE_JOBS = frozenset({"alpha-polymarket"})
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -55,9 +61,17 @@ def validate_jobs(data: dict[str, Any]) -> list[str]:
                 '"bestEffort": true}'
             )
             continue
-        if delivery.get("mode") != "announce":
+        mode = delivery.get("mode")
+        if mode == "none":
+            if name not in SELF_ANNOUNCE_DELIVERY_NONE_JOBS:
+                errors.append(
+                    f'{name}: delivery.mode "none" is only allowed for jobs that post their '
+                    f"own Telegram summary ({', '.join(sorted(SELF_ANNOUNCE_DELIVERY_NONE_JOBS))})"
+                )
+            continue
+        if mode != "announce":
             errors.append(
-                f'{name}: delivery.mode must be "announce" for user-visible cron jobs'
+                f'{name}: delivery.mode must be "announce" or "none" (see cron-jobs-tool.py)'
             )
             continue
         if delivery.get("channel") != "telegram":
