@@ -58,7 +58,11 @@ crontab -l | grep your-script
 
 ### OpenClaw cron (`cron/jobs.json`)
 
-Use for scheduled agent tasks. Add a new job object to the `jobs` array:
+Use for scheduled agent tasks. Add a new job object to the `jobs` array.
+
+**North Star core workflows** (`grok-daily-brief`, `grok-openclaw-research`, `alpha-polymarket`): the `payload.message` should only tell the agent to run **`./tools/cron-core-workflow-run.sh <job> <agent>`** from the repo root. Real task text lives in `docs/prompts/cron-work-<job>.md`; the shell orchestrator owns Paperclip + `cron-run-record.sh` so stuck turns cannot orphan `started`/Paperclip.
+
+Generic example for other jobs:
 
 ```json
 {

@@ -4,8 +4,8 @@ All scheduled agent work is now organized around three core workflows.
 
 ## Core model
 
-- Only the 3 core workflows are allowed to create Paperclip issues, and they do so with `tools/cron-paperclip-lifecycle.sh`.
-- Every scheduled workflow run appends a structured line to `data/cron-runs/*.jsonl` via `tools/cron-run-record.sh`.
+- Only the 3 core workflows are allowed to create Paperclip issues. **`tools/cron-core-workflow-run.sh`** calls `cron-paperclip-lifecycle.sh start` and **`tools/cron-run-record.sh`** for `started` and terminal lines — the LLM prompt files under `docs/prompts/cron-work-*.md` contain **work only** (no lifecycle).
+- Every scheduled workflow run appends structured lines to `data/cron-runs/*.jsonl` via `cron-run-record.sh` (orchestrator-owned).
 - Telegram outbound posts/inline messages and inbound action messages append audit records to `data/audit-log/*.jsonl`.
 - Telegram health posts are failure-only; normal `ok` and `skipped` runs leave evidence in Paperclip and `data/cron-runs/*.jsonl`.
 - Alpha still reports to Grok with `tools/agent-report.sh`.
@@ -41,19 +41,19 @@ Runtime outputs:
 |-----|----------|------|
 | `alpha-polymarket` | Hourly | Autoresearch profitable traders and candidate markets, validate with web research, make trade/skip decisions, resolve pending paper trades when needed, save markdown research, post to polymarket, report to Grok |
 
-## Paperclip lifecycle
+## Paperclip lifecycle (orchestrator)
 
-Each scheduled run is a distinct Paperclip issue lifecycle:
+Each scheduled run is a distinct Paperclip issue lifecycle, owned by **`tools/cron-core-workflow-run.sh`**:
 
-1. `tools/cron-paperclip-lifecycle.sh start <job> <agent>` creates the issue and moves it to `in_progress`
-2. Each workflow prompt writes the returned issue UUID to `.openclaw/<job>.issue` immediately so the final record step can recover it safely
-3. The agent performs the workflow
-4. `PAPERCLIP_ISSUE_UUID=$(cat "$ISSUE_FILE") tools/cron-run-record.sh ...` records the result
-5. `cron-run-record.sh` closes the Paperclip issue as `done`, `failed`, or `cancelled` for a skipped run
-6. `cron-run-record.sh` then runs the job-scoped workflow audit and hands it to the shared Python remediation handler
-7. On errors, `CRON_ERROR_DETAILS` can add an extra Paperclip comment with failure context
+1. `cron-paperclip-lifecycle.sh start <job> <agent>` creates the issue and moves it to `in_progress`
+2. Orchestrator writes `.openclaw/<job>.issue` and runs `cron-run-record.sh … started`
+3. `openclaw agent` runs the body from `docs/prompts/cron-work-<job>.md` (must not call `cron-paperclip-lifecycle.sh` or `cron-run-record.sh`)
+4. On **any** exit, a shell `trap` runs terminal `cron-run-record.sh` (`ok` if the agent exited 0, else `error` with `CRON_ERROR_DETAILS`). That closes Paperclip via `cron-paperclip-lifecycle.sh finish`, reads **`.openclaw/<job>.issue` first** then env for the UUID, runs `audit-one`, then removes the issue file
+5. On errors, `CRON_ERROR_DETAILS` can add an extra Paperclip comment (via `cron-run-record.sh` when status is `error`)
 
-Non-core jobs must not call `cron-paperclip-lifecycle.sh start`; the script now rejects them.
+OpenClaw **`cron/jobs.json`** payload is only the instruction to execute `./tools/cron-core-workflow-run.sh <job> <agent>` from the repo root.
+
+Non-core jobs must not call `cron-paperclip-lifecycle.sh start`; the script rejects them.
 
 ## Workflow health auditing
 

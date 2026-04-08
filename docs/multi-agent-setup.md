@@ -34,6 +34,8 @@ The only OpenClaw cron jobs that should exist are:
 - `grok-openclaw-research`
 - `alpha-polymarket`
 
+Each of these uses a **thin** `agentTurn` message: run **`./tools/cron-core-workflow-run.sh <job> <agent>`** from the GrokClaw repo root. That script starts Paperclip, records `started`, runs one `openclaw agent` turn from `docs/prompts/cron-work-<job>.md`, and **always** records a terminal line + finishes Paperclip on exit (including failures). Tune agent wall time with `OPENCLAW_AGENT_TIMEOUT_SECONDS` (especially for Alpha).
+
 Validate with:
 
 ```bash

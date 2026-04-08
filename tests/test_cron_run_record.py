@@ -255,7 +255,7 @@ class CronRunRecordTests(unittest.TestCase):
             )
 
 
-    def test_env_var_takes_precedence_over_issue_file(self):
+    def test_issue_file_takes_precedence_over_stale_env(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             lifecycle_log, _, _ = self._setup_workspace_tools(workspace)
@@ -280,7 +280,7 @@ class CronRunRecordTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             self.assertEqual(
                 lifecycle_log.read_text(encoding="utf-8").strip(),
-                "finish issue-from-env ok trade placed",
+                "finish issue-from-file ok trade placed",
             )
 
     def test_no_env_var_and_no_issue_file_skips_paperclip(self):

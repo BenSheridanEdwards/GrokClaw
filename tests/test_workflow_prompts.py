@@ -19,7 +19,7 @@ class WorkflowPromptTests(unittest.TestCase):
         self.assertNotIn("kimi-polymarket", names)
         self.assertNotIn("kimi-daily-brief", names)
 
-    def test_three_workflow_prompts_include_lifecycle_and_research_paths(self):
+    def test_three_workflow_cron_messages_invoke_orchestrator_only(self):
         workspace = Path(__file__).resolve().parents[1]
         jobs = {
             job["name"]: job
@@ -27,26 +27,34 @@ class WorkflowPromptTests(unittest.TestCase):
         }
 
         daily_brief = jobs["grok-daily-brief"]["payload"]["message"]
-        self.assertIn("./tools/cron-paperclip-lifecycle.sh start grok-daily-brief grok", daily_brief)
-        self.assertIn('./tools/cron-run-record.sh grok-daily-brief grok started', daily_brief)
-        self.assertIn("Paperclip issues from the last 24 hours", daily_brief)
-        self.assertIn("audit log", daily_brief.lower())
-        self.assertIn("data/linear-creations/", daily_brief)
-        self.assertIn("user_request", daily_brief)
-        self.assertIn("./tools/telegram-suggestion.sh", daily_brief)
-        self.assertIn('PAPERCLIP_ISSUE_UUID=$(cat "$ISSUE_FILE") ./tools/cron-run-record.sh grok-daily-brief grok', daily_brief)
+        self.assertIn("./tools/cron-core-workflow-run.sh grok-daily-brief grok", daily_brief)
+        self.assertNotIn("cron-paperclip-lifecycle.sh start", daily_brief)
 
         openclaw = jobs["grok-openclaw-research"]["payload"]["message"]
-        self.assertIn("./tools/cron-paperclip-lifecycle.sh start grok-openclaw-research grok", openclaw)
-        self.assertIn('./tools/cron-run-record.sh grok-openclaw-research grok started', openclaw)
-        self.assertIn("morning", openclaw.lower())
-        self.assertIn("afternoon", openclaw.lower())
-        self.assertIn("evening", openclaw.lower())
-        self.assertIn("data/research/openclaw/", openclaw)
+        self.assertIn("./tools/cron-core-workflow-run.sh grok-openclaw-research grok", openclaw)
+        self.assertNotIn("cron-paperclip-lifecycle.sh start", openclaw)
 
         alpha = jobs["alpha-polymarket"]["payload"]["message"]
-        self.assertIn("./tools/cron-paperclip-lifecycle.sh start alpha-polymarket alpha", alpha)
-        self.assertIn('./tools/cron-run-record.sh alpha-polymarket alpha started', alpha)
+        self.assertIn("./tools/cron-core-workflow-run.sh alpha-polymarket alpha", alpha)
+        self.assertNotIn("cron-paperclip-lifecycle.sh start", alpha)
+
+    def test_work_prompt_files_contain_task_bodies(self):
+        workspace = Path(__file__).resolve().parents[1]
+        prompts = workspace / "docs" / "prompts"
+        daily = (prompts / "cron-work-grok-daily-brief.md").read_text(encoding="utf-8")
+        self.assertIn("Paperclip issues from the last 24 hours", daily)
+        self.assertIn("audit log", daily.lower())
+        self.assertIn("data/linear-creations/", daily)
+        self.assertIn("user_request", daily)
+        self.assertIn("./tools/telegram-suggestion.sh", daily)
+
+        research = (prompts / "cron-work-grok-openclaw-research.md").read_text(encoding="utf-8")
+        self.assertIn("morning", research.lower())
+        self.assertIn("afternoon", research.lower())
+        self.assertIn("evening", research.lower())
+        self.assertIn("data/research/openclaw/", research)
+
+        alpha = (prompts / "cron-work-alpha-polymarket.md").read_text(encoding="utf-8")
         self.assertIn("data/alpha/research/", alpha)
         self.assertIn("./tools/agent-report.sh alpha alpha-polymarket", alpha)
 

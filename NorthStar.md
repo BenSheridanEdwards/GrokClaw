@@ -352,20 +352,13 @@ It is the board for operational history, not just a generic task list.
 
 ### How The Lifecycle Works
 
-Start of run:
+Scheduled core runs are driven by **`tools/cron-core-workflow-run.sh`** (invoked by the thin OpenClaw cron message). The shell orchestrator — not the LLM — owns reliability:
 
-- `tools/cron-paperclip-lifecycle.sh start <job> <agent>`
-- creates the Paperclip issue
-- returns the issue UUID
-- moves the issue to `in_progress`
+- **Start:** `tools/cron-paperclip-lifecycle.sh start <job> <agent>` creates the Paperclip issue, returns the UUID, moves it to `in_progress`; the orchestrator writes `.openclaw/<job>.issue` and appends `started` via `tools/cron-run-record.sh`.
+- **Work:** one `openclaw agent` turn using the work-only prompt in `docs/prompts/cron-work-<job>.md` (no lifecycle commands in that prompt).
+- **End (always, including timeout/non-zero exit):** an `EXIT` trap runs terminal `tools/cron-run-record.sh` (`ok` or `error` with a fixed orchestrator summary / `CRON_ERROR_DETAILS`), which appends to `data/cron-runs/*.jsonl`, closes Paperclip via `tools/cron-paperclip-lifecycle.sh finish`, runs `audit-one`, and removes `.openclaw/<job>.issue`.
 
-End of run:
-
-- `tools/cron-run-record.sh ...`
-- appends a record to `data/cron-runs/*.jsonl`
-- closes the Paperclip issue through `tools/cron-paperclip-lifecycle.sh finish`
-- does not count as complete unless the run summary is visible in Paperclip
-- adds extra Paperclip error detail when `CRON_ERROR_DETAILS` exists
+Manual debugging may still call `cron-paperclip-lifecycle.sh` / `cron-run-record.sh` directly; scheduled runs should go through the orchestrator.
 
 ### What Must Be Visible In Paperclip
 

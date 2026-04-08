@@ -39,13 +39,15 @@ DATE=$(date -u +%Y-%m-%d)
 FILE="$DIR/${DATE}.jsonl"
 mkdir -p "$DIR"
 
-# Resolve Paperclip issue UUID: env wins; else stable per-job file from core workflow prompts.
-ISSUE_UUID="${PAPERCLIP_ISSUE_UUID:-}"
+# Resolve Paperclip issue UUID: on-disk file wins (updated on every lifecycle start); env is often stale
+# across long agent turns and can close the wrong issue while a newer run's issue stays in_progress.
+ISSUE_FILE="$WORKSPACE_ROOT/.openclaw/${JOB}.issue"
+ISSUE_UUID=""
+if [ -f "$ISSUE_FILE" ]; then
+  ISSUE_UUID=$(tr -d ' \t\n\r' <"$ISSUE_FILE" || true)
+fi
 if [ -z "$ISSUE_UUID" ]; then
-  ISSUE_FILE="$WORKSPACE_ROOT/.openclaw/${JOB}.issue"
-  if [ -f "$ISSUE_FILE" ]; then
-    ISSUE_UUID=$(tr -d ' \t\n\r' <"$ISSUE_FILE" || true)
-  fi
+  ISSUE_UUID="${PAPERCLIP_ISSUE_UUID:-}"
 fi
 
 export CRON_JOB="$JOB" CRON_AGENT="$AGENT" CRON_STATUS="$STATUS" CRON_SUMMARY="$SUMMARY" CRON_FILE="$FILE"
