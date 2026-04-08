@@ -261,6 +261,88 @@ class TestCronJobsToolSync(unittest.TestCase):
         finally:
             runtime_path.unlink()
 
+    def test_merge_runtime_fields_drops_orphan_with_duplicate_name(self):
+        """Legacy row with same name as a repo job must not double-schedule."""
+        cjt = _load_cron_jobs_tool()
+        repo_jobs = {
+            "version": 1,
+            "jobs": [
+                {
+                    "id": "9c1b0a7d4e2f1001",
+                    "name": "grok-daily-brief",
+                    "schedule": {"expr": "0 8 * * *"},
+                    "payload": {"kind": "agentTurn", "message": "ok"},
+                    "delivery": {
+                        "mode": "announce",
+                        "channel": "telegram",
+                        "to": "-1003831656556",
+                    },
+                },
+            ],
+        }
+        runtime_jobs = {
+            "version": 1,
+            "jobs": [
+                {
+                    "id": "9c1b0a7d4e2f1001",
+                    "name": "grok-daily-brief",
+                    "payload": {"kind": "agentTurn", "message": "ok"},
+                    "delivery": {
+                        "mode": "announce",
+                        "channel": "telegram",
+                        "to": "-1003831656556",
+                    },
+                    "state": {"lastRunStatus": "ok"},
+                },
+                {
+                    "id": "1",
+                    "name": "grok-daily-brief",
+                    "payload": {"kind": "agentTurn"},
+                    "delivery": {
+                        "mode": "announce",
+                        "channel": "telegram",
+                        "to": "-1003831656556",
+                    },
+                    "state": {"lastRunStatus": "error"},
+                },
+            ],
+        }
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as f:
+            json.dump(runtime_jobs, f)
+            runtime_path = Path(f.name)
+        try:
+            merged = cjt.merge_runtime_fields(repo_jobs, runtime_path)
+            ids = [j["id"] for j in merged["jobs"]]
+            self.assertEqual(ids, ["9c1b0a7d4e2f1001"])
+            self.assertEqual(merged["jobs"][0]["state"]["lastRunStatus"], "ok")
+        finally:
+            runtime_path.unlink()
+
+    def test_merge_runtime_fields_keeps_orphan_with_distinct_name(self):
+        cjt = _load_cron_jobs_tool()
+        repo_jobs = {
+            "version": 1,
+            "jobs": [
+                {"id": "a", "name": "core-one", "payload": {"kind": "agentTurn"}},
+            ],
+        }
+        runtime_jobs = {
+            "version": 1,
+            "jobs": [
+                {"id": "a", "name": "core-one", "state": {"x": 1}},
+                {"id": "legacy", "name": "deprecated-job", "payload": {"kind": "agentTurn"}},
+            ],
+        }
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as f:
+            json.dump(runtime_jobs, f)
+            runtime_path = Path(f.name)
+        try:
+            merged = cjt.merge_runtime_fields(repo_jobs, runtime_path)
+            ids = {j["id"] for j in merged["jobs"]}
+            self.assertEqual(ids, {"a", "legacy"})
+        finally:
+            runtime_path.unlink()
+
     def test_sync_writes_target_and_preserves_state(self):
         cjt = _load_cron_jobs_tool()
         with tempfile.TemporaryDirectory() as tmpdir:

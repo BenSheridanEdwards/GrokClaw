@@ -4,22 +4,27 @@
 #
 # Usage: health-check.sh
 # Env:   WORKSPACE_ROOT — workspace root (default: derived from script path)
-#        OPENCLAW_GATEWAY_PORT — gateway port (default: 18800)
+#        OPENCLAW_GATEWAY_PORT — gateway port (optional; else ~/.openclaw/openclaw.json gateway.port)
 # Exit:  0 if healthy, 1 if unhealthy
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 STATE_FILE="$WORKSPACE_ROOT/.gateway-health-state"
-GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18800}"
 WATCHDOG_SCRIPT="$WORKSPACE_ROOT/tools/gateway-watchdog.sh"
 
-# Load .env for TELEGRAM_BOT_TOKEN
+# Load .env (TELEGRAM_*, OPENCLAW_GATEWAY_PORT, etc.)
 if [ -f "$WORKSPACE_ROOT/.env" ]; then
   set -a
   # shellcheck disable=SC1091
   . "$WORKSPACE_ROOT/.env"
   set +a
+fi
+
+if [ -x "$SCRIPT_DIR/gateway-port.sh" ]; then
+  GATEWAY_PORT="$("$SCRIPT_DIR/gateway-port.sh")"
+else
+  GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18800}"
 fi
 
 # Single-poller guard: detect Telegram getUpdates conflicts and auto-disable

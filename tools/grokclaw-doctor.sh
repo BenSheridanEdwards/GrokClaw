@@ -31,6 +31,12 @@ if [ -f "$WORKSPACE_ROOT/.env" ]; then
   set +a
 fi
 
+if [ -x "$WORKSPACE_ROOT/tools/gateway-port.sh" ]; then
+  GATEWAY_PORT="$("$WORKSPACE_ROOT/tools/gateway-port.sh")"
+else
+  GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18800}"
+fi
+
 ISSUES=""
 HEALED=""
 FAILED=""
@@ -54,7 +60,7 @@ add_failed() {
 
 # --- 1. Gateway health ---
 log "Checking gateway..."
-if curl -sf --connect-timeout 3 http://127.0.0.1:18800/health >/dev/null 2>&1; then
+if curl -sf --connect-timeout 3 "http://127.0.0.1:${GATEWAY_PORT}/health" >/dev/null 2>&1; then
   log "  Gateway: UP"
 else
   add_issue "Gateway DOWN"
@@ -62,7 +68,7 @@ else
     log "  Healing: restarting gateway..."
     if "$WORKSPACE_ROOT/tools/gateway-ctl.sh" restart >/dev/null 2>&1; then
       sleep 8
-      if curl -sf --connect-timeout 3 http://127.0.0.1:18800/health >/dev/null 2>&1; then
+      if curl -sf --connect-timeout 3 "http://127.0.0.1:${GATEWAY_PORT}/health" >/dev/null 2>&1; then
         add_healed "Gateway restarted successfully"
       else
         add_failed "Gateway restart failed — still DOWN"

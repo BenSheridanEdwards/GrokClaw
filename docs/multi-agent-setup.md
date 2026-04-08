@@ -10,6 +10,14 @@
 | Alpha | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Hourly Polymarket research and trading |
 | Kimi | placeholder shell | Reserved for future reassignment; no active jobs, memory, or runtime state |
 
+## Gateway LaunchAgent and cron timezone
+
+OpenClaw evaluates `cron/jobs.json` expressions in the **gateway process timezone**. `agents.defaults.userTimezone` affects agent-facing time, not the cron scheduler. GrokClaw’s workflow health and docs assume **UTC** schedules (`08:00` daily brief, `07/13/19` research, top-of-hour Polymarket).
+
+Set **`TZ=UTC`** in the gateway LaunchAgent `EnvironmentVariables` (see `launchd/com.grokclaw.gateway.plist` in this repo) so `0 8 * * *` fires at 08:00 UTC. Without it, the Mac system zone shifts every job and `_workflow_health.py` will report stale or missing runs.
+
+After changing the plist: `cp launchd/com.grokclaw.gateway.plist ~/Library/LaunchAgents/` (adjust paths if your home or repo root differs), then `./tools/gateway-ctl.sh restart`.
+
 ## Prerequisites
 
 ### Alpha
@@ -83,6 +91,32 @@ OPENCLAW_AGENT_TIMEOUT_SECONDS=900 OPENCLAW_AGENT_RETRIES=1 ./tools/run-openclaw
 # PR queue wake check
 ./tools/pr-review-watch.sh
 ```
+
+## Maintenance (cron evidence + workflow-health noise)
+
+After fixing scheduler drift or false-positive workflow health, clean JSONL orphans and automation tickets:
+
+```bash
+# Dry-run: lists duplicate/orphan `started` lines in data/cron-runs/*.jsonl
+./tools/grokclaw-maintenance.sh cron-runs
+./tools/grokclaw-maintenance.sh cron-runs --apply
+
+# Dry-run: open Linear issues with the exact workflow-health template title, stale drafts, state file
+./tools/grokclaw-maintenance.sh linear-workflow-health
+./tools/grokclaw-maintenance.sh linear-workflow-health --apply
+```
+
+`linear-workflow-health --apply` cancels only issues whose title **exactly** matches the workflow-health draft title (see `tools/_workflow_health.py` `build_draft`). It also deletes `data/pending-linear-draft-workflow-health-*.json` and resets `~/.openclaw/state/workflow-health-failures.json`.
+
+### Stuck cron (`already-running` / `in_progress_run`)
+
+If `openclaw cron run` returns `"reason": "already-running"` or workflow health reports a run stuck past grace, OpenClaw’s `jobs.json` may still have `state.runningAtMs` after a dropped client. Clear it and re-enqueue:
+
+```bash
+./tools/cron-unstick-and-run.sh 9c1b0a7d4e2f1003 9c1b0a7d4e2f1001
+```
+
+(IDs are from `~/.openclaw/cron/jobs.json` / `openclaw cron list`.) The script **disables all three core jobs** before restart so the scheduler does not immediately start due runs and race `openclaw cron run`. Dry strip only: `python3 tools/_cron_unstick_running.py --dry-run`.
 
 ## Verification
 

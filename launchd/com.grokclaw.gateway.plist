@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.grokclaw.gateway</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd /Users/jarvis/Engineering/Projects/GrokClaw &amp;&amp; set -a &amp;&amp; source /Users/jarvis/Engineering/Projects/GrokClaw/.env &amp;&amp; set +a &amp;&amp; export OPENCLAW_CONFIG_PATH=/Users/jarvis/.openclaw/openclaw.json &amp;&amp; exec /opt/homebrew/bin/openclaw gateway</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/jarvis/Engineering/Projects/GrokClaw</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/jarvis</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/Users/jarvis/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>TZ</key>
+    <string>UTC</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/jarvis/.openclaw/logs/gateway-stdout.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/jarvis/.openclaw/logs/gateway-stderr.log</string>
+</dict>
+</plist>

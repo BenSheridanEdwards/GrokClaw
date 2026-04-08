@@ -18,7 +18,11 @@ if [ -f "$WORKSPACE_ROOT/.env" ]; then
   set +a
 fi
 
-GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18800}"
+if [ -x "$SCRIPT_DIR/gateway-port.sh" ]; then
+  GATEWAY_PORT="$("$SCRIPT_DIR/gateway-port.sh")"
+else
+  GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18800}"
+fi
 
 health_ok() {
   command -v curl >/dev/null 2>&1 || return 1

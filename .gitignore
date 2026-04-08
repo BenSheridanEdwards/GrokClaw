@@ -5,6 +5,8 @@ logs/
 .reliability-report-tmp
 .cursor
 .gateway-health-state
+.gateway-watchdog-state
+.gateway-watchdog-lock
 .last-deploy-sha
 .openclaw/*.issue
 cron/jobs.json

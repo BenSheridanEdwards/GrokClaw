@@ -68,6 +68,7 @@ Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profi
 - Paperclip board (launchd): `tools/paperclip-ctl.sh` — `install` copies `launchd/com.grokclaw.paperclip.plist` to `~/Library/LaunchAgents`, then loads; use `restart` / `status` / `logs` like the gateway
 - Cron → Telegram: use job-level `delivery` in `cron/jobs.json` (`announce` + `telegram` + group id). Use `payload.kind: "agentTurn"` for isolated scheduled agent turns. Validate: `python3 tools/cron-jobs-tool.py validate`; sync runtime: `./tools/sync-cron-jobs.sh --restart` (see `docs/multi-agent-setup.md`)
 - Scheduled workflow lifecycle: only the 3 core workflows may create Paperclip issues. They do so with `tools/cron-paperclip-lifecycle.sh start`, immediately write a `started` record via `tools/cron-run-record.sh`, then write the final `ok|error|skipped` result. Final records close the Paperclip issue and run `tools/_workflow_health.py audit-one <job> --include-paperclip`, piping the JSON into `tools/_workflow_health_handle.py`.
+- Stuck core cron (`openclaw cron run` → `already-running`, or workflow health `in_progress_run` past grace): run `./tools/cron-unstick-and-run.sh <cron-job-id> [<id>...]` (see `docs/multi-agent-setup.md`). It disables the three core jobs, clears `runningAtMs`, restarts the gateway, enqueues manual runs, then re-enables schedules.
 - Workflow-health doctor: `tools/grokclaw-doctor.sh` — keeps infrastructure checks separate from workflow remediation. It runs `tools/_workflow_health.py audit-quick` as the fast cron-evidence catch-all for missed runs, stale records, in-progress runs past grace, and error runs, then validates the full workflow contract with `tools/_workflow_health.py audit` before declaring green. Any failing full audit is handed to `tools/_workflow_health_handle.py` for Telegram health alerting and approval-gated Linear draft creation. Under `--heal`, it may perform low-risk infrastructure repairs. Use `--check` for normal auditing and `--quiet` to suppress stdout. Runs via launchd at `02,17,32,47` (`com.grokclaw.doctor`).
 - External watchdog: `tools/gateway-watchdog.sh` — the primary automatic gateway repair loop. It runs via launchd at `01,06,11,16,21,26,31,36,41,46,51,56`, attempts bounded runtime repair, and alerts Telegram only if repair is exhausted or the gateway later recovers after a reported failure.
 - Health probe: `tools/health-check.sh` — runs every 2min via system crontab. Detects gateway death fast, hands off to the watchdog, and only alerts if the watchdog handoff itself is unavailable.
@@ -78,7 +79,7 @@ Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profi
 - Auto-deploy script: `tools/self-deploy.sh` — validates cron, pulls, syncs cron to runtime, restarts gateway, verifies health.
 
 Launchd agents:
-- `~/Library/LaunchAgents/com.grokclaw.gateway.plist`
+- `~/Library/LaunchAgents/com.grokclaw.gateway.plist` — repo template `launchd/com.grokclaw.gateway.plist` (set `TZ=UTC` so OpenClaw cron matches North Star UTC schedules; edit paths when copying)
 - `~/Library/LaunchAgents/com.grokclaw.gateway-watchdog.plist` — gateway watchdog on explicit 5-minute offsets
 - `~/Library/LaunchAgents/com.grokclaw.paperclip.plist`
 - `~/Library/LaunchAgents/com.grokclaw.doctor.plist` — workflow-health doctor at `02,17,32,47`

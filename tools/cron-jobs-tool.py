@@ -73,7 +73,12 @@ def validate_jobs(data: dict[str, Any]) -> list[str]:
 def merge_runtime_fields(
     repo_jobs: dict[str, Any], target_path: Path
 ) -> dict[str, Any]:
-    """Preserve OpenClaw scheduler state when syncing from git; include orphan old jobs."""
+    """Preserve OpenClaw scheduler state when syncing from git; include orphan old jobs.
+
+    Orphan jobs (ids not present in the repo file) are kept only when their name does
+    not collide with a repo job. Duplicate names caused double-scheduling and broken
+    legacy rows (e.g. agentTurn without message) that crash the gateway scheduler.
+    """
     if not target_path.is_file():
         return repo_jobs
     try:
@@ -84,6 +89,11 @@ def merge_runtime_fields(
         j["id"]: j for j in old.get("jobs", []) if isinstance(j, dict) and "id" in j
     }
     repo_ids = {j["id"] for j in repo_jobs.get("jobs", []) if isinstance(j, dict)}
+    repo_names = {
+        j["name"]
+        for j in repo_jobs.get("jobs", [])
+        if isinstance(j, dict) and isinstance(j.get("name"), str)
+    }
     out = dict(repo_jobs)
     merged: list[dict[str, Any]] = []
     for job in repo_jobs.get("jobs", []):
@@ -100,8 +110,12 @@ def merge_runtime_fields(
                     j[key] = oid[key]
         merged.append(j)
     for old_job in old.get("jobs", []):
-        if isinstance(old_job, dict) and old_job.get("id") not in repo_ids:
-            merged.append(old_job)
+        if not isinstance(old_job, dict) or old_job.get("id") in repo_ids:
+            continue
+        orphan_name = old_job.get("name")
+        if isinstance(orphan_name, str) and orphan_name in repo_names:
+            continue
+        merged.append(old_job)
     out["jobs"] = merged
     return out
 
