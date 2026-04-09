@@ -74,7 +74,7 @@ def build_research_markdown(
     decision: Optional[dict],
     context_text: str,
     recent_trades_text: str,
-    whale_accuracy_text: str,
+    bonding_lookup_text: str,
 ) -> str:
     question = candidate.get("question", "No candidate selected.") if candidate else "No candidate selected."
     source = candidate.get("selection_source", "none") if candidate else "none"
@@ -82,8 +82,8 @@ def build_research_markdown(
     if not isinstance(copy, dict):
         copy = {}
     consensus_yes = copy.get("consensus_probability_yes", "n/a")
-    whale_conf = copy.get("confidence", "n/a")
-    whale_traders = copy.get("traders_with_matching_positions", "n/a")
+    bonding_conf = copy.get("confidence", "n/a")
+    matching_wallets = copy.get("traders_with_matching_positions", "n/a")
 
     action = (decision or {}).get("action", "skip")
     reasoning = (decision or {}).get("reasoning", "Deterministic fallback reasoning not available.")
@@ -100,12 +100,12 @@ def build_research_markdown(
         "",
         "## Market Analysis",
         f"Candidate question: {question}",
-        f"Selection source: {source}; whale consensus probability YES: {consensus_yes}; whale confidence: {whale_conf}; whale trader count: {whale_traders}.",
-        "This run prioritizes bonding-copy opportunities, then whale-copy, then volume fallback if no copy signal is available.",
+        f"Selection source: {source}; bonding consensus probability YES: {consensus_yes}; bonding confidence: {bonding_conf}; matching wallet count: {matching_wallets}.",
+        "This run is bonding-copy only: if no valid bonding setup exists, action defaults to HOLD.",
         "",
         "## Memory Lookup",
         f"recent-trades: {safe_text(recent_trades_text)}",
-        f"whale-accuracy: {safe_text(whale_accuracy_text)}",
+        f"bonding-lookup: {safe_text(bonding_lookup_text)}",
         "These memory snapshots are used to avoid repeating failed patterns and to calibrate confidence.",
         "",
         "## Decision Rationale",
@@ -120,7 +120,7 @@ def build_research_markdown(
         "",
         "## Next Steps",
         "Confirm whether bonding-copy candidates are available in the next hour.",
-        "Track whether whale consensus improves in correlated geopolitical or crypto markets.",
+        "Track whether bonding wallet alignment improves in correlated geopolitical or crypto markets.",
         "Revisit thresholds only after multiple resolved outcomes, not single-run variance.",
         "",
     ]
@@ -139,7 +139,13 @@ def main(argv: list[str]) -> int:
 
     context = run_command(root, str(tools / "polymarket-context.sh"), check=False).stdout
     recent_trades = run_command(root, str(tools / "alpha-memory-query.sh"), "recent-trades", check=False).stdout
-    whale_accuracy = run_command(root, str(tools / "alpha-memory-query.sh"), "whale-accuracy", check=False).stdout
+    bonding_lookup = run_command(
+        root,
+        str(tools / "alpha-memory-query.sh"),
+        "query",
+        "bonding copy outcomes near resolution",
+        check=False,
+    ).stdout
 
     candidate = None
     try:
@@ -161,7 +167,8 @@ def main(argv: list[str]) -> int:
             and isinstance(confidence, (int, float))
             and math.isfinite(float(consensus_yes))
             and math.isfinite(float(confidence))
-            and (selection_source == "bonding_copy" or traders >= 2)
+            and selection_source == "bonding_copy"
+            and traders >= 1
         )
         if can_trade_from_copy:
             selected_prob_yes = clamp_open_probability(float(consensus_yes))
@@ -170,7 +177,7 @@ def main(argv: list[str]) -> int:
             selected_prob = clamp_open_probability(selected_prob)
             conf = max(min(float(confidence), 0.95), 0.5)
             reasoning = (
-                "Deterministic copy execution from trader consensus; "
+                "Deterministic bonding-copy execution from wallet alignment; "
                 f"source={selection_source}, consensus_yes={selected_prob_yes:.4f}, confidence={conf:.4f}"
             )
             decision_out = run_command(
@@ -185,7 +192,7 @@ def main(argv: list[str]) -> int:
             decision = parse_json_maybe(decision_out)
         else:
             reason = (
-                "No deterministic copy-trader edge this hour; "
+                "No deterministic bonding-copy edge this hour; "
                 f"source={selection_source or 'unknown'}, copy_status={copy.get('status', 'n/a')}"
             )
             decision_out = run_command(
@@ -206,7 +213,7 @@ def main(argv: list[str]) -> int:
     research_dir.mkdir(parents=True, exist_ok=True)
     research_path = research_dir / f"{now.strftime('%Y-%m-%d-%H')}.md"
     research_path.write_text(
-        build_research_markdown(now, candidate, decision, context, recent_trades, whale_accuracy),
+        build_research_markdown(now, candidate, decision, context, recent_trades, bonding_lookup),
         encoding="utf-8",
     )
 

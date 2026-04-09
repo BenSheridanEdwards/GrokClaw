@@ -206,6 +206,54 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
             self.assertNotIn(" 1.0000 ", f" {args} ")
             self.assertNotIn(" 0.0000 ", f" {args} ")
 
+    def test_deterministic_flow_skips_non_bonding_copy_sources(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            tools = workspace / "tools"
+            decide_log = workspace / "decide.log"
+
+            self._write_stub(tools / "polymarket-context.sh", "#!/bin/sh\nset -eu\necho 'context ok'\n")
+            self._write_stub(tools / "alpha-memory-query.sh", "#!/bin/sh\nset -eu\necho 'memory ok'\n")
+            self._write_stub(
+                tools / "polymarket-trade.sh",
+                textwrap.dedent(
+                    """\
+                    #!/bin/sh
+                    set -eu
+                    printf '%s\\n' '{"market_id":"m4","condition_id":"c4","question":"Will A happen?","odds_yes":0.7,"odds_no":0.3,"volume":22000,"selection_source":"whale_top_trader_copy","copy_strategy":{"status":"ok","consensus_probability_yes":0.78,"confidence":0.86,"traders_with_matching_positions":4}}'
+                    """
+                ),
+            )
+            self._write_stub(
+                tools / "polymarket-decide.sh",
+                textwrap.dedent(
+                    f"""\
+                    #!/bin/sh
+                    set -eu
+                    printf '%s\\n' "$*" >> "{decide_log}"
+                    printf '%s\\n' '{{"action":"skip","reasoning":"non-bonding blocked","edge":0.0,"stake_amount":0.0}}'
+                    """
+                ),
+            )
+            self._write_stub(tools / "polymarket-resolve-turn.sh", "#!/bin/sh\nset -eu\necho '{}'\n")
+            self._write_stub(tools / "alpha-memory-ingest.sh", "#!/bin/sh\nset -eu\nexit 0\n")
+            self._write_stub(tools / "telegram-post.sh", "#!/bin/sh\nset -eu\nexit 0\n")
+            self._write_stub(tools / "agent-report.sh", "#!/bin/sh\nset -eu\nexit 0\n")
+
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["ALPHA_NOW"] = "2026-04-09T11:40:00Z"
+            result = subprocess.run(
+                ["python3", str(self.script), str(workspace)],
+                cwd=str(self.repo),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertIn("SKIP", decide_log.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

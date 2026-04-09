@@ -69,6 +69,9 @@ class WorkflowPromptTests(unittest.TestCase):
         self.assertIn("Alpha · Hourly ·", alpha)
         self.assertIn("TRADE", alpha)
         self.assertIn("HOLD", alpha)
+        self.assertIn("bonding-copy mode", alpha)
+        self.assertIn("If no valid bonding setup, HOLD", alpha)
+        self.assertNotIn("whale-copy candidate selection", alpha)
 
     def test_repo_cron_jobs_have_no_scheduler_state(self):
         workspace = Path(__file__).resolve().parents[1]
