@@ -250,6 +250,161 @@ class PolymarketTradeTests(unittest.TestCase):
         self.assertIsNone(best_market)
         self.assertIsNone(signal)
 
+    def test_select_bonding_copy_candidate_accepts_single_wallet_alignment(self):
+        soon = (datetime.now(timezone.utc) + timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        markets = [
+            {
+                "id": "m-single",
+                "conditionId": "0xsingle",
+                "question": "Will BTC close above 120k this week?",
+                "endDate": soon,
+                "outcomePrices": ["0.98", "0.02"],
+                "volume": "18000",
+            }
+        ]
+
+        with mock.patch.object(
+            trade,
+            "fetch_bonding_traders",
+            return_value=[
+                {"proxyWallet": "0x751a2b86cab503496efd325c8344e10159349ea1", "rank": "1"},
+                {"proxyWallet": "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b", "rank": "2"},
+            ],
+        ):
+            def fake_positions(wallet, condition_id=None, limit=100):
+                if condition_id:
+                    return []
+                if wallet.startswith("0x751a"):
+                    return [{"conditionId": "0xsingle", "outcome": "Yes", "currentValue": 2200, "title": "Will BTC close above 120k this week?"}]
+                return []
+
+            with mock.patch.object(trade, "fetch_positions_for_user", side_effect=fake_positions):
+                best_market, signal = trade.select_bonding_copy_candidate(markets)
+
+        self.assertIsNotNone(best_market)
+        self.assertEqual(best_market["conditionId"], "0xsingle")
+        self.assertIsNotNone(signal)
+        self.assertEqual(signal["traders_with_matching_positions"], 1)
+
+    def test_select_bonding_copy_candidate_accepts_100c_price_boundary(self):
+        soon = (datetime.now(timezone.utc) + timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        markets = [
+            {
+                "id": "m-boundary",
+                "conditionId": "0xboundary",
+                "question": "Will BTC close above 120k this week?",
+                "endDate": soon,
+                "outcomePrices": ["1.00", "0.00"],
+                "volume": "18000",
+            }
+        ]
+
+        with mock.patch.object(
+            trade,
+            "fetch_bonding_traders",
+            return_value=[
+                {"proxyWallet": "0x751a2b86cab503496efd325c8344e10159349ea1", "rank": "1"},
+                {"proxyWallet": "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b", "rank": "2"},
+            ],
+        ):
+            with mock.patch.object(
+                trade,
+                "fetch_positions_for_user",
+                return_value=[
+                    {
+                        "conditionId": "0xboundary",
+                        "outcome": "Yes",
+                        "currentValue": 3000,
+                        "title": "Will BTC close above 120k this week?",
+                    }
+                ],
+            ):
+                best_market, signal = trade.select_bonding_copy_candidate(markets)
+
+        self.assertIsNotNone(best_market)
+        self.assertEqual(best_market["conditionId"], "0xboundary")
+        self.assertIsNotNone(signal)
+        self.assertGreaterEqual(signal["consensus_side_price"], 0.99)
+
+    def test_select_bonding_copy_candidate_accepts_95c_floor_for_evaluation(self):
+        soon = (datetime.now(timezone.utc) + timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        markets = [
+            {
+                "id": "m-floor",
+                "conditionId": "0xfloor",
+                "question": "Will BTC close above 120k this week?",
+                "endDate": soon,
+                "outcomePrices": ["0.95", "0.05"],
+                "volume": "18000",
+            }
+        ]
+
+        with mock.patch.object(
+            trade,
+            "fetch_bonding_traders",
+            return_value=[
+                {"proxyWallet": "0x751a2b86cab503496efd325c8344e10159349ea1", "rank": "1"},
+                {"proxyWallet": "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b", "rank": "2"},
+            ],
+        ):
+            with mock.patch.object(
+                trade,
+                "fetch_positions_for_user",
+                return_value=[
+                    {
+                        "conditionId": "0xfloor",
+                        "outcome": "Yes",
+                        "currentValue": 2600,
+                        "title": "Will BTC close above 120k this week?",
+                    }
+                ],
+            ):
+                best_market, signal = trade.select_bonding_copy_candidate(markets)
+
+        self.assertIsNotNone(best_market)
+        self.assertEqual(best_market["conditionId"], "0xfloor")
+        self.assertIsNotNone(signal)
+        self.assertGreaterEqual(signal["consensus_side_price"], 0.95)
+
+    def test_select_bonding_copy_candidate_accepts_30h_resolution_window(self):
+        within_eval_window = (datetime.now(timezone.utc) + timedelta(hours=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        markets = [
+            {
+                "id": "m-30h",
+                "conditionId": "0x30h",
+                "question": "Will BTC close above 120k this week?",
+                "endDate": within_eval_window,
+                "outcomePrices": ["0.98", "0.02"],
+                "volume": "18000",
+            }
+        ]
+
+        with mock.patch.object(
+            trade,
+            "fetch_bonding_traders",
+            return_value=[
+                {"proxyWallet": "0x751a2b86cab503496efd325c8344e10159349ea1", "rank": "1"},
+                {"proxyWallet": "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b", "rank": "2"},
+            ],
+        ):
+            with mock.patch.object(
+                trade,
+                "fetch_positions_for_user",
+                return_value=[
+                    {
+                        "conditionId": "0x30h",
+                        "outcome": "Yes",
+                        "currentValue": 2800,
+                        "title": "Will BTC close above 120k this week?",
+                    }
+                ],
+            ):
+                best_market, signal = trade.select_bonding_copy_candidate(markets)
+
+        self.assertIsNotNone(best_market)
+        self.assertEqual(best_market["conditionId"], "0x30h")
+        self.assertIsNotNone(signal)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -39,7 +39,7 @@ Runtime outputs:
 
 | Job | Schedule | Task |
 |-----|----------|------|
-| `alpha-polymarket` | Hourly | Autoresearch profitable traders and candidate markets, validate with web research, make trade/skip decisions, resolve pending paper trades when needed, save markdown research, post to polymarket, report to Grok |
+| `alpha-polymarket` | Hourly | Run bonding-first Polymarket research/trading: prioritize near-resolution bonding-copy candidates (evaluation range 95-100c, with 97-99c preferred), use an expanded near-resolution window (~36h) for higher sample throughput, allow single-wallet alignment with confidence uplift from broader alignment, HOLD when no valid bonding setup exists, then save markdown research, post to polymarket, and report to Grok |
 
 ## Paperclip lifecycle (orchestrator)
 

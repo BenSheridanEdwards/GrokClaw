@@ -24,13 +24,14 @@ MIN_EDGE = 0.05
 MIN_CONFIDENCE = 0.55
 MIN_VOLUME = 5000.0
 MIN_VOLUME_WHALE_BACKED = 3000.0
+BONDING_MIN_VOLUME = 2000.0
 MAX_STAKE_FRACTION = 0.02
 MAX_OPEN_EXPOSURE_FRACTION = 0.10
 FRACTIONAL_KELLY = 0.25
-BONDING_MIN_EDGE = 0.01
-BONDING_MIN_CONFIDENCE = 0.50
+BONDING_MIN_EDGE = 0.005
+BONDING_MIN_CONFIDENCE = 0.45
 BONDING_MAX_STAKE_FRACTION = 0.01
-BONDING_MAX_OPEN_EXPOSURE_FRACTION = 0.05
+BONDING_MAX_OPEN_EXPOSURE_FRACTION = 0.08
 
 
 def validate_probability(value, label):
@@ -96,7 +97,7 @@ def build_record(
     copy_strat = candidate.get("copy_strategy") or {}
     traders = int(copy_strat.get("traders_with_matching_positions", 0) or 0)
     if selection_source == "bonding_copy":
-        min_vol = MIN_VOLUME_WHALE_BACKED
+        min_vol = BONDING_MIN_VOLUME
     else:
         min_vol = MIN_VOLUME_WHALE_BACKED if traders >= 2 else MIN_VOLUME
     if volume < min_vol:

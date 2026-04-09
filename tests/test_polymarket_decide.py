@@ -114,6 +114,23 @@ class PolymarketDecideTests(unittest.TestCase):
             self.assertLessEqual(decision["stake_fraction"], 0.01)
             self.assertNotIn("edge_below_threshold", decision["gate_failures"])
 
+    def test_bonding_copy_allows_half_percent_edge_for_evaluation(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self.stage_candidate_bonding(workspace)
+
+            decision = decide.evaluate_staged_candidate(
+                workspace,
+                "YES",
+                0.985,
+                0.6,
+                "Bonding evaluation mode accepts thinner edge for sample collection.",
+            )
+
+            self.assertEqual(decision["action"], "trade")
+            self.assertAlmostEqual(decision["edge"], 0.005, places=4)
+            self.assertNotIn("edge_below_threshold", decision["gate_failures"])
+
 
 if __name__ == "__main__":
     unittest.main()

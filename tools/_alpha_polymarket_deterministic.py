@@ -11,6 +11,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+BONDING_MIN_MATCHING_TRADERS = 1
+BONDING_MIN_CONFIDENCE = 0.45
+
 
 @dataclass
 class CmdResult:
@@ -168,14 +171,14 @@ def main(argv: list[str]) -> int:
             and math.isfinite(float(consensus_yes))
             and math.isfinite(float(confidence))
             and selection_source == "bonding_copy"
-            and traders >= 1
+            and traders >= BONDING_MIN_MATCHING_TRADERS
         )
         if can_trade_from_copy:
             selected_prob_yes = clamp_open_probability(float(consensus_yes))
             side = "YES" if selected_prob_yes >= 0.5 else "NO"
             selected_prob = selected_prob_yes if side == "YES" else (1.0 - selected_prob_yes)
             selected_prob = clamp_open_probability(selected_prob)
-            conf = max(min(float(confidence), 0.95), 0.5)
+            conf = max(min(float(confidence), 0.95), BONDING_MIN_CONFIDENCE)
             reasoning = (
                 "Deterministic bonding-copy execution from wallet alignment; "
                 f"source={selection_source}, consensus_yes={selected_prob_yes:.4f}, confidence={conf:.4f}"

@@ -51,10 +51,13 @@ If memory is stale, GrokClaw regresses and repeats work.
 
 ## Polymarket Strategy
 
-Daily loop stages one candidate with:
-- market data from Polymarket API
-- `copy_strategy` prior derived from top trader positions
-- external validation via web research before final decision
+Hourly Alpha runs are bonding-first:
+- market data from Polymarket APIs
+- `copy_strategy` from known bonding wallets near resolution
+- evaluation window targets near-certain entries in `95c-100c` (`97c-99c` still preferred when available)
+- near-resolution candidate window is broadened to about `36h` for faster strategy evaluation
+- at least one matching bonding wallet is sufficient (additional matching wallets increase confidence)
+- if no valid bonding setup exists, the run records HOLD (no whale fallback)
 
 Decision path:
 - fetch/stage: `tools/polymarket-trade.sh`

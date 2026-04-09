@@ -27,9 +27,10 @@ MARKET_PAGE_SIZE = 50
 MARKET_MAX_PAGES = 10
 LEADERBOARD_LIMIT = 5  # Whale focus: top 5 traders by PNL
 POSITIONS_PAGE_SIZE = 100
-BONDING_MAX_HOURS_TO_RESOLUTION = 24
-BONDING_MIN_PRICE = 0.97
+BONDING_MAX_HOURS_TO_RESOLUTION = 36
+BONDING_MIN_PRICE = 0.95
 BONDING_MAX_PRICE = 1.0
+BONDING_MIN_MATCHING_TRADERS = 1
 BONDING_TRADER_WALLETS = (
     "0x751a2b86cab503496efd325c8344e10159349ea1",  # Sharky6999
     "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b",  # 033033033
@@ -518,7 +519,7 @@ def select_bonding_copy_candidate(markets, excluded_ids=None):
         signal = build_signal_from_aggregate(aggregate, len(traders))
         if not signal:
             continue
-        if signal.get("traders_with_matching_positions", 0) < 1:
+        if signal.get("traders_with_matching_positions", 0) < BONDING_MIN_MATCHING_TRADERS:
             continue
 
         odds_yes, odds_no = market_prices(market)
