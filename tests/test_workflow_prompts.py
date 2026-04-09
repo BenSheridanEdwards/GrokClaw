@@ -66,6 +66,9 @@ class WorkflowPromptTests(unittest.TestCase):
         alpha = (prompts / "cron-work-alpha-polymarket.md").read_text(encoding="utf-8")
         self.assertIn("data/alpha/research/", alpha)
         self.assertIn("./tools/agent-report.sh alpha alpha-polymarket", alpha)
+        self.assertIn("Alpha · Hourly ·", alpha)
+        self.assertIn("TRADE", alpha)
+        self.assertIn("HOLD", alpha)
 
     def test_repo_cron_jobs_have_no_scheduler_state(self):
         workspace = Path(__file__).resolve().parents[1]

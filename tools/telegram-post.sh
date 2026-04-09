@@ -7,10 +7,10 @@
 #
 # Messages with $ amounts (e.g. $1,100) must NOT be passed in double quotes on the shell
 # command line — the shell will expand $1, $2, etc. Prefer one of:
-#   printf '%s\n' 'Alpha: Bitcoin at $58,100' | ./tools/telegram-post.sh polymarket
-#   TELEGRAM_MESSAGE='Alpha: Bitcoin at $58,100' ./tools/telegram-post.sh polymarket
+#   printf '%s\n' 'Alpha · Hourly · HOLD — no trade this hour per gates' | ./tools/telegram-post.sh polymarket
+#   TELEGRAM_MESSAGE='Alpha · Hourly · TRADE — YES @ 0.52, inflation print' ./tools/telegram-post.sh polymarket
 #   ./tools/telegram-post.sh polymarket <<'TG'
-#   Alpha: Bitcoin at $58,100
+#   Alpha · Hourly · HOLD — low volume on staged market
 #   TG
 #
 # Topic shortcuts (resolved from .env):

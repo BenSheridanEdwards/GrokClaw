@@ -64,7 +64,7 @@ Decision path:
 
 ## Multi-Agent Setup
 
-Grok (xAI) handles suggestions, daily brief, PR review, and Paperclip. Alpha (OpenRouter NVIDIA Nemotron 3 Super free tier) handles the hourly Polymarket workflow. Kimi remains available as a placeholder shell for future reassignment, but has no active scheduled work. Alpha reports to Grok; Grok reports to you. See `docs/multi-agent-setup.md` and `docs/agent-tasks.md`.
+Grok (xAI) handles suggestions, daily brief, PR review, and Paperclip. Alpha uses the same Grok fast model for the hourly Polymarket workflow, with OpenRouter Nemotron 3 Super (free) as fallback if xAI is down. Kimi remains available as a placeholder shell for future reassignment, but has no active scheduled work. Alpha reports to Grok; Grok reports to you. See `docs/multi-agent-setup.md` and `docs/agent-tasks.md`.
 
 ## Key Agent Docs
 

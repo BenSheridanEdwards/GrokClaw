@@ -7,7 +7,7 @@
 | Agent | Model | Active work |
 |-------|-------|-------------|
 | Grok | `xai/grok-4-1-fast-non-reasoning` | Daily system brief, OpenClaw research, PR review, Telegram/Linear coordination |
-| Alpha | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Hourly Polymarket research and trading |
+| Alpha | `xai/grok-4-1-fast-non-reasoning` (fallback: `openrouter/nvidia/nemotron-3-super-120b-a12b:free`) | Hourly Polymarket research and trading |
 | Kimi | placeholder shell | Reserved for future reassignment; no active jobs, memory, or runtime state |
 
 ## Gateway LaunchAgent and cron timezone
@@ -22,9 +22,10 @@ After changing the plist: `cp launchd/com.grokclaw.gateway.plist ~/Library/Launc
 
 ### Alpha
 
-1. Add `OPENROUTER_API_KEY` to `.env`.
+1. Keep `OPENROUTER_API_KEY` in `.env` so Alpha can fall back to Nemotron if xAI is unavailable.
 2. Restart the gateway with `./tools/gateway-ctl.sh restart`.
 3. Verify agent model routing with `openclaw agents list` and a quick `openclaw agent --agent alpha --message "reply OK" --json`.
+4. **Paperclip:** Add a second company agent (e.g. title **Research Worker**) with adapter `openclaw_gateway` and `agentId: "alpha"`. Copy that agent’s UUID into `.env` as **`PAPERCLIP_ALPHA_AGENT_ID`** so hourly Polymarket run issues assign to them instead of Grok (see `AGENTS.md` → Paperclip second agent).
 
 ## Active scheduled workflows
 
@@ -36,7 +37,7 @@ The only OpenClaw cron jobs that should exist are:
 
 Each of these uses a **thin** `agentTurn` message: run **`./tools/cron-core-workflow-run.sh <job> <agent>`** from the GrokClaw repo root. That script starts Paperclip, records `started`, runs one `openclaw agent` turn from `docs/prompts/cron-work-<job>.md`, and **always** records a terminal line + finishes Paperclip on exit (including failures). Tune agent wall time with `OPENCLAW_AGENT_TIMEOUT_SECONDS` (especially for Alpha).
 
-**Telegram completion announce:** Grok jobs use `delivery.mode: "announce"` so OpenClaw posts a short job-complete notice to the forum. **`alpha-polymarket` uses `delivery.mode: "none"`** because the agent often emits a very long transcript; posting that as the completion message exceeds Telegram’s **4096-character** limit and surfaces as a client-side “something went wrong.” The hourly Polymarket topic is still updated by the workflow itself via **`tools/telegram-post.sh polymarket`** (see `docs/prompts/cron-work-alpha-polymarket.md`). `tools/_telegram_post.py` also truncates any single message over 4096 chars as a safety net.
+**Telegram completion announce:** Grok jobs use `delivery.mode: "announce"` so OpenClaw posts a short job-complete notice to the forum. **`alpha-polymarket` uses `delivery.mode: "none"`** because the agent often emits a very long transcript; posting that as the completion message exceeds Telegram’s **4096-character** limit and surfaces as a client-side “something went wrong.” The hourly Polymarket topic is still updated by the workflow itself via **`tools/telegram-post.sh polymarket`** (see `docs/prompts/cron-work-alpha-polymarket.md`). That prompt uses **TRADE** / **HOLD** wording so a normal “no bet this hour” reads as routine risk discipline, not an error. `tools/_telegram_post.py` also truncates any single message over 4096 chars as a safety net.
 
 Validate with:
 

@@ -22,6 +22,26 @@ class PolymarketDecideTests(unittest.TestCase):
             },
         )
 
+    def stage_candidate_bonding(self, workspace):
+        trade.stage_candidate(
+            workspace,
+            {
+                "date": "2026-03-14",
+                "market_id": "456",
+                "question": "Will X resolve YES by tonight?",
+                "odds_yes": 0.98,
+                "odds_no": 0.02,
+                "volume": 12000,
+                "endDate": "2026-03-14T22:00:00Z",
+                "selection_source": "bonding_copy",
+                "copy_strategy": {
+                    "consensus_probability_yes": 0.985,
+                    "confidence": 0.8,
+                    "traders_with_matching_positions": 2,
+                },
+            },
+        )
+
     def test_trade_decision_records_trade_when_gates_pass(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -76,6 +96,23 @@ class PolymarketDecideTests(unittest.TestCase):
 
             self.assertEqual(decision["action"], "skip")
             self.assertFalse((workspace / "data" / "polymarket-pending-trade.json").exists())
+
+    def test_bonding_copy_allows_small_edge_and_caps_stake(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self.stage_candidate_bonding(workspace)
+
+            decision = decide.evaluate_staged_candidate(
+                workspace,
+                "YES",
+                0.99,
+                0.6,
+                "Bonding copy setup: near-resolution, high-confidence copy traders aligned.",
+            )
+
+            self.assertEqual(decision["action"], "trade")
+            self.assertLessEqual(decision["stake_fraction"], 0.01)
+            self.assertNotIn("edge_below_threshold", decision["gate_failures"])
 
 
 if __name__ == "__main__":

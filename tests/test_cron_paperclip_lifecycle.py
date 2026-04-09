@@ -24,7 +24,7 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
                 f"""\
                 #!/bin/sh
                 set -eu
-                printf 'NO_ASSIGNEE=%s %s\\n' "${{PAPERCLIP_NO_ASSIGNEE:-}}" "$*" >> "{log_path}"
+                printf 'ASSIGNEE=%s NO_ASSIGNEE=%s %s\\n' "${{PAPERCLIP_ASSIGNEE_AGENT_ID:-}}" "${{PAPERCLIP_NO_ASSIGNEE:-}}" "$*" >> "{log_path}"
                 case "$1" in
                   create-issue)
                     echo "Created: PAP-101 - $2"
@@ -71,9 +71,58 @@ class CronPaperclipLifecycleTests(unittest.TestCase):
             calls = log_path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(calls), 2)
             self.assertIn("create-issue", calls[0])
+            self.assertIn("ASSIGNEE=", calls[0])
+            self.assertRegex(calls[0], r"ASSIGNEE=\s+NO_ASSIGNEE=")
             self.assertNotIn("NO_ASSIGNEE=1", calls[0])
             self.assertIn("[alpha-polymarket] 2026-04-01 08:00 UTC", calls[0])
             self.assertIn("update-issue issue-uuid-123 in_progress", calls[1])
+
+    def test_start_alpha_sets_assignee_when_paperclip_alpha_agent_id_set(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            log_path = self._write_stub_api(workspace)
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["CRON_PAPERCLIP_NOW"] = "2026-04-01T08:00:00Z"
+            env["PAPERCLIP_ALPHA_AGENT_ID"] = "alpha-paperclip-uuid-999"
+
+            result = subprocess.run(
+                ["sh", str(self.script), "start", "alpha-polymarket", "alpha"],
+                cwd=str(self.repo_root),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            calls = log_path.read_text(encoding="utf-8").splitlines()
+            self.assertIn("ASSIGNEE=alpha-paperclip-uuid-999", calls[0])
+            self.assertIn("create-issue", calls[0])
+
+    def test_start_grok_job_clears_alpha_assignee_override(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            log_path = self._write_stub_api(workspace)
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["CRON_PAPERCLIP_NOW"] = "2026-04-01T08:00:00Z"
+            env["PAPERCLIP_ALPHA_AGENT_ID"] = "alpha-paperclip-uuid-999"
+            env["PAPERCLIP_ASSIGNEE_AGENT_ID"] = "should-be-cleared"
+
+            result = subprocess.run(
+                ["sh", str(self.script), "start", "grok-daily-brief", "grok"],
+                cwd=str(self.repo_root),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            calls = log_path.read_text(encoding="utf-8").splitlines()
+            self.assertRegex(calls[0], r"ASSIGNEE=\s+NO_ASSIGNEE=")
+            self.assertNotIn("should-be-cleared", calls[0])
 
     def test_finish_marks_issue_done_and_comments_summary(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -27,6 +27,10 @@ MIN_VOLUME_WHALE_BACKED = 3000.0
 MAX_STAKE_FRACTION = 0.02
 MAX_OPEN_EXPOSURE_FRACTION = 0.10
 FRACTIONAL_KELLY = 0.25
+BONDING_MIN_EDGE = 0.01
+BONDING_MIN_CONFIDENCE = 0.50
+BONDING_MAX_STAKE_FRACTION = 0.01
+BONDING_MAX_OPEN_EXPOSURE_FRACTION = 0.05
 
 
 def validate_probability(value, label):
@@ -68,19 +72,33 @@ def build_record(
     )
     edge = selected_probability - market_probability
     raw_kelly = kelly_fraction(market_probability, selected_probability)
-    stake_fraction = min(raw_kelly * FRACTIONAL_KELLY, MAX_STAKE_FRACTION)
+    selection_source = candidate.get("selection_source") or ""
+    min_edge = MIN_EDGE
+    min_confidence = MIN_CONFIDENCE
+    max_stake_fraction = MAX_STAKE_FRACTION
+    max_open_exposure_fraction = MAX_OPEN_EXPOSURE_FRACTION
+    if selection_source == "bonding_copy":
+        min_edge = BONDING_MIN_EDGE
+        min_confidence = BONDING_MIN_CONFIDENCE
+        max_stake_fraction = BONDING_MAX_STAKE_FRACTION
+        max_open_exposure_fraction = BONDING_MAX_OPEN_EXPOSURE_FRACTION
+
+    stake_fraction = min(raw_kelly * FRACTIONAL_KELLY, max_stake_fraction)
     stake_amount = round(bankroll_before * stake_fraction, 2)
     open_exposure = metrics.unresolved_exposure(str(candidate["workspace_root"]))
 
     gate_failures = []
-    if edge < MIN_EDGE:
+    if edge < min_edge:
         gate_failures.append("edge_below_threshold")
-    if confidence < MIN_CONFIDENCE:
+    if confidence < min_confidence:
         gate_failures.append("confidence_below_threshold")
     volume = float(candidate.get("volume", 0.0) or 0.0)
     copy_strat = candidate.get("copy_strategy") or {}
     traders = int(copy_strat.get("traders_with_matching_positions", 0) or 0)
-    min_vol = MIN_VOLUME_WHALE_BACKED if traders >= 2 else MIN_VOLUME
+    if selection_source == "bonding_copy":
+        min_vol = MIN_VOLUME_WHALE_BACKED
+    else:
+        min_vol = MIN_VOLUME_WHALE_BACKED if traders >= 2 else MIN_VOLUME
     if volume < min_vol:
         gate_failures.append("volume_below_threshold")
     if stake_fraction <= 0:
@@ -88,7 +106,7 @@ def build_record(
     if (
         bankroll_before > 0
         and ((open_exposure + stake_amount) / bankroll_before)
-        > MAX_OPEN_EXPOSURE_FRACTION
+        > max_open_exposure_fraction
     ):
         gate_failures.append("open_exposure_cap")
 
@@ -114,6 +132,7 @@ def build_record(
         "whale_confidence": copy_strat.get("confidence"),
         "whale_traders": copy_strat.get("traders_with_matching_positions"),
         "selection_source": candidate.get("selection_source"),
+        "strategy_profile": "bonding_copy" if selection_source == "bonding_copy" else "default",
         "reasoning": reasoning,
         "action": action,
         "gate_failures": gate_failures,

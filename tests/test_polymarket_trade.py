@@ -174,6 +174,82 @@ class PolymarketTradeTests(unittest.TestCase):
         self.assertEqual(signal["status"], "ok")
         self.assertEqual(signal["traders_with_matching_positions"], 2)
 
+    def test_select_bonding_copy_candidate_prefers_near_resolution_high_probability(self):
+        soon = (datetime.now(timezone.utc) + timedelta(hours=8)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        later = (datetime.now(timezone.utc) + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        markets = [
+            {
+                "id": "m-bond",
+                "conditionId": "0xbond",
+                "question": "Will BTC close above 120k this week?",
+                "endDate": soon,
+                "outcomePrices": ["0.98", "0.02"],
+                "volume": "20000",
+            },
+            {
+                "id": "m-far",
+                "conditionId": "0xfar",
+                "question": "Will ETH hit 10k this year?",
+                "endDate": later,
+                "outcomePrices": ["0.99", "0.01"],
+                "volume": "20000",
+            },
+        ]
+
+        with mock.patch.object(
+            trade,
+            "fetch_bonding_traders",
+            return_value=[
+                {"proxyWallet": "0x751a2b86cab503496efd325c8344e10159349ea1", "rank": "1"},
+                {"proxyWallet": "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b", "rank": "2"},
+            ],
+        ):
+            def fake_positions(wallet, condition_id=None, limit=100):
+                if condition_id:
+                    return []
+                if wallet.startswith("0x751a"):
+                    return [{"conditionId": "0xbond", "outcome": "Yes", "currentValue": 2000, "title": "Will BTC close above 120k this week?"}]
+                return [{"conditionId": "0xbond", "outcome": "Yes", "currentValue": 1200, "title": "Will BTC close above 120k this week?"}]
+
+            with mock.patch.object(trade, "fetch_positions_for_user", side_effect=fake_positions):
+                best_market, signal = trade.select_bonding_copy_candidate(markets)
+
+        self.assertIsNotNone(best_market)
+        self.assertEqual(best_market["conditionId"], "0xbond")
+        self.assertIsNotNone(signal)
+        self.assertEqual(signal["status"], "ok")
+        self.assertGreaterEqual(signal["consensus_probability_yes"], 0.97)
+
+    def test_select_bonding_copy_candidate_avoids_15_minute_markets(self):
+        soon = (datetime.now(timezone.utc) + timedelta(hours=4)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        markets = [
+            {
+                "id": "m-latency",
+                "conditionId": "0xlatency",
+                "question": "Will BTC be above 120k in the next 15 minutes?",
+                "endDate": soon,
+                "outcomePrices": ["0.99", "0.01"],
+                "volume": "50000",
+            }
+        ]
+
+        with mock.patch.object(
+            trade,
+            "fetch_bonding_traders",
+            return_value=[
+                {"proxyWallet": "0x751a2b86cab503496efd325c8344e10159349ea1", "rank": "1"},
+            ],
+        ):
+            with mock.patch.object(
+                trade,
+                "fetch_positions_for_user",
+                return_value=[{"conditionId": "0xlatency", "outcome": "Yes", "currentValue": 3000, "title": "Will BTC be above 120k in the next 15 minutes?"}],
+            ):
+                best_market, signal = trade.select_bonding_copy_candidate(markets)
+
+        self.assertIsNone(best_market)
+        self.assertIsNone(signal)
+
 
 if __name__ == "__main__":
     unittest.main()

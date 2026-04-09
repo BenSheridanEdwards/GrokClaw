@@ -20,7 +20,7 @@ CORE_WORKFLOWS = {
     "grok-daily-brief": {
         "schedule": {"kind": "daily", "hours": (8,)},
         "grace_minutes": 20,
-        "audit_checks": [(("suggestions", "health"), ("Daily system brief:", "Daily Suggestion #", "Daily brief "))],
+        "audit_checks": [(("suggestions", "health"), ("Daily system brief:", "Daily system brief (", "Daily Suggestion #", "Daily brief "))],
     },
     "grok-openclaw-research": {
         "schedule": {"kind": "daily", "hours": (7, 13, 19)},
@@ -33,7 +33,10 @@ CORE_WORKFLOWS = {
         "grace_minutes": 20,
         "research_glob": "data/alpha/research/*.md",
         "agent_report": ("alpha", "alpha-polymarket"),
-        "audit_checks": [("polymarket", ("Alpha session:",))],
+        # Prefixes must match the hourly Polymarket line in docs/prompts/cron-work-alpha-polymarket.md
+        "audit_checks": [
+            ("polymarket", ("Alpha session:", "Alpha · Hourly ·", "Alpha (hourly):")),
+        ],
     },
 }
 
@@ -182,11 +185,11 @@ def has_recent_research(
     earliest: dt.datetime,
     record_ts: Optional[dt.datetime],
 ) -> bool:
-    """True if expected markdown for this run exists or any matching file was modified since earliest."""
+    """True if expected markdown exists for timestamped runs, else fallback to recent-glob check."""
     if record_ts:
         expected = expected_research_path_for_record(root, job, research_glob, record_ts)
-        if expected is not None and expected.is_file():
-            return True
+        if expected is not None:
+            return expected.is_file()
     return has_recent_file(root, research_glob, earliest)
 
 
@@ -242,7 +245,7 @@ def has_recent_audit_event(root: Path, topic_names, prefixes: tuple[str, ...], e
         timestamp = parse_ts(event.get("ts"))
         if not timestamp or timestamp < earliest:
             continue
-        message = event.get("message", "")
+        message = (event.get("message") or "").strip()
         if any(message.startswith(prefix) for prefix in prefixes):
             return True
     return False

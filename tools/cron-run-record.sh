@@ -38,6 +38,12 @@ DIR="$WORKSPACE_ROOT/data/cron-runs"
 DATE=$(date -u +%Y-%m-%d)
 FILE="$DIR/${DATE}.jsonl"
 mkdir -p "$DIR"
+DIAG_LOG="$DIR/cron-run-record-diagnostics.log"
+
+diag() {
+  ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  printf '%s %s\n' "$ts" "$*" >>"$DIAG_LOG" 2>/dev/null || true
+}
 
 # Resolve Paperclip issue UUID: on-disk file wins (updated on every lifecycle start); env is often stale
 # across long agent turns and can close the wrong issue while a newer run's issue stays in_progress.
@@ -50,7 +56,7 @@ if [ -z "$ISSUE_UUID" ]; then
   ISSUE_UUID="${PAPERCLIP_ISSUE_UUID:-}"
 fi
 
-export CRON_JOB="$JOB" CRON_AGENT="$AGENT" CRON_STATUS="$STATUS" CRON_SUMMARY="$SUMMARY" CRON_FILE="$FILE"
+export CRON_JOB="$JOB" CRON_AGENT="$AGENT" CRON_STATUS="$STATUS" CRON_SUMMARY="$SUMMARY" CRON_FILE="$FILE" CRON_RUN_ID_VALUE="${CRON_RUN_ID:-}"
 python3 <<'PY'
 import json, os, datetime
 
@@ -59,9 +65,12 @@ agent = os.environ["CRON_AGENT"]
 status = os.environ["CRON_STATUS"]
 summary = os.environ["CRON_SUMMARY"].strip()
 path = os.environ["CRON_FILE"]
+run_id = os.environ.get("CRON_RUN_ID_VALUE", "").strip()
 
 ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 rec = {"job": job, "agent": agent, "ts": ts, "status": status, "summary": summary}
+if run_id:
+    rec["runId"] = run_id
 line = json.dumps(rec, ensure_ascii=False)
 with open(path, "a", encoding="utf-8") as f:
     f.write(line + "\n")
@@ -74,31 +83,26 @@ fi
 TELEGRAM_POST="$WORKSPACE_ROOT/tools/telegram-post.sh"
 LIFECYCLE="$WORKSPACE_ROOT/tools/cron-paperclip-lifecycle.sh"
 PAPERCLIP_API="$WORKSPACE_ROOT/tools/paperclip-api.sh"
-WORKFLOW_HEALTH_AUDIT="$WORKSPACE_ROOT/tools/_workflow_health.py"
-WORKFLOW_HEALTH_HANDLE="$WORKSPACE_ROOT/tools/_workflow_health_handle.py"
-TELEGRAM_MESSAGE="[$AGENT] $JOB: $STATUS -- $SUMMARY"
-WORKFLOW_HEALTH_READY=0
-if [ -f "$WORKFLOW_HEALTH_AUDIT" ] && [ -f "$WORKFLOW_HEALTH_HANDLE" ]; then
-  WORKFLOW_HEALTH_READY=1
-fi
 
 if [ -n "$ISSUE_UUID" ]; then
   LIFECYCLE_STATUS="$STATUS"
-  "$LIFECYCLE" finish "$ISSUE_UUID" "$LIFECYCLE_STATUS" "$SUMMARY"
+  if ! "$LIFECYCLE" finish "$ISSUE_UUID" "$LIFECYCLE_STATUS" "$SUMMARY"; then
+    diag "paperclip_finish_failed job=$JOB issue=$ISSUE_UUID status=$LIFECYCLE_STATUS"
+  fi
+
+  if [ -n "${CRON_RUN_ID:-}" ]; then
+    if ! "$PAPERCLIP_API" comment "$ISSUE_UUID" "Run ID: ${CRON_RUN_ID} | terminal status: ${STATUS}"; then
+      diag "paperclip_runid_comment_failed job=$JOB issue=$ISSUE_UUID run_id=${CRON_RUN_ID}"
+    fi
+  fi
 
   if [ "$STATUS" = "error" ] && [ -n "${CRON_ERROR_DETAILS:-}" ]; then
-    "$PAPERCLIP_API" comment "$ISSUE_UUID" "Error details: ${CRON_ERROR_DETAILS}"
+    if ! "$PAPERCLIP_API" comment "$ISSUE_UUID" "Error details: ${CRON_ERROR_DETAILS}"; then
+      diag "paperclip_comment_failed job=$JOB issue=$ISSUE_UUID"
+    fi
   fi
 fi
 
-if [ "$STATUS" = "error" ] && [ "$WORKFLOW_HEALTH_READY" -eq 0 ]; then
-  "$TELEGRAM_POST" health "$TELEGRAM_MESSAGE"
-fi
-
-if [ "$WORKFLOW_HEALTH_READY" -eq 1 ]; then
-  AUDIT_RESULT="$(mktemp)"
-  if python3 "$WORKFLOW_HEALTH_AUDIT" audit-one "$JOB" --include-paperclip >"$AUDIT_RESULT" 2>/dev/null; then
-    python3 "$WORKFLOW_HEALTH_HANDLE" <"$AUDIT_RESULT" >/dev/null 2>&1 || true
-  fi
-  rm -f "$AUDIT_RESULT"
-fi
+# The workflow checking and reporting layers are intentionally separated:
+# - tools/cron-workflow-check.sh owns workflow-health checks
+# - tools/cron-workflow-report.sh owns alert/report handling

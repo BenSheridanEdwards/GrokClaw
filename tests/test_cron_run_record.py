@@ -62,6 +62,7 @@ class CronRunRecordTests(unittest.TestCase):
             env = os.environ.copy()
             env["WORKSPACE_ROOT"] = str(workspace)
             env["PAPERCLIP_ISSUE_UUID"] = "issue-123"
+            env["CRON_RUN_ID"] = "run-alpha-123"
 
             result = subprocess.run(
                 ["sh", str(self.script), "alpha-polymarket", "alpha", "ok", "placed one trade"],
@@ -80,6 +81,7 @@ class CronRunRecordTests(unittest.TestCase):
             self.assertEqual(record["agent"], "alpha")
             self.assertEqual(record["status"], "ok")
             self.assertEqual(record["summary"], "placed one trade")
+            self.assertEqual(record["runId"], "run-alpha-123")
 
             self.assertEqual(
                 lifecycle_log.read_text(encoding="utf-8").strip(),
@@ -187,9 +189,9 @@ class CronRunRecordTests(unittest.TestCase):
                 lifecycle_log.read_text(encoding="utf-8").strip(),
                 "finish issue-123 error trade loop failed",
             )
-            self.assertEqual(
-                telegram_log.read_text(encoding="utf-8").strip(),
-                "health [alpha] alpha-polymarket: error -- trade loop failed",
+            self.assertFalse(
+                telegram_log.exists(),
+                "reporting is handled by cron-workflow-report.sh, not cron-run-record.sh",
             )
             self.assertIn("comment issue-123 Error details:", paperclip_log.read_text(encoding="utf-8"))
             self.assertIn("Traceback: market validation failed", paperclip_log.read_text(encoding="utf-8"))
@@ -222,11 +224,69 @@ class CronRunRecordTests(unittest.TestCase):
                 check=False,
             )
 
-            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             self.assertEqual(
                 lifecycle_log.read_text(encoding="utf-8").strip(),
                 "finish issue-123 error placed one trade",
             )
+
+    def test_lifecycle_finish_failure_does_not_abort_audit(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._setup_workspace_tools(workspace)
+            audit_log = workspace / "audit.log"
+            handler_log = workspace / "handler.log"
+
+            self._write_stub(
+                workspace / "tools" / "cron-paperclip-lifecycle.sh",
+                textwrap.dedent(
+                    """\
+                    #!/bin/sh
+                    set -eu
+                    exit 1
+                    """
+                ),
+            )
+            self._write_stub(
+                workspace / "tools" / "_workflow_health.py",
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env python3
+                    import json, sys
+                    with open("{audit_log}", "a", encoding="utf-8") as handle:
+                        handle.write(" ".join(sys.argv[1:]) + "\\n")
+                    print(json.dumps({{"healthy": True, "failures": []}}))
+                    """
+                ),
+            )
+            self._write_stub(
+                workspace / "tools" / "_workflow_health_handle.py",
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env python3
+                    import sys
+                    with open("{handler_log}", "a", encoding="utf-8") as handle:
+                        handle.write(sys.stdin.read())
+                    """
+                ),
+            )
+
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["PAPERCLIP_ISSUE_UUID"] = "issue-123"
+
+            result = subprocess.run(
+                ["sh", str(self.script), "alpha-polymarket", "alpha", "ok", "placed one trade"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertFalse(audit_log.exists(), "workflow checks moved to cron-workflow-check.sh")
+            self.assertFalse(handler_log.exists(), "workflow reporting moved to cron-workflow-report.sh")
 
     def test_resolves_issue_uuid_from_openclaw_job_file_when_env_unset(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -304,7 +364,7 @@ class CronRunRecordTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             self.assertFalse(lifecycle_log.exists(), "lifecycle should not run when no UUID is available")
 
-    def test_runs_audit_one_and_hands_payload_to_handler(self):
+    def test_does_not_run_workflow_health_layer(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             self._setup_workspace_tools(workspace)
@@ -357,12 +417,10 @@ class CronRunRecordTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-            self.assertTrue(audit_log.exists(), "cron-run-record should invoke workflow audit")
-            self.assertIn("audit-one alpha-polymarket --include-paperclip", audit_log.read_text(encoding="utf-8"))
-            self.assertTrue(handler_log.exists(), "cron-run-record should hand audit payload to the handler")
-            self.assertIn('"failureHash": "abc123"', handler_log.read_text(encoding="utf-8"))
+            self.assertFalse(audit_log.exists(), "workflow checks are handled by cron-workflow-check.sh")
+            self.assertFalse(handler_log.exists(), "workflow reporting is handled by cron-workflow-report.sh")
 
-    def test_error_run_defers_to_workflow_health_handler_when_present(self):
+    def test_error_run_does_not_call_workflow_health_handler_directly(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             _, telegram_log, _ = self._setup_workspace_tools(workspace)
@@ -411,8 +469,8 @@ class CronRunRecordTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-            self.assertIn("audit-one alpha-polymarket --include-paperclip", audit_log.read_text(encoding="utf-8"))
-            self.assertIn('"failureHash": "err123"', handler_log.read_text(encoding="utf-8"))
+            self.assertFalse(audit_log.exists(), "workflow checks are now a separate layer")
+            self.assertFalse(handler_log.exists(), "workflow reporting is now a separate layer")
             self.assertFalse(telegram_log.exists(), "direct telegram alert should be skipped when the workflow health handler is active")
 
 

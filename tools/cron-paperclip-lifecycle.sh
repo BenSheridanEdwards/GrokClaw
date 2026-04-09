@@ -35,6 +35,18 @@ PY
 create_issue() {
   job_name="$1"
   agent="$2"
+  case "$agent" in
+    alpha)
+      if [ -n "${PAPERCLIP_ALPHA_AGENT_ID:-}" ]; then
+        export PAPERCLIP_ASSIGNEE_AGENT_ID="$PAPERCLIP_ALPHA_AGENT_ID"
+      else
+        unset PAPERCLIP_ASSIGNEE_AGENT_ID 2>/dev/null || true
+      fi
+      ;;
+    *)
+      unset PAPERCLIP_ASSIGNEE_AGENT_ID 2>/dev/null || true
+      ;;
+  esac
   python3 "$WORKSPACE_ROOT/tools/_workflow_health.py" paperclip-allowed "$job_name" >/dev/null
   now_iso="$(timestamp_iso)"
   now_display="$(timestamp_display "$now_iso")"

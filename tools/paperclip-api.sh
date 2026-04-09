@@ -9,14 +9,17 @@ set -euo pipefail
 #   paperclip-api.sh list-issues [status]
 #   paperclip-api.sh create-issue <title> <description> [priority]
 # Env:
-#   PAPERCLIP_NO_ASSIGNEE=1  Create issue without assigneeAgentId
-#   PAPERCLIP_USE_BEARER=1   Force Bearer token on loopback (default: local header on 127.0.0.1)
+#   PAPERCLIP_NO_ASSIGNEE=1           Create issue without assigneeAgentId
+#   PAPERCLIP_ASSIGNEE_AGENT_ID=uuid  Override assignee for create-issue (cron sets this for Alpha)
+#   PAPERCLIP_USE_BEARER=1           Force Bearer token on loopback (default: local header on 127.0.0.1)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 KEY_FILE="${HOME}/.openclaw/workspace/paperclip-claimed-api-key.json"
 API_BASE="http://127.0.0.1:3100/api"
 COMPANY_ID="2e003f55-4bdf-465b-acd3-143ce3745aa8"
 AGENT_ID="b5bb9ffe-2b4e-437a-b7d7-feee36da31fb"
+# create-issue uses PAPERCLIP_ASSIGNEE_AGENT_ID when set (see cron-paperclip-lifecycle.sh + PAPERCLIP_ALPHA_AGENT_ID).
+ASSIGNEE_FOR_CREATE="${PAPERCLIP_ASSIGNEE_AGENT_ID:-$AGENT_ID}"
 
 if [ -f "$KEY_FILE" ]; then
   TOKEN=$(python3 -c "import json; print(json.load(open('$KEY_FILE'))['token'])" 2>/dev/null || echo "")
@@ -110,7 +113,7 @@ payload = {
     'priority': '$priority',
 }
 if '${PAPERCLIP_NO_ASSIGNEE:-0}' != '1':
-    payload['assigneeAgentId'] = '$AGENT_ID'
+    payload['assigneeAgentId'] = '$ASSIGNEE_FOR_CREATE'
 print(json.dumps(payload))
 ")
     curl -sf -X POST "${API_BASE}/companies/${COMPANY_ID}/issues" \

@@ -13,10 +13,10 @@ GrokClaw runs multiple OpenClaw agents on one gateway:
 | Agent | Model | Fallbacks | Workloads |
 |-------|-------|-----------|-----------|
 | **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | — | Daily system brief, OpenClaw research, PR review, feature intake |
-| **Alpha** | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | `xai/grok-4-1-fast-non-reasoning` | Hourly Polymarket research and trading, long-context (requires `OPENROUTER_API_KEY`) |
+| **Alpha** | `xai/grok-4-1-fast-non-reasoning` | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Hourly Polymarket research and trading; OpenRouter fallback when xAI is unavailable (`OPENROUTER_API_KEY`) |
 | **Kimi** | placeholder shell | — | Reserved for future reassignment; no active jobs, memory, or runtime state |
 
-Fallback chain: Alpha uses NVIDIA Nemotron 3 Super (free on OpenRouter, 120B MoE) as primary, then Grok as last resort. Jobs must never silently die because a free provider is down.
+Fallback chain: Alpha uses **Grok** (`xai/grok-4-1-fast-non-reasoning`) as primary (same fast model as Grok), then NVIDIA Nemotron 3 Super (free on OpenRouter) if xAI fails. Jobs must never silently die because a provider is down.
 
 Routing: Cron jobs with `agentId: "alpha"` run on Alpha. Alpha reports to Grok via `agent-report.sh`; Grok synthesizes and reports to you in the daily brief (08:00). See `docs/agent-tasks.md` for the active task breakdown. Paperclip may target Alpha or another future shell explicitly via `adapterConfig.agentId`. Manual runs: `OPENCLAW_AGENT_ID=alpha ./tools/run-openclaw-agent.sh`.
 
@@ -227,12 +227,17 @@ Paperclip is the orchestration dashboard for real work runs — it tracks per-ru
 - `tools/cron-paperclip-lifecycle.sh start <job> <agent>` — create a fresh Paperclip issue for a workflow run
 - `tools/cron-paperclip-lifecycle.sh finish <issue-id> <ok|error|skipped> "<summary>"` — close the run issue as `done`, `failed`, or `cancelled`
 
-### Paperclip second agent
+### Paperclip second agent (Research Worker / Alpha)
 
-To assign Paperclip issues to a secondary worker, create a second agent in the Paperclip UI:
-- Adapter: `openclaw_gateway`
-- Same URL, auth, and gateway token as Grok
-- In adapter config, set `agentId` (or `payloadTemplate.agentId`) to the active target such as `"alpha"`
+Paperclip only shows **separate employees** when you **create a second agent** on the GrokClaw company (Settings → Agents): give them a title such as **Research Worker**, adapter **`openclaw_gateway`**, same gateway URL/token as Grok, and in adapter config set **`agentId`** (or `payloadTemplate.agentId`) to **`"alpha"`** so OpenClaw runs the Alpha model when Paperclip wakes that worker.
+
+**Assignee on run issues:** `tools/paperclip-api.sh` defaults new issues to Grok’s Paperclip agent id. For hourly Polymarket runs, set the Research Worker’s **Paperclip agent UUID** in `.env`:
+
+`PAPERCLIP_ALPHA_AGENT_ID=<uuid-from-paperclip-agent-profile>`
+
+Then `cron-paperclip-lifecycle.sh start alpha-polymarket alpha` assigns the run issue to that employee. If unset, Alpha issues stay assigned to the default Grok agent (confusing in the UI).
+
+**OpenClaw session key:** OpenClaw only binds an agent from keys shaped `agent:<openclawAgentId>:<rest>`. The bundled `openclaw_gateway` adapter (`paperclip/packages/adapters/openclaw-gateway`) builds keys such as `agent:alpha:paperclip:issue:<uuid>`, `agent:alpha:paperclip:run:<runId>`, and `agent:alpha:paperclip:main` for heartbeats, using `adapterConfig.agentId` (or the Paperclip agent name `alpha` / `kimi` / `grok`). Optional `adapterConfig.sessionKey` without an `agent:` prefix is prefixed as `agent:<id>:<suffix>` for extra isolation.
 
 ### Per-run workflow issues
 

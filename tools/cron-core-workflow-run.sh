@@ -30,7 +30,20 @@ PROMPT_FILE="$WORKSPACE_ROOT/docs/prompts/cron-work-${JOB}.md"
 LOG_DIR="$WORKSPACE_ROOT/data/cron-runs"
 LOG_FILE="$LOG_DIR/orchestrator-${JOB}.log"
 SESSION_ID="cron-core-${JOB}-$(date +%s)-$$"
-TIMEOUT_SEC="${OPENCLAW_AGENT_TIMEOUT_SECONDS:-600}"
+CRON_RUN_ID="${CRON_RUN_ID:-cron-core-${JOB}-$(date +%s)-$$}"
+if [ "$JOB" = "alpha-polymarket" ]; then
+  TIMEOUT_SEC="${OPENCLAW_AGENT_TIMEOUT_SECONDS_ALPHA:-${OPENCLAW_AGENT_TIMEOUT_SECONDS:-900}}"
+  RETRIES="${OPENCLAW_AGENT_RETRIES_ALPHA:-${OPENCLAW_AGENT_RETRIES:-2}}"
+  RETRY_BACKOFF_SEC="${OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS_ALPHA:-${OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS:-3}}"
+  RETRY_TELEMETRY_FILE="$LOG_DIR/alpha-retry-telemetry.jsonl"
+else
+  TIMEOUT_SEC="${OPENCLAW_AGENT_TIMEOUT_SECONDS:-600}"
+  RETRIES="${OPENCLAW_AGENT_RETRIES:-0}"
+  RETRY_BACKOFF_SEC="${OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS:-1}"
+  RETRY_TELEMETRY_FILE=""
+fi
+LOCK_DIR="$WORKSPACE_ROOT/.openclaw/locks/cron-core-${JOB}.lock"
+LOCK_ACQUIRED=0
 
 AGENT_EXIT=""
 _CRON_CORE_FINALIZED=""
@@ -63,17 +76,75 @@ _finalize() {
       "$ts" "$JOB" "$AGENT" "${AGENT_EXIT:-na}" "$status" "$summary"
   } >>"$LOG_FILE" 2>/dev/null || true
 
+  # Deterministic evidence contract backfill: ensures required artifacts/telegram evidence
+  # exist even when the model returns narrative output without executing operational commands.
+  EVIDENCE_PATH="$WORKSPACE_ROOT/tools/cron-workflow-evidence.sh"
+  EVIDENCE_FILE=""
+  EVIDENCE_REPAIRS="0"
+  if [ -x "$EVIDENCE_PATH" ]; then
+    EVIDENCE_FILE="$(env CRON_RUN_ID="${CRON_RUN_ID}" "$EVIDENCE_PATH" "$JOB" "$AGENT" 2>/dev/null || true)"
+    EVIDENCE_FILE="$(printf '%s' "$EVIDENCE_FILE" | tr -d '\r\n')"
+    if [ -n "$EVIDENCE_FILE" ] && [ -f "$EVIDENCE_FILE" ]; then
+      EVIDENCE_REPAIRS="$(
+        python3 - "$EVIDENCE_FILE" <<'PY'
+import json, sys
+path = sys.argv[1]
+try:
+    payload = json.loads(open(path, encoding="utf-8").read() or "{}")
+except Exception:
+    print(0)
+    raise SystemExit(0)
+repairs = payload.get("repairs") or []
+print(len(repairs))
+PY
+      )"
+      EVIDENCE_REPAIRS="${EVIDENCE_REPAIRS:-0}"
+    fi
+  fi
+
+  if [ "$status" = "ok" ] && [ "${EVIDENCE_REPAIRS:-0}" -gt 0 ]; then
+    status="error"
+    summary="orchestrator: evidence repairs applied (${EVIDENCE_REPAIRS})"
+    export CRON_ERROR_DETAILS="evidence contract auto-repaired missing outputs"
+  fi
+
   # Terminal record + Paperclip finish (cron-run-record.sh); tolerate failure so trap completes.
   # shellcheck disable=SC2086
-  env CRON_ERROR_DETAILS="${CRON_ERROR_DETAILS:-}" \
+  env CRON_ERROR_DETAILS="${CRON_ERROR_DETAILS:-}" CRON_RUN_ID="${CRON_RUN_ID}" \
     "$WORKSPACE_ROOT/tools/cron-run-record.sh" "$JOB" "$AGENT" "$status" "$summary" || true
 
+  # Layered checks/reporting:
+  # - cron-workflow-check.sh computes workflow-health evidence
+  # - cron-workflow-report.sh handles escalation/reporting from that evidence
+  CHECK_PATH="$WORKSPACE_ROOT/tools/cron-workflow-check.sh"
+  REPORT_PATH="$WORKSPACE_ROOT/tools/cron-workflow-report.sh"
+  CHECK_RESULT=""
+  if [ -x "$CHECK_PATH" ]; then
+    CHECK_RESULT="$(env CRON_RUN_ID="${CRON_RUN_ID}" "$CHECK_PATH" "$JOB" 2>/dev/null || true)"
+    CHECK_RESULT="$(printf '%s' "$CHECK_RESULT" | tr -d '\r\n')"
+  fi
+  if [ -x "$REPORT_PATH" ]; then
+    env CRON_RUN_ID="${CRON_RUN_ID}" "$REPORT_PATH" "$JOB" "${CHECK_RESULT:-}" || true
+  fi
+
   rm -f "$ISSUE_FILE_ABS"
+  if [ "$LOCK_ACQUIRED" -eq 1 ]; then
+    rmdir "$LOCK_DIR" 2>/dev/null || true
+  fi
 }
 
 trap '_finalize' EXIT
 
 mkdir -p "$WORKSPACE_ROOT/.openclaw" "$LOG_DIR"
+mkdir -p "$WORKSPACE_ROOT/.openclaw/locks"
+
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  _CRON_CORE_FINALIZED=1
+  env CRON_RUN_ID="$CRON_RUN_ID" \
+    "$WORKSPACE_ROOT/tools/cron-run-record.sh" "$JOB" "$AGENT" skipped "already running: lock exists for ${JOB}" || true
+  exit 0
+fi
+LOCK_ACQUIRED=1
 
 if [ ! -f "$PROMPT_FILE" ]; then
   echo "cron-core-workflow-run.sh: missing prompt file: $PROMPT_FILE" >&2
@@ -84,14 +155,36 @@ fi
 UUID="$("$WORKSPACE_ROOT/tools/cron-paperclip-lifecycle.sh" start "$JOB" "$AGENT")"
 printf '%s' "$UUID" >"$ISSUE_FILE_ABS"
 
-"$WORKSPACE_ROOT/tools/cron-run-record.sh" "$JOB" "$AGENT" started 'run started'
+env CRON_RUN_ID="$CRON_RUN_ID" \
+  "$WORKSPACE_ROOT/tools/cron-run-record.sh" "$JOB" "$AGENT" started 'run started'
 
 set +e
-python3 "$SCRIPT_DIR/_cron_openclaw_agent.py" "$PROMPT_FILE" \
-  --agent "$AGENT" \
-  --session-id "$SESSION_ID" \
-  --timeout "$TIMEOUT_SEC" \
-  --cwd "$WORKSPACE_ROOT"
+if [ "$JOB" = "alpha-polymarket" ] && [ -x "$WORKSPACE_ROOT/tools/alpha-polymarket-deterministic.sh" ]; then
+  CRON_RUN_ID="$CRON_RUN_ID" "$WORKSPACE_ROOT/tools/alpha-polymarket-deterministic.sh"
+elif [ "$JOB" = "grok-openclaw-research" ] && [ -x "$WORKSPACE_ROOT/tools/grok-openclaw-research-deterministic.sh" ]; then
+  CRON_RUN_ID="$CRON_RUN_ID" "$WORKSPACE_ROOT/tools/grok-openclaw-research-deterministic.sh"
+else
+  if [ -n "$RETRY_TELEMETRY_FILE" ]; then
+    OPENCLAW_AGENT_RETRIES="$RETRIES" OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS="$RETRY_BACKOFF_SEC" \
+      CRON_RUN_ID="$CRON_RUN_ID" python3 "$SCRIPT_DIR/_cron_openclaw_agent.py" "$PROMPT_FILE" \
+      --agent "$AGENT" \
+      --session-id "$SESSION_ID" \
+      --timeout "$TIMEOUT_SEC" \
+      --retries "$RETRIES" \
+      --retry-backoff "$RETRY_BACKOFF_SEC" \
+      --telemetry-file "$RETRY_TELEMETRY_FILE" \
+      --cwd "$WORKSPACE_ROOT"
+  else
+    OPENCLAW_AGENT_RETRIES="$RETRIES" OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS="$RETRY_BACKOFF_SEC" \
+      CRON_RUN_ID="$CRON_RUN_ID" python3 "$SCRIPT_DIR/_cron_openclaw_agent.py" "$PROMPT_FILE" \
+      --agent "$AGENT" \
+      --session-id "$SESSION_ID" \
+      --timeout "$TIMEOUT_SEC" \
+      --retries "$RETRIES" \
+      --retry-backoff "$RETRY_BACKOFF_SEC" \
+      --cwd "$WORKSPACE_ROOT"
+  fi
+fi
 AGENT_EXIT=$?
 set -e
 

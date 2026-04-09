@@ -27,6 +27,20 @@ MARKET_PAGE_SIZE = 50
 MARKET_MAX_PAGES = 10
 LEADERBOARD_LIMIT = 5  # Whale focus: top 5 traders by PNL
 POSITIONS_PAGE_SIZE = 100
+BONDING_MAX_HOURS_TO_RESOLUTION = 24
+BONDING_MIN_PRICE = 0.97
+BONDING_MAX_PRICE = 1.0
+BONDING_TRADER_WALLETS = (
+    "0x751a2b86cab503496efd325c8344e10159349ea1",  # Sharky6999
+    "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b",  # 033033033
+    "0x7072dd52161bae614bec6905846a53c9a3a53413",  # ForesightOracle
+)
+SHORT_TERM_LATENCY_PATTERNS = (
+    "15 minute",
+    "15-minute",
+    "15m",
+    "in the next 15",
+)
 
 # Category keywords: only geopolitical and crypto bets
 CRYPTO_KEYWORDS = (
@@ -92,6 +106,22 @@ def fetch_markets_page(page_size, offset):
         return json.load(resp)
 
 
+def market_prices(market):
+    prices = market.get("outcomePrices") or market.get("prices") or ["0.5", "0.5"]
+    if isinstance(prices, str):
+        prices = json.loads(prices) if prices.strip().startswith("[") else [prices, "0.5"]
+    odds_yes = float(prices[0]) if prices else 0.5
+    odds_no = float(prices[1]) if len(prices) > 1 else 1 - odds_yes
+    return odds_yes, odds_no
+
+
+def market_is_short_term_latency_market(market):
+    text = " ".join(
+        str(market.get(k, "")) for k in ("question", "description", "groupItemTitle")
+    ).lower()
+    return any(pattern in text for pattern in SHORT_TERM_LATENCY_PATTERNS)
+
+
 def fetch_json(url, timeout=30):
     req = urllib.request.Request(url, headers={"User-Agent": "GrokClaw/1.0"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -107,6 +137,8 @@ def select_market(markets, excluded_ids=None):
     best_volume = 0
     for m in markets:
         if not market_matches_categories(m):
+            continue
+        if market_is_short_term_latency_market(m):
             continue
         cid = str(m.get("conditionId") or "").lower()
         mid = str(m.get("id") or m.get("conditionId") or "").lower()
@@ -155,6 +187,13 @@ def fetch_top_traders(limit=LEADERBOARD_LIMIT):
     if isinstance(data, list):
         return data
     return []
+
+
+def fetch_bonding_traders():
+    return [
+        {"proxyWallet": wallet, "rank": str(index + 1)}
+        for index, wallet in enumerate(BONDING_TRADER_WALLETS)
+    ]
 
 
 def fetch_positions_for_user(user, condition_id=None, limit=POSITIONS_PAGE_SIZE):
@@ -408,6 +447,8 @@ def select_copy_candidate(markets, excluded_ids=None):
             continue
         if not market_matches_categories(market):
             continue
+        if market_is_short_term_latency_market(market):
+            continue
         condition_id = str(market.get("conditionId") or "").strip().lower()
         market_id = str(market.get("id") or market.get("conditionId") or "").lower()
         if not condition_id:
@@ -429,6 +470,73 @@ def select_copy_candidate(markets, excluded_ids=None):
             best_score = score
             best_market = market
             best_signal = signal
+
+    return best_market, best_signal
+
+
+def select_bonding_copy_candidate(markets, excluded_ids=None):
+    """Copy late-stage high-probability positions from known bonding wallets."""
+    excluded_ids = excluded_ids or set()
+    traders = fetch_bonding_traders()
+    if not traders:
+        return None, None
+    aggregates = aggregate_top_trader_positions(traders)
+    if not aggregates:
+        return None, None
+
+    now = datetime.now(timezone.utc)
+    bonding_cutoff = now + timedelta(hours=BONDING_MAX_HOURS_TO_RESOLUTION)
+    best_market = None
+    best_signal = None
+    best_score = 0.0
+
+    for market in markets:
+        if not market_matches_categories(market):
+            continue
+        if market_is_short_term_latency_market(market):
+            continue
+        end_str = market.get("endDate") or market.get("end_date_iso")
+        if not end_str:
+            continue
+        try:
+            end = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            continue
+        if not (now < end <= bonding_cutoff):
+            continue
+
+        condition_id = str(market.get("conditionId") or "").strip().lower()
+        market_id = str(market.get("id") or market.get("conditionId") or "").lower()
+        if not condition_id:
+            continue
+        if condition_id in excluded_ids or market_id in excluded_ids:
+            continue
+        aggregate = aggregates.get(condition_id)
+        if not aggregate:
+            continue
+
+        signal = build_signal_from_aggregate(aggregate, len(traders))
+        if not signal:
+            continue
+        if signal.get("traders_with_matching_positions", 0) < 1:
+            continue
+
+        odds_yes, odds_no = market_prices(market)
+        side_price = odds_yes if signal["consensus_side"] == "YES" else odds_no
+        if not (BONDING_MIN_PRICE <= side_price <= BONDING_MAX_PRICE):
+            continue
+
+        notional = signal["yes_weighted_notional"] + signal["no_weighted_notional"]
+        hours_left = max((end - now).total_seconds() / 3600.0, 0.0)
+        resolution_bonus = max(BONDING_MAX_HOURS_TO_RESOLUTION - hours_left, 0.0)
+        score = (notional / 100.0) + (signal["confidence"] * 100.0) + (side_price * 100.0) + resolution_bonus
+        if score > best_score:
+            best_score = score
+            best_market = market
+            best_signal = dict(signal)
+            best_signal["strategy"] = "bonding_copy"
+            best_signal["consensus_side_price"] = round(side_price, 4)
+            best_signal["hours_to_resolution"] = round(hours_left, 2)
 
     return best_market, best_signal
 
@@ -542,8 +650,11 @@ def main():
         workspace_root = resolve_workspace_root(sys.argv)
         excluded_ids = get_already_evaluated_ids(workspace_root, days=2)
         markets = fetch_markets()
-        best, copy_signal = select_copy_candidate(markets, excluded_ids=excluded_ids)
-        selection_source = "whale_top_trader_copy"
+        best, copy_signal = select_bonding_copy_candidate(markets, excluded_ids=excluded_ids)
+        selection_source = "bonding_copy"
+        if not best:
+            best, copy_signal = select_copy_candidate(markets, excluded_ids=excluded_ids)
+            selection_source = "whale_top_trader_copy"
         if not best:
             best = select_market(markets, excluded_ids=excluded_ids)
             selection_source = "volume_fallback"
@@ -555,11 +666,7 @@ def main():
             )
             sys.exit(1)
         # outcomePrices: ["0.72","0.28"] for YES, NO (may be JSON string)
-        prices = best.get("outcomePrices") or best.get("prices") or ["0.5", "0.5"]
-        if isinstance(prices, str):
-            prices = json.loads(prices) if prices.strip().startswith("[") else [prices, "0.5"]
-        odds_yes = float(prices[0]) if prices else 0.5
-        odds_no = float(prices[1]) if len(prices) > 1 else 1 - odds_yes
+        odds_yes, odds_no = market_prices(best)
         out = {
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "id": best.get("id") or best.get("conditionId"),

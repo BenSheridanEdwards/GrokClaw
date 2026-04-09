@@ -76,12 +76,21 @@ class WorkflowHealthTests(unittest.TestCase):
             + "\n",
             encoding="utf-8",
         )
-        (workspace / "data" / "research" / "openclaw" / "2026-04-01.md").write_text("# research\n", encoding="utf-8")
-        (workspace / "data" / "alpha" / "research" / "2026-04-01.md").write_text("# alpha\n", encoding="utf-8")
-        research_epoch = datetime.strptime(research_ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
-        alpha_epoch = datetime.strptime(alpha_ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
-        os.utime(workspace / "data" / "research" / "openclaw" / "2026-04-01.md", (research_epoch, research_epoch))
-        os.utime(workspace / "data" / "alpha" / "research" / "2026-04-01.md", (alpha_epoch, alpha_epoch))
+        research_dt = datetime.strptime(research_ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        alpha_dt = datetime.strptime(alpha_ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        research_slot = {7: "morning", 13: "afternoon", 19: "evening"}.get(research_dt.hour)
+        research_name = (
+            f"{research_dt.strftime('%Y-%m-%d')}-{research_slot}.md"
+            if research_slot
+            else f"{research_dt.strftime('%Y-%m-%d')}.md"
+        )
+        alpha_name = f"{alpha_dt.strftime('%Y-%m-%d-%H')}.md"
+        research_path = workspace / "data" / "research" / "openclaw" / research_name
+        alpha_path = workspace / "data" / "alpha" / "research" / alpha_name
+        research_path.write_text("# research\n", encoding="utf-8")
+        alpha_path.write_text("# alpha\n", encoding="utf-8")
+        os.utime(research_path, (research_dt.timestamp(), research_dt.timestamp()))
+        os.utime(alpha_path, (alpha_dt.timestamp(), alpha_dt.timestamp()))
 
         (workspace / "data" / "agent-reports" / "2026-04-01.json").write_text(
             json.dumps(
@@ -484,7 +493,7 @@ class WorkflowHealthTests(unittest.TestCase):
                 research_ts="2026-04-01T13:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
-            (workspace / "data" / "research" / "openclaw" / "2026-04-01.md").unlink()
+            (workspace / "data" / "research" / "openclaw" / "2026-04-01-afternoon.md").unlink()
 
             report = self._run_audit(workspace, "2026-04-01T13:30:00Z", payload)
             self.assertFalse(report["healthy"])
@@ -679,6 +688,153 @@ class WorkflowHealthTests(unittest.TestCase):
             messages = "\n".join(failure["message"] for failure in report["failures"])
             self.assertIn("alpha-polymarket", messages)
             self.assertIn("still in progress", messages)
+
+    def test_audit_one_alpha_polymarket_accepts_new_telegram_prefix_and_trim(self):
+        """Hourly line may use Alpha · Hourly · / Alpha (hourly): and leading whitespace."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            self._seed_core_jobs(workspace)
+            (workspace / "data" / "cron-runs").mkdir(parents=True, exist_ok=True)
+            (workspace / "data" / "cron-runs" / "2026-04-01.jsonl").write_text(
+                json.dumps(
+                    {
+                        "job": "alpha-polymarket",
+                        "agent": "alpha",
+                        "ts": "2026-04-01T10:10:00Z",
+                        "status": "ok",
+                        "summary": "orchestrator ok",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (workspace / "data" / "alpha" / "research").mkdir(parents=True, exist_ok=True)
+            ar_path = workspace / "data" / "alpha" / "research" / "2026-04-01-10.md"
+            ar_path.write_text("# alpha\n", encoding="utf-8")
+            alpha_epoch = datetime.strptime("2026-04-01T10:12:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
+            os.utime(ar_path, (alpha_epoch, alpha_epoch))
+            (workspace / "data" / "agent-reports").mkdir(parents=True, exist_ok=True)
+            (workspace / "data" / "agent-reports" / "2026-04-01.json").write_text(
+                json.dumps(
+                    {
+                        "reports": [
+                            {
+                                "agent": "alpha",
+                                "job": "alpha-polymarket",
+                                "timestamp": "2026-04-01T10:11:00Z",
+                                "summary": "hold",
+                            },
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (workspace / "data" / "audit-log").mkdir(parents=True, exist_ok=True)
+            (workspace / "data" / "audit-log" / "2026-04-01.jsonl").write_text(
+                json.dumps(
+                    {
+                        "ts": "2026-04-01T10:12:00Z",
+                        "kind": "telegram_post",
+                        "topic": "polymarket",
+                        "message": "\n  Alpha · Hourly · HOLD — no edge this hour; gates applied  \n",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            paperclip = [
+                {
+                    "id": "issue-alpha",
+                    "title": "[alpha-polymarket] 2026-04-01 10:00 UTC",
+                    "status": "done",
+                    "updatedAt": "2026-04-01T10:12:00Z",
+                },
+            ]
+            paperclip_file = workspace / "paperclip-issues.json"
+            paperclip_file.write_text(json.dumps(paperclip), encoding="utf-8")
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(workspace)
+            env["WORKFLOW_HEALTH_NOW"] = "2026-04-01T10:30:00Z"
+            env["WORKFLOW_HEALTH_PAPERCLIP_ISSUES_FILE"] = str(paperclip_file)
+            result = subprocess.run(
+                ["python3", str(self.script), "audit-one", "alpha-polymarket", "--include-paperclip"],
+                cwd=str(self.workspace),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            report = json.loads(result.stdout)
+            self.assertTrue(report["healthy"], msg=report)
+
+        with tempfile.TemporaryDirectory() as tmpdir2:
+            workspace = Path(tmpdir2)
+            self._seed_core_jobs(workspace)
+            (workspace / "data" / "cron-runs").mkdir(parents=True, exist_ok=True)
+            (workspace / "data" / "cron-runs" / "2026-04-01.jsonl").write_text(
+                json.dumps(
+                    {
+                        "job": "alpha-polymarket",
+                        "agent": "alpha",
+                        "ts": "2026-04-01T10:10:00Z",
+                        "status": "ok",
+                        "summary": "ok",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (workspace / "data" / "alpha" / "research").mkdir(parents=True, exist_ok=True)
+            ar_path2 = workspace / "data" / "alpha" / "research" / "2026-04-01-10.md"
+            ar_path2.write_text("# alpha\n", encoding="utf-8")
+            os.utime(ar_path2, (alpha_epoch, alpha_epoch))
+            (workspace / "data" / "agent-reports").mkdir(parents=True, exist_ok=True)
+            (workspace / "data" / "agent-reports" / "2026-04-01.json").write_text(
+                json.dumps(
+                    {
+                        "reports": [
+                            {
+                                "agent": "alpha",
+                                "job": "alpha-polymarket",
+                                "timestamp": "2026-04-01T10:11:00Z",
+                                "summary": "trade",
+                            },
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (workspace / "data" / "audit-log").mkdir(parents=True, exist_ok=True)
+            (workspace / "data" / "audit-log" / "2026-04-01.jsonl").write_text(
+                json.dumps(
+                    {
+                        "ts": "2026-04-01T10:12:00Z",
+                        "kind": "telegram_post",
+                        "topic": "polymarket",
+                        "message": "Alpha (hourly): TRADE — small edge on inflation print.",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            paperclip_file2 = workspace / "paperclip-issues.json"
+            paperclip_file2.write_text(json.dumps(paperclip), encoding="utf-8")
+            env2 = os.environ.copy()
+            env2["WORKSPACE_ROOT"] = str(workspace)
+            env2["WORKFLOW_HEALTH_NOW"] = "2026-04-01T10:30:00Z"
+            env2["WORKFLOW_HEALTH_PAPERCLIP_ISSUES_FILE"] = str(paperclip_file2)
+            result2 = subprocess.run(
+                ["python3", str(self.script), "audit-one", "alpha-polymarket", "--include-paperclip"],
+                cwd=str(self.workspace),
+                env=env2,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result2.returncode, 0, msg=result2.stderr or result2.stdout)
+            report2 = json.loads(result2.stdout)
+            self.assertTrue(report2["healthy"], msg=report2)
 
 
 if __name__ == "__main__":
