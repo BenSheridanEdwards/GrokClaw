@@ -27,7 +27,7 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
 
             self._write_stub(tools / "polymarket-context.sh", "#!/bin/sh\nset -eu\necho 'context ok'\n")
             self._write_stub(
-                tools / "memvid-alpha-query.sh",
+                tools / "alpha-memory-query.sh",
                 "#!/bin/sh\nset -eu\necho \"$1 lookup ok\"\n",
             )
             self._write_stub(
@@ -52,7 +52,7 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
                 ),
             )
             self._write_stub(tools / "polymarket-resolve-turn.sh", "#!/bin/sh\nset -eu\necho '{}'\n")
-            self._write_stub(tools / "memvid-alpha-ingest.sh", "#!/bin/sh\nset -eu\nexit 0\n")
+            self._write_stub(tools / "alpha-memory-ingest.sh", "#!/bin/sh\nset -eu\nexit 0\n")
             self._write_stub(
                 tools / "telegram-post.sh",
                 textwrap.dedent(
@@ -111,7 +111,7 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
             decide_log = workspace / "decide.log"
 
             self._write_stub(tools / "polymarket-context.sh", "#!/bin/sh\nset -eu\necho 'context ok'\n")
-            self._write_stub(tools / "memvid-alpha-query.sh", "#!/bin/sh\nset -eu\necho 'memvid ok'\n")
+            self._write_stub(tools / "alpha-memory-query.sh", "#!/bin/sh\nset -eu\necho 'memory ok'\n")
             self._write_stub(
                 tools / "polymarket-trade.sh",
                 textwrap.dedent(
@@ -134,7 +134,7 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
                 ),
             )
             self._write_stub(tools / "polymarket-resolve-turn.sh", "#!/bin/sh\nset -eu\necho '{}'\n")
-            self._write_stub(tools / "memvid-alpha-ingest.sh", "#!/bin/sh\nset -eu\nexit 0\n")
+            self._write_stub(tools / "alpha-memory-ingest.sh", "#!/bin/sh\nset -eu\nexit 0\n")
             self._write_stub(tools / "telegram-post.sh", "#!/bin/sh\nset -eu\nexit 0\n")
             self._write_stub(tools / "agent-report.sh", "#!/bin/sh\nset -eu\nexit 0\n")
 

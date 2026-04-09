@@ -87,7 +87,7 @@ def build_research_markdown(
         "",
         "## Research Context",
         f"Context summary from polymarket-context.sh: {safe_text(context_text)}",
-        "Recent performance appears in the memvid snippets below, and this run uses deterministic trade mechanics.",
+        "Recent performance appears in the memory snippets below, and this run uses deterministic trade mechanics.",
         "When no robust copy signal exists, the strategy defaults to disciplined HOLD behavior.",
         "",
         "## Market Analysis",
@@ -95,7 +95,7 @@ def build_research_markdown(
         f"Selection source: {source}; whale consensus probability YES: {consensus_yes}; whale confidence: {whale_conf}; whale trader count: {whale_traders}.",
         "This run prioritizes bonding-copy opportunities, then whale-copy, then volume fallback if no copy signal is available.",
         "",
-        "## Memvid Lookup",
+        "## Memory Lookup",
         f"recent-trades: {safe_text(recent_trades_text)}",
         f"whale-accuracy: {safe_text(whale_accuracy_text)}",
         "These memory snapshots are used to avoid repeating failed patterns and to calibrate confidence.",
@@ -130,8 +130,8 @@ def main(argv: list[str]) -> int:
     run_id = os.environ.get("CRON_RUN_ID", f"alpha-deterministic-{int(now.timestamp())}")
 
     context = run_command(root, str(tools / "polymarket-context.sh"), check=False).stdout
-    recent_trades = run_command(root, str(tools / "memvid-alpha-query.sh"), "recent-trades", check=False).stdout
-    whale_accuracy = run_command(root, str(tools / "memvid-alpha-query.sh"), "whale-accuracy", check=False).stdout
+    recent_trades = run_command(root, str(tools / "alpha-memory-query.sh"), "recent-trades", check=False).stdout
+    whale_accuracy = run_command(root, str(tools / "alpha-memory-query.sh"), "whale-accuracy", check=False).stdout
 
     candidate = None
     try:
@@ -188,8 +188,8 @@ def main(argv: list[str]) -> int:
 
     # Non-fatal post-trade routines; they should not block evidence outputs.
     run_command(root, str(tools / "polymarket-resolve-turn.sh"), check=False)
-    run_command(root, str(tools / "memvid-alpha-ingest.sh"), "ingest-decision", "--latest", check=False)
-    run_command(root, str(tools / "memvid-alpha-ingest.sh"), "ingest-result", "--latest", check=False)
+    run_command(root, str(tools / "alpha-memory-ingest.sh"), "ingest-decision", "--latest", check=False)
+    run_command(root, str(tools / "alpha-memory-ingest.sh"), "ingest-result", "--latest", check=False)
 
     research_dir = root / "data" / "alpha" / "research"
     research_dir.mkdir(parents=True, exist_ok=True)
