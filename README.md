@@ -57,6 +57,7 @@ Hourly Alpha runs are bonding-first:
 - evaluation window targets near-certain entries in `95c-100c` (`97c-99c` still preferred when available)
 - near-resolution candidate window is broadened to about `36h` for faster strategy evaluation
 - at least one matching bonding wallet is sufficient (additional matching wallets increase confidence)
+- bonding evaluation gates are loosened for sample collection (`min edge 0.5%`, `min confidence 0.45`, `min bonding volume 2000`, `max open exposure 8%`)
 - if no valid bonding setup exists, the run records HOLD (no whale fallback)
 
 Decision path:

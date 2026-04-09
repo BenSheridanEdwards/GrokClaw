@@ -107,10 +107,10 @@ Purpose:
 What it does:
 
 - loads Polymarket context and memory
-- researches profitable traders and market signals
-- evaluates candidate markets
+- runs bonding-first candidate discovery from known bonding wallets
+- evaluates near-resolution candidate markets in an expanded evaluation window (`95c-100c`, up to `~36h` to resolution)
 - validates with web research
-- decides whether to trade or skip
+- decides whether to trade or HOLD using deterministic bonding gates (no whale fallback path)
 - resolves pending paper trades when needed
 - Produces a self-improvement report on how auto-research was used to be better next time.
 
@@ -126,7 +126,8 @@ What it produces:
 What "good" looks like:
 
 - Alpha leaves behind a readable research trail
-- every run has a concrete outcome: trade, skip, or failure with reason
+- every run has a concrete outcome: TRADE, HOLD, or failure with reason
+- bonding-only strategy is preserved while thresholds stay loose enough to evaluate trade frequency
 
 ## Supporting Reliability And Health Workflows
 
