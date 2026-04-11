@@ -20,7 +20,7 @@ Every agent has a fallback chain so jobs never silently die when a provider hits
 
 Produces one Telegram message covering the last 24 hours: what succeeded, what failed, what needs attention. Optionally posts one high-leverage improvement suggestion with an inline Approve button.
 
-### 2. Alpha Polymarket Research and Trading
+### 2. Alpha Polymarket Research and Paper Trading (Purely for fun)
 
 **Schedule:** Hourly
 
