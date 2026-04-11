@@ -12,7 +12,7 @@ GrokClaw runs multiple OpenClaw agents on one gateway:
 
 | Agent | Model | Fallbacks | Workloads |
 |-------|-------|-----------|-----------|
-| **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | — | Daily system brief, PR review, feature intake |
+| **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Daily system brief, PR review, feature intake |
 | **Alpha** | `xai/grok-4-1-fast-non-reasoning` | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Hourly Polymarket research and trading; OpenRouter fallback when xAI is unavailable (`OPENROUTER_API_KEY`) |
 | **Kimi** | placeholder shell | — | Reserved for future reassignment; no active jobs, memory, or runtime state |
 

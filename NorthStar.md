@@ -18,7 +18,7 @@ The goal is a system that is simple, inspectable, and operationally honest. Ever
 
 GrokClaw is a multi-agent OpenClaw system with 2 active agents:
 
-- `Grok` is the coordinator, reviewer, and system operator (xai/grok)
+- `Grok` is the coordinator, reviewer, and system operator (xai/grok → OpenRouter Nemotron free fallback)
 - `Alpha` is the hourly Polymarket research and trading agent (Grok primary → OpenRouter Nemotron free fallback)
 - `Kimi` is an empty reusable shell retained for future reassignment
 
