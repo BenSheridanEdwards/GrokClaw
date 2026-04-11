@@ -51,17 +51,15 @@ class WorkflowHealthTests(unittest.TestCase):
         jobs = {
             "jobs": [
                 {"id": "1", "name": "grok-daily-brief", "schedule": {"kind": "cron", "expr": "0 8 * * *"}, "payload": {}, "delivery": {}},
-                {"id": "2", "name": "grok-openclaw-research", "schedule": {"kind": "cron", "expr": "0 7,13,19 * * *"}, "payload": {}, "delivery": {}},
-                {"id": "3", "name": "alpha-polymarket", "schedule": {"kind": "cron", "expr": "0 * * * *"}, "payload": {}, "delivery": {}, "agentId": "alpha"},
+                {"id": "2", "name": "alpha-polymarket", "schedule": {"kind": "cron", "expr": "0 * * * *"}, "payload": {}, "delivery": {}, "agentId": "alpha"},
             ]
         }
         for path in [workspace / "cron" / "jobs.json", workspace / ".openclaw" / "cron" / "jobs.json"]:
             path.write_text(json.dumps(jobs), encoding="utf-8")
 
-    def _seed_full_evidence(self, workspace: Path, alpha_ts: str, research_ts: str, brief_ts: str) -> list[dict]:
+    def _seed_full_evidence(self, workspace: Path, alpha_ts: str, brief_ts: str) -> list[dict]:
         (workspace / "data" / "cron-runs").mkdir(parents=True, exist_ok=True)
         (workspace / "data" / "alpha" / "research").mkdir(parents=True, exist_ok=True)
-        (workspace / "data" / "research" / "openclaw").mkdir(parents=True, exist_ok=True)
         (workspace / "data" / "agent-reports").mkdir(parents=True, exist_ok=True)
         (workspace / "data" / "audit-log").mkdir(parents=True, exist_ok=True)
 
@@ -69,27 +67,16 @@ class WorkflowHealthTests(unittest.TestCase):
             "\n".join(
                 [
                     json.dumps({"job": "grok-daily-brief", "agent": "grok", "ts": brief_ts, "status": "ok", "summary": "posted brief"}),
-                    json.dumps({"job": "grok-openclaw-research", "agent": "grok", "ts": research_ts, "status": "ok", "summary": "saved research"}),
                     json.dumps({"job": "alpha-polymarket", "agent": "alpha", "ts": alpha_ts, "status": "ok", "summary": "alpha summary"}),
                 ]
             )
             + "\n",
             encoding="utf-8",
         )
-        research_dt = datetime.strptime(research_ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
         alpha_dt = datetime.strptime(alpha_ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-        research_slot = {7: "morning", 13: "afternoon", 19: "evening"}.get(research_dt.hour)
-        research_name = (
-            f"{research_dt.strftime('%Y-%m-%d')}-{research_slot}.md"
-            if research_slot
-            else f"{research_dt.strftime('%Y-%m-%d')}.md"
-        )
         alpha_name = f"{alpha_dt.strftime('%Y-%m-%d-%H')}.md"
-        research_path = workspace / "data" / "research" / "openclaw" / research_name
         alpha_path = workspace / "data" / "alpha" / "research" / alpha_name
-        research_path.write_text("# research\n", encoding="utf-8")
         alpha_path.write_text("# alpha\n", encoding="utf-8")
-        os.utime(research_path, (research_dt.timestamp(), research_dt.timestamp()))
         os.utime(alpha_path, (alpha_dt.timestamp(), alpha_dt.timestamp()))
 
         (workspace / "data" / "agent-reports" / "2026-04-01.json").write_text(
@@ -106,7 +93,6 @@ class WorkflowHealthTests(unittest.TestCase):
             "\n".join(
                 [
                     json.dumps({"ts": "2026-04-01T08:06:00Z", "kind": "telegram_post", "topic": "suggestions", "message": "Daily system brief: all core workflows healthy."}),
-                    json.dumps({"ts": research_ts, "kind": "telegram_post", "topic": "health", "message": "OpenClaw research (morning): all good"}),
                     json.dumps({"ts": alpha_ts, "kind": "telegram_post", "topic": "polymarket", "message": "Alpha session: trade. Why: edge found."}),
                 ]
             )
@@ -115,7 +101,6 @@ class WorkflowHealthTests(unittest.TestCase):
         )
         return [
             {"id": "issue-daily", "title": "[grok-daily-brief] 2026-04-01 08:00 UTC", "status": "done", "updatedAt": "2026-04-01T08:06:00Z"},
-            {"id": "issue-research", "title": "[grok-openclaw-research] 2026-04-01 07:00 UTC", "status": "done", "updatedAt": research_ts},
             {"id": "issue-alpha", "title": "[alpha-polymarket] 2026-04-01 09:00 UTC", "status": "done", "updatedAt": alpha_ts},
         ]
 
@@ -154,8 +139,7 @@ class WorkflowHealthTests(unittest.TestCase):
             jobs = {
                 "jobs": [
                     {"id": "1", "name": "grok-daily-brief", "schedule": {"kind": "cron", "expr": "0 8 * * *"}, "payload": {}, "delivery": {}},
-                    {"id": "2", "name": "grok-openclaw-research", "schedule": {"kind": "cron", "expr": "0 7,13,19 * * *"}, "payload": {}, "delivery": {}},
-                    {"id": "3", "name": "alpha-polymarket", "schedule": {"kind": "cron", "expr": "0 * * * *"}, "payload": {}, "delivery": {}, "agentId": "alpha"},
+                    {"id": "2", "name": "alpha-polymarket", "schedule": {"kind": "cron", "expr": "0 * * * *"}, "payload": {}, "delivery": {}, "agentId": "alpha"},
                 ]
             }
             for path in [workspace / "cron" / "jobs.json", workspace / ".openclaw" / "cron" / "jobs.json"]:
@@ -175,15 +159,6 @@ class WorkflowHealthTests(unittest.TestCase):
                         ),
                         json.dumps(
                             {
-                                "job": "grok-openclaw-research",
-                                "agent": "grok",
-                                "ts": "2026-04-01T07:05:00Z",
-                                "status": "ok",
-                                "summary": "saved morning research",
-                            }
-                        ),
-                        json.dumps(
-                            {
                                 "job": "alpha-polymarket",
                                 "agent": "alpha",
                                 "ts": "2026-04-01T10:10:00Z",
@@ -196,12 +171,8 @@ class WorkflowHealthTests(unittest.TestCase):
                 + "\n",
                 encoding="utf-8",
             )
-            (workspace / "data" / "research" / "openclaw").mkdir(parents=True)
-            (workspace / "data" / "research" / "openclaw" / "2026-04-01-morning.md").write_text("# research\n", encoding="utf-8")
             (workspace / "data" / "alpha" / "research" / "2026-04-01-10.md").write_text("# alpha run\n", encoding="utf-8")
-            openclaw_epoch = datetime.strptime("2026-04-01T07:06:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
             alpha_epoch = datetime.strptime("2026-04-01T10:12:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
-            os.utime(workspace / "data" / "research" / "openclaw" / "2026-04-01-morning.md", (openclaw_epoch, openclaw_epoch))
             os.utime(workspace / "data" / "alpha" / "research" / "2026-04-01-10.md", (alpha_epoch, alpha_epoch))
             (workspace / "data" / "agent-reports" / "2026-04-01.json").write_text(
                 json.dumps(
@@ -231,14 +202,6 @@ class WorkflowHealthTests(unittest.TestCase):
                         ),
                         json.dumps(
                             {
-                                "ts": "2026-04-01T07:06:00Z",
-                                "kind": "telegram_post",
-                                "topic": "health",
-                                "message": "OpenClaw research (morning): all good",
-                            }
-                        ),
-                        json.dumps(
-                            {
                                 "ts": "2026-04-01T10:12:00Z",
                                 "kind": "telegram_post",
                                 "topic": "polymarket",
@@ -257,12 +220,6 @@ class WorkflowHealthTests(unittest.TestCase):
                     "title": "[grok-daily-brief] 2026-04-01 08:00 UTC",
                     "status": "done",
                     "updatedAt": "2026-04-01T08:06:00Z",
-                },
-                {
-                    "id": "issue-research",
-                    "title": "[grok-openclaw-research] 2026-04-01 07:00 UTC",
-                    "status": "done",
-                    "updatedAt": "2026-04-01T07:06:00Z",
                 },
                 {
                     "id": "issue-1",
@@ -290,7 +247,6 @@ class WorkflowHealthTests(unittest.TestCase):
             payload = self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T10:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
 
@@ -304,7 +260,6 @@ class WorkflowHealthTests(unittest.TestCase):
             payload = self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T10:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
             payload_ms = []
@@ -326,8 +281,7 @@ class WorkflowHealthTests(unittest.TestCase):
             jobs = {
                 "jobs": [
                     {"id": "1", "name": "grok-daily-brief", "schedule": {"kind": "cron", "expr": "0 8 * * *"}, "payload": {}, "delivery": {}},
-                    {"id": "2", "name": "grok-openclaw-research", "schedule": {"kind": "cron", "expr": "0 7,13,19 * * *"}, "payload": {}, "delivery": {}},
-                    {"id": "3", "name": "alpha-polymarket", "schedule": {"kind": "cron", "expr": "0 * * * *"}, "payload": {}, "delivery": {}, "agentId": "alpha"},
+                    {"id": "2", "name": "alpha-polymarket", "schedule": {"kind": "cron", "expr": "0 * * * *"}, "payload": {}, "delivery": {}, "agentId": "alpha"},
                 ]
             }
             for path in [workspace / "cron" / "jobs.json", workspace / ".openclaw" / "cron" / "jobs.json"]:
@@ -336,11 +290,11 @@ class WorkflowHealthTests(unittest.TestCase):
             (workspace / "data" / "cron-runs" / "2026-04-01.jsonl").write_text(
                 json.dumps(
                     {
-                        "job": "grok-openclaw-research",
+                        "job": "grok-daily-brief",
                         "agent": "grok",
-                        "ts": "2026-04-01T07:05:00Z",
+                        "ts": "2026-04-01T08:05:00Z",
                         "status": "ok",
-                        "summary": "reported research",
+                        "summary": "posted brief",
                     }
                 )
                 + "\n",
@@ -359,7 +313,7 @@ class WorkflowHealthTests(unittest.TestCase):
             report = self._run_audit(workspace, "2026-04-01T13:30:00Z", payload)
             self.assertFalse(report["healthy"])
             messages = "\n".join(failure["message"] for failure in report["failures"])
-            self.assertIn("grok-openclaw-research has not completed its expected run", messages)
+            self.assertIn("alpha-polymarket", messages)
             self.assertIn("non-core workflow touched Paperclip", messages)
             self.assertTrue(report["draft"]["title"])
             self.assertIn("workflow health", report["draft"]["title"].lower())
@@ -371,7 +325,6 @@ class WorkflowHealthTests(unittest.TestCase):
             payload = self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T09:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-03-31T08:05:00Z",
             )
 
@@ -380,22 +333,6 @@ class WorkflowHealthTests(unittest.TestCase):
             messages = "\n".join(failure["message"] for failure in report["failures"])
             self.assertIn("grok-daily-brief", messages)
 
-    def test_openclaw_research_requires_the_latest_expected_run_after_grace(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workspace = Path(tmpdir)
-            self._seed_core_jobs(workspace)
-            payload = self._seed_full_evidence(
-                workspace,
-                alpha_ts="2026-04-01T12:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
-                brief_ts="2026-04-01T08:05:00Z",
-            )
-
-            report = self._run_audit(workspace, "2026-04-01T13:30:00Z", payload)
-            self.assertFalse(report["healthy"])
-            messages = "\n".join(failure["message"] for failure in report["failures"])
-            self.assertIn("grok-openclaw-research", messages)
-
     def test_alpha_requires_the_latest_expected_run_after_grace(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -403,7 +340,6 @@ class WorkflowHealthTests(unittest.TestCase):
             payload = self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T09:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
 
@@ -419,7 +355,6 @@ class WorkflowHealthTests(unittest.TestCase):
             payload = self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T08:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
 
@@ -433,7 +368,6 @@ class WorkflowHealthTests(unittest.TestCase):
             payload = self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T08:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
             events = self._read_audit_events(workspace)
@@ -458,7 +392,6 @@ class WorkflowHealthTests(unittest.TestCase):
             payload = self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T08:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
             events = [event for event in self._read_audit_events(workspace) if event["topic"] != "suggestions"]
@@ -469,88 +402,6 @@ class WorkflowHealthTests(unittest.TestCase):
             messages = "\n".join(failure["message"] for failure in report["failures"])
             self.assertIn("grok-daily-brief is missing recent audit-log evidence", messages)
 
-    def test_openclaw_research_happy_path_satisfies_contract(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workspace = Path(tmpdir)
-            self._seed_core_jobs(workspace)
-            payload = self._seed_full_evidence(
-                workspace,
-                alpha_ts="2026-04-01T13:10:00Z",
-                research_ts="2026-04-01T13:06:00Z",
-                brief_ts="2026-04-01T08:05:00Z",
-            )
-
-            report = self._run_audit(workspace, "2026-04-01T13:30:00Z", payload)
-            self.assertTrue(report["healthy"])
-
-    def test_openclaw_research_sad_path_flags_missing_markdown(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workspace = Path(tmpdir)
-            self._seed_core_jobs(workspace)
-            payload = self._seed_full_evidence(
-                workspace,
-                alpha_ts="2026-04-01T13:10:00Z",
-                research_ts="2026-04-01T13:06:00Z",
-                brief_ts="2026-04-01T08:05:00Z",
-            )
-            (workspace / "data" / "research" / "openclaw" / "2026-04-01-afternoon.md").unlink()
-
-            report = self._run_audit(workspace, "2026-04-01T13:30:00Z", payload)
-            self.assertFalse(report["healthy"])
-            messages = "\n".join(failure["message"] for failure in report["failures"])
-            self.assertIn("grok-openclaw-research is missing research markdown", messages)
-
-    def test_research_passes_when_expected_file_exists_despite_stale_mtime(self):
-        """Git checkout preserves old mtimes; audit keys off cron record + prompt filename."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workspace = Path(tmpdir)
-            self._seed_core_jobs(workspace)
-            payload = self._seed_full_evidence(
-                workspace,
-                alpha_ts="2026-04-01T13:10:00Z",
-                research_ts="2026-04-01T13:06:00Z",
-                brief_ts="2026-04-01T08:05:00Z",
-            )
-            openclaw_dir = workspace / "data" / "research" / "openclaw"
-            (openclaw_dir / "2026-04-01.md").unlink(missing_ok=True)
-            afternoon = openclaw_dir / "2026-04-01-afternoon.md"
-            afternoon.write_text("# afternoon brief\n", encoding="utf-8")
-            os.utime(afternoon, (1, 1))
-
-            events = self._read_audit_events(workspace)
-            for event in events:
-                if event.get("topic") == "health" and "OpenClaw research" in event.get("message", ""):
-                    event["ts"] = "2026-04-01T13:06:00Z"
-                    event["message"] = "OpenClaw research (afternoon): headline"
-            self._write_audit_events(workspace, events)
-
-            payload = [issue for issue in payload if "grok-openclaw-research" not in issue.get("title", "")]
-            payload.append(
-                {
-                    "id": "issue-research-afternoon",
-                    "title": "[grok-openclaw-research] 2026-04-01 13:00 UTC",
-                    "status": "done",
-                    "updatedAt": "2026-04-01T13:06:00Z",
-                }
-            )
-
-            cron_path = workspace / "data" / "cron-runs" / "2026-04-01.jsonl"
-            lines = [json.loads(line) for line in cron_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-            lines = [rec for rec in lines if rec.get("job") != "grok-openclaw-research"]
-            lines.append(
-                {
-                    "job": "grok-openclaw-research",
-                    "agent": "grok",
-                    "ts": "2026-04-01T13:06:00Z",
-                    "status": "ok",
-                    "summary": "saved afternoon research",
-                }
-            )
-            cron_path.write_text("\n".join(json.dumps(rec) for rec in lines) + "\n", encoding="utf-8")
-
-            report = self._run_audit(workspace, "2026-04-01T13:30:00Z", payload)
-            self.assertTrue(report["healthy"], msg=report.get("failures"))
-
     def test_alpha_happy_path_satisfies_contract(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -558,7 +409,6 @@ class WorkflowHealthTests(unittest.TestCase):
             payload = self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T10:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
 
@@ -572,7 +422,6 @@ class WorkflowHealthTests(unittest.TestCase):
             payload = self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T10:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
             reports = self._read_agent_reports(workspace)
@@ -591,7 +440,6 @@ class WorkflowHealthTests(unittest.TestCase):
             self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T10:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
 
@@ -611,7 +459,6 @@ class WorkflowHealthTests(unittest.TestCase):
             payload = self._seed_full_evidence(
                 workspace,
                 alpha_ts="2026-04-01T10:10:00Z",
-                research_ts="2026-04-01T07:06:00Z",
                 brief_ts="2026-04-01T08:05:00Z",
             )
             payload = [issue for issue in payload if "alpha-polymarket" not in issue.get("title", "")]
@@ -645,7 +492,6 @@ class WorkflowHealthTests(unittest.TestCase):
                 "\n".join(
                     [
                         json.dumps({"job": "grok-daily-brief", "agent": "grok", "ts": "2026-04-01T08:05:00Z", "status": "ok", "summary": "posted brief"}),
-                        json.dumps({"job": "grok-openclaw-research", "agent": "grok", "ts": "2026-04-01T13:02:00Z", "status": "ok", "summary": "research saved"}),
                         json.dumps({"job": "alpha-polymarket", "agent": "alpha", "ts": "2026-04-01T13:05:00Z", "status": "ok", "summary": "alpha ok"}),
                     ]
                 )
@@ -671,7 +517,6 @@ class WorkflowHealthTests(unittest.TestCase):
                 "\n".join(
                     [
                         json.dumps({"job": "grok-daily-brief", "agent": "grok", "ts": "2026-04-01T08:05:00Z", "status": "ok", "summary": "posted brief"}),
-                        json.dumps({"job": "grok-openclaw-research", "agent": "grok", "ts": "2026-04-01T13:02:00Z", "status": "ok", "summary": "research saved"}),
                         json.dumps({"job": "alpha-polymarket", "agent": "alpha", "ts": "2026-04-01T14:01:00Z", "status": "started", "summary": "run started"}),
                     ]
                 )

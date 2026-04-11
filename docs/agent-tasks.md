@@ -1,10 +1,10 @@
 # Agent Tasks
 
-All scheduled agent work is now organized around three core workflows.
+All scheduled agent work is now organized around two core workflows.
 
 ## Core model
 
-- Only the 3 core workflows are allowed to create Paperclip issues. **`tools/cron-core-workflow-run.sh`** calls `cron-paperclip-lifecycle.sh start` and **`tools/cron-run-record.sh`** for `started` and terminal lines — the LLM prompt files under `docs/prompts/cron-work-*.md` contain **work only** (no lifecycle).
+- Only the 2 core workflows are allowed to create Paperclip issues. **`tools/cron-core-workflow-run.sh`** calls `cron-paperclip-lifecycle.sh start` and **`tools/cron-run-record.sh`** for `started` and terminal lines — the LLM prompt files under `docs/prompts/cron-work-*.md` contain **work only** (no lifecycle).
 - Every scheduled workflow run appends structured lines to `data/cron-runs/*.jsonl` via `cron-run-record.sh` (orchestrator-owned).
 - Telegram outbound posts/inline messages and inbound action messages append audit records to `data/audit-log/*.jsonl`.
 - Telegram health posts are failure-only; normal `ok` and `skipped` runs leave evidence in Paperclip and `data/cron-runs/*.jsonl`.
@@ -22,18 +22,16 @@ Runtime outputs:
 - `data/cron-runs/` — one JSONL file per UTC day for cron execution history
 - `data/audit-log/` — Telegram output audit trail used for workflow-health checks
 - `data/linear-creations/` — one JSONL file per UTC day for Linear creation audit
-- `data/research/openclaw/` — Grok OpenClaw research markdown briefs
 - `data/alpha/research/` — Alpha hourly Polymarket research markdown files
 - `data/agent-reports/` — agent reports consumed by Grok daily brief
 
-## The three workflows
+## The two workflows
 
 ### Grok
 
 | Job | Schedule | Task |
 |-----|----------|------|
 | `grok-daily-brief` | 08:00 daily | Review the last 24h of Paperclip issues, cron logs, audit logs, health checks, and agent reports; summarize success/failure/fixes/improvements; flag invalid Linear creation flows; optionally post one approveable suggestion |
-| `grok-openclaw-research` | 07:00, 13:00, 19:00 daily | Research latest stable OpenClaw version, new features, notable integrations, and ecosystem movement across X/GitHub/npm; save markdown brief and post headline to health |
 
 ### Alpha
 
@@ -63,7 +61,7 @@ Non-core jobs must not call `cron-paperclip-lifecycle.sh start`; the script reje
 - `tools/_workflow_health_handle.py` owns Telegram health alerting, approval-gated draft creation, and failure dedup state
 - If a core workflow fails that contract, the handler posts to Telegram health and requests a draft Linear fix ticket in suggestions for approval
 - The doctor does not repair workflow failures automatically; it only self-heals low-risk infrastructure issues under `--heal`
-- `tests/test_workflow_health.py` keeps mocked happy and sad path coverage for each of the 3 core workflows
+- `tests/test_workflow_health.py` keeps mocked happy and sad path coverage for each of the 2 core workflows
 - `tools/run-health-e2e-tests.sh` runs the health suite; Husky's pre-commit hook runs the full `tools/test-all.sh` gate
 
 ## PR review
@@ -82,7 +80,7 @@ PR review is no longer a cron workflow.
 |----------------|----------|
 | suggestions (2) | Grok daily brief and approveable suggestions |
 | polymarket (3) | Alpha hourly trading/research summaries |
-| health (4) | Grok OpenClaw research headlines, failures, and reliability anomalies |
+| health (4) | Failures and reliability anomalies |
 | pr-reviews (5) | Grok after GitHub approval is complete |
 
 ## Manual runs

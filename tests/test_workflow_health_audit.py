@@ -52,10 +52,6 @@ class WorkflowHealthAuditTests(unittest.TestCase):
                         "version": 1,
                         "jobs": [
                             {"name": "grok-daily-brief", "schedule": {"expr": "0 8 * * *"}},
-                            {
-                                "name": "grok-openclaw-research",
-                                "schedule": {"expr": "0 7,13,19 * * *"},
-                            },
                             {"name": "alpha-polymarket", "schedule": {"expr": "0 * * * *"}},
                         ],
                     }
@@ -75,15 +71,6 @@ class WorkflowHealthAuditTests(unittest.TestCase):
                 ),
                 json.dumps(
                     {
-                        "job": "grok-openclaw-research",
-                        "agent": "grok",
-                        "ts": "2026-04-01T13:02:00Z",
-                        "status": "ok",
-                        "summary": "research saved",
-                    }
-                ),
-                json.dumps(
-                    {
                         "job": "alpha-polymarket",
                         "agent": "alpha",
                         "ts": "2026-04-01T13:05:00Z",
@@ -98,7 +85,7 @@ class WorkflowHealthAuditTests(unittest.TestCase):
             now = datetime(2026, 4, 1, 13, 45, tzinfo=timezone.utc)
             ok_msgs, fail_msgs = wha.audit(now=now, repo=root)
             self.assertEqual(fail_msgs, [])
-            self.assertEqual(len(ok_msgs), 3)
+            self.assertEqual(len(ok_msgs), 2)
 
     def test_audit_fails_when_hourly_missing(self):
         import tempfile
@@ -114,10 +101,6 @@ class WorkflowHealthAuditTests(unittest.TestCase):
                         "version": 1,
                         "jobs": [
                             {"name": "grok-daily-brief", "schedule": {"expr": "0 8 * * *"}},
-                            {
-                                "name": "grok-openclaw-research",
-                                "schedule": {"expr": "0 7,13,19 * * *"},
-                            },
                             {"name": "alpha-polymarket", "schedule": {"expr": "0 * * * *"}},
                         ],
                     }
@@ -133,15 +116,6 @@ class WorkflowHealthAuditTests(unittest.TestCase):
                         "ts": "2026-04-01T08:05:00Z",
                         "status": "ok",
                         "summary": "brief",
-                    }
-                ),
-                json.dumps(
-                    {
-                        "job": "grok-openclaw-research",
-                        "agent": "grok",
-                        "ts": "2026-04-01T13:02:00Z",
-                        "status": "ok",
-                        "summary": "research",
                     }
                 ),
                 json.dumps(

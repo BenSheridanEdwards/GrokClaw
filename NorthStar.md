@@ -6,7 +6,7 @@ If another doc, comment, or habit disagrees with this file, **this file wins**. 
 
 It defines:
 
-- the 3 core workflows
+- the 2 core workflows
 - the supporting reliability and health workflows
 - how Paperclip is used
 - how Telegram is used
@@ -16,7 +16,7 @@ The goal is a system that is simple, inspectable, and operationally honest. Ever
 
 ## System Goal
 
-GrokClaw is a multi-agent OpenClaw system with 3 configured agents:
+GrokClaw is a multi-agent OpenClaw system with 2 active agents:
 
 - `Grok` is the coordinator, reviewer, and system operator (xai/grok)
 - `Alpha` is the hourly Polymarket research and trading agent (Grok primary → OpenRouter Nemotron free fallback)
@@ -24,14 +24,13 @@ GrokClaw is a multi-agent OpenClaw system with 3 configured agents:
 
 Every agent has a fallback chain so jobs never silently die when a free-tier provider hits rate limits. The gateway falls through automatically; the doctor reports fallback activity once per day.
 
-The system should do four things well:
+The system should do three things well:
 
 1. Tell Ben what happened in the system and what needs attention.
-2. Keep the deployment current with OpenClaw and ecosystem changes.
-3. Run one reliable Polymarket research and trading loop every hour.
-4. Leave a clean operational trail in Paperclip, cron logs, Telegram, and Linear.
+2. Run one reliable Polymarket research and trading loop every hour.
+3. Leave a clean operational trail in Paperclip, cron logs, Telegram, and Linear.
 
-## The 3 Core Workflows
+## The 2 Core Workflows
 
 These are the only OpenClaw cron workflows that matter.
 
@@ -68,34 +67,7 @@ What "good" looks like:
 - invalid Linear usage is called out
 - hollow or noisy activity is not hidden behind vague summaries
 
-### 2. Grok OpenClaw Research
-
-Agent: `Grok`  
-Schedule: `07:00`, `13:00`, `19:00 UTC daily`
-
-Purpose:
-
-- Keep GrokClaw aligned with the current OpenClaw ecosystem.
-
-What it does:
-
-- checks the latest stable OpenClaw version
-- tracks new features, integrations, and notable community movement
-- captures morning, afternoon, and evening research snapshots
-
-What it produces:
-
-- markdown research files in `data/research/openclaw/`
-- a health-topic Telegram headline
-- one Paperclip issue per run
-- one cron run record
-
-What "good" looks like:
-
-- GrokClaw is not surprised by upstream OpenClaw changes
-- useful ecosystem intelligence is saved, not lost in chat
-
-### 3. Alpha Polymarket Research and Trading
+### 2. Alpha Polymarket Research and Trading
 
 Agent: `Alpha`  
 Schedule: `hourly`
@@ -155,7 +127,7 @@ Purpose:
 
 - act as the missed-run and drift catch-all when event-driven checks could not fire
 - verify the runtime environment stays trustworthy: gateway, Paperclip, Ollama, Telegram connectivity, launchd, crontab, cron validation, cron sync, and gateway auth
-- detect when the 3 core workflows missed their expected schedule windows
+- detect when the 2 core workflows missed their expected schedule windows
 - detect model fallbacks (rate limits, timeouts) and notify once per day
 - escalate from missed-run detection into a full workflow audit when needed
 - report failures to Telegram health immediately
@@ -229,13 +201,6 @@ For each core workflow, GrokClaw should be able to verify the most recent expect
 - the run created and closed a Paperclip issue
 - the run was able to inspect the evidence it is responsible for summarizing, including `data/linear-creations/*.jsonl` and `data/audit-log/*.jsonl` when present
 
-`grok-openclaw-research`
-
-- a recent `data/cron-runs/*.jsonl` record exists for the run
-- a markdown brief exists in `data/research/openclaw/`
-- the health-topic Telegram headline was posted
-- the run created and closed a Paperclip issue
-
 `alpha-polymarket`
 
 - a recent `data/cron-runs/*.jsonl` record exists for the run
@@ -262,7 +227,7 @@ This contract must stay executable, not just descriptive.
 
 That means GrokClaw should keep:
 
-- mocked happy-path and sad-path tests for each of the 3 core workflows
+- mocked happy-path and sad-path tests for each of the 2 core workflows
 - tests that exercise the gateway detector, watchdog, and doctor separately
 - a Husky pre-commit gate that runs `tools/test-all.sh` and blocks commits when shell checks, Python checks, unit tests, or end-to-end smoke fail
 
@@ -321,7 +286,7 @@ It is not noise storage. It should represent meaningful run lifecycles.
 
 Every core workflow run creates its own Paperclip issue.
 
-Only the 3 core workflows are allowed to touch Paperclip.
+Only the 2 core workflows are allowed to touch Paperclip.
 
 That means:
 
@@ -563,7 +528,7 @@ It defines the operating model and the source-of-truth behavior.
 
 GrokClaw should become a system where:
 
-- the 3 core workflows are clear and stable
+- the 2 core workflows are clear and stable
 - every meaningful run is represented in Paperclip
 - workflow health means complete evidence, not just a live process
 - Telegram shows the right things to the right topic

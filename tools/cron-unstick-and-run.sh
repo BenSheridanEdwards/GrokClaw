@@ -16,8 +16,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 export OPENCLAW_CONFIG_PATH="${OPENCLAW_CONFIG_PATH:-${HOME}/.openclaw/openclaw.json}"
 
-# grok-daily-brief, grok-openclaw-research, alpha-polymarket
-CORE_CRON_IDS="9c1b0a7d4e2f1001 9c1b0a7d4e2f1002 9c1b0a7d4e2f1003"
+# grok-daily-brief, alpha-polymarket
+CORE_CRON_IDS="9c1b0a7d4e2f1001 9c1b0a7d4e2f1003"
 
 if [ "$#" -lt 1 ]; then
   echo "usage: $0 <openclaw-cron-job-id> [<id>...]" >&2

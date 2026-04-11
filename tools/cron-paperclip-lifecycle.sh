@@ -8,7 +8,7 @@ PAPERCLIP_API="$WORKSPACE_ROOT/tools/paperclip-api.sh"
 # Only the three active core GrokClaw cron workflows may create Paperclip run issues.
 is_core_job() {
   case "$1" in
-    grok-daily-brief|grok-openclaw-research|alpha-polymarket) return 0 ;;
+    grok-daily-brief|alpha-polymarket) return 0 ;;
     *) return 1 ;;
   esac
 }

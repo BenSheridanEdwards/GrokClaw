@@ -105,10 +105,13 @@ def main() -> int:
             exit_code=int(result.returncode),
             reason=reason,
         )
+        if reason in ("auth",):
+            return int(result.returncode)
+
         if attempt >= max_attempts:
             return int(result.returncode)
 
-        wait_seconds = max(0, args.retry_backoff * attempt)
+        wait_seconds = max(0, args.retry_backoff * (2 ** (attempt - 1)))
         if wait_seconds > 0:
             time.sleep(wait_seconds)
     return 1

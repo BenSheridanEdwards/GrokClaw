@@ -98,24 +98,10 @@ class CronCoreWorkflowRunTests(unittest.TestCase):
                 """
             ),
         )
-        self._write_stub(
-            tools / "grok-openclaw-research-deterministic.sh",
-            textwrap.dedent(
-                """\
-                #!/bin/sh
-                set -eu
-                echo '{"slot":"morning","researchPath":"data/research/openclaw/2026-04-09-morning.md"}'
-                """
-            ),
-        )
-
         prompts = tmp / "docs" / "prompts"
         prompts.mkdir(parents=True)
         (prompts / "cron-work-grok-daily-brief.md").write_text(
             "Work-only body.\nDo not call cron-run-record.\n", encoding="utf-8"
-        )
-        (prompts / "cron-work-grok-openclaw-research.md").write_text(
-            "Work-only research prompt body.\n", encoding="utf-8"
         )
         (prompts / "cron-work-alpha-polymarket.md").write_text(
             "Work-only alpha prompt body.\n", encoding="utf-8"
@@ -271,49 +257,6 @@ class CronCoreWorkflowRunTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
             self.assertTrue(det_log.exists(), "deterministic alpha script should run")
-
-            day_file = next((tmp / "data" / "cron-runs").glob("*.jsonl"))
-            lines = [
-                json.loads(line)
-                for line in day_file.read_text(encoding="utf-8").splitlines()
-                if line.strip()
-            ]
-            self.assertEqual(lines[0]["status"], "started")
-            self.assertEqual(lines[1]["status"], "ok")
-            self.assertIn("finish test-issue-uuid ok", lifecycle_log.read_text(encoding="utf-8"))
-        finally:
-            subprocess.run(["rm", "-rf", str(tmp)], check=False)
-
-    def test_research_uses_deterministic_script_path(self):
-        tmp, lifecycle_log = self._seed_temp_workspace(0)
-        try:
-            det_log = tmp / "research-det.log"
-            self._write_stub(
-                tmp / "tools" / "grok-openclaw-research-deterministic.sh",
-                textwrap.dedent(
-                    f"""\
-                    #!/bin/sh
-                    set -eu
-                    printf 'research deterministic called\\n' >> "{det_log}"
-                    printf '%s\\n' '{{"slot":"afternoon","researchPath":"data/research/openclaw/2026-04-09-afternoon.md"}}'
-                    """
-                ),
-            )
-
-            env = os.environ.copy()
-            env["WORKSPACE_ROOT"] = str(tmp)
-            env["PATH"] = f"{tmp / 'bin'}:{env.get('PATH', '')}"
-            env["OPENCLAW_BIN"] = str(tmp / "bin" / "openclaw")
-            result = subprocess.run(
-                ["bash", str(self.wrapper), "grok-openclaw-research", "grok"],
-                cwd=str(tmp),
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-            self.assertTrue(det_log.exists(), "deterministic research script should run")
 
             day_file = next((tmp / "data" / "cron-runs").glob("*.jsonl"))
             lines = [

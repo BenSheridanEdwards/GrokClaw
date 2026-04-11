@@ -29,10 +29,6 @@ def _write_minimal_repo(tmpdir):
                 "version": 1,
                 "jobs": [
                     {"name": "grok-daily-brief", "schedule": {"expr": "0 8 * * *"}},
-                    {
-                        "name": "grok-openclaw-research",
-                        "schedule": {"expr": "0 7,13,19 * * *"},
-                    },
                     {"name": "alpha-polymarket", "schedule": {"expr": "0 * * * *"}},
                 ],
             }
@@ -68,23 +64,6 @@ class WorkflowHealthAuditDirectTests(unittest.TestCase):
         self.assertEqual(result.month, 3)
         self.assertEqual(result.hour, 8)
 
-    def test_last_expected_fire_multi_slot_returns_nearest_past(self):
-        wha = _load_audit_module()
-        now = datetime(2026, 4, 1, 15, 0, tzinfo=timezone.utc)
-        result = wha._last_expected_fire("0 7,13,19 * * *", now)
-        self.assertEqual(result.hour, 13)
-        self.assertEqual(result.day, 1)
-
-    def test_last_expected_fire_multi_slot_returns_prev_day_last_slot_before_first(
-        self,
-    ):
-        wha = _load_audit_module()
-        now = datetime(2026, 4, 1, 5, 0, tzinfo=timezone.utc)
-        result = wha._last_expected_fire("0 7,13,19 * * *", now)
-        self.assertEqual(result.day, 31)
-        self.assertEqual(result.month, 3)
-        self.assertEqual(result.hour, 19)
-
     def test_last_expected_fire_raises_on_unsupported_expr(self):
         wha = _load_audit_module()
         now = datetime(2026, 4, 1, 12, 0, tzinfo=timezone.utc)
@@ -96,9 +75,6 @@ class WorkflowHealthAuditDirectTests(unittest.TestCase):
         wha = _load_audit_module()
         self.assertEqual(wha._grace_for_schedule("0 * * * *").total_seconds(), 75 * 60)
         self.assertEqual(wha._grace_for_schedule("0 8 * * *").total_seconds(), 120 * 60)
-        self.assertEqual(
-            wha._grace_for_schedule("0 7,13,19 * * *").total_seconds(), 120 * 60
-        )
 
     def test_audit_returns_empty_failures_when_all_in_window(self):
         wha = _load_audit_module()
@@ -117,13 +93,6 @@ class WorkflowHealthAuditDirectTests(unittest.TestCase):
                         ),
                         json.dumps(
                             {
-                                "job": "grok-openclaw-research",
-                                "ts": "2026-04-01T13:05:00Z",
-                                "status": "ok",
-                            }
-                        ),
-                        json.dumps(
-                            {
                                 "job": "alpha-polymarket",
                                 "ts": "2026-04-01T13:05:00Z",
                                 "status": "ok",
@@ -137,7 +106,7 @@ class WorkflowHealthAuditDirectTests(unittest.TestCase):
             now = datetime(2026, 4, 1, 13, 30, tzinfo=timezone.utc)
             ok_msgs, fail_msgs = wha.audit(now=now, repo=root)
             self.assertEqual(fail_msgs, [])
-            self.assertEqual(len(ok_msgs), 3)
+            self.assertEqual(len(ok_msgs), 2)
 
     def test_audit_fails_when_hourly_job_has_no_record(self):
         wha = _load_audit_module()
@@ -151,13 +120,6 @@ class WorkflowHealthAuditDirectTests(unittest.TestCase):
                             {
                                 "job": "grok-daily-brief",
                                 "ts": "2026-04-01T08:05:00Z",
-                                "status": "ok",
-                            }
-                        ),
-                        json.dumps(
-                            {
-                                "job": "grok-openclaw-research",
-                                "ts": "2026-04-01T07:05:00Z",
                                 "status": "ok",
                             }
                         ),
@@ -228,13 +190,6 @@ class WorkflowHealthAuditDirectTests(unittest.TestCase):
                             {
                                 "job": "grok-daily-brief",
                                 "ts": "2026-04-01T08:05:00Z",
-                                "status": "ok",
-                            }
-                        ),
-                        json.dumps(
-                            {
-                                "job": "grok-openclaw-research",
-                                "ts": "2026-04-01T13:05:00Z",
                                 "status": "ok",
                             }
                         ),
@@ -337,18 +292,14 @@ class WorkflowHealthAuditDirectTests(unittest.TestCase):
             recs = wha._records_for_job(paths, "alpha-polymarket")
             self.assertEqual(recs, [])
 
-    def test_load_cron_jobs_parses_all_three_core_workflows(self):
+    def test_load_cron_jobs_parses_all_two_core_workflows(self):
         wha = _load_audit_module()
         with tempfile.TemporaryDirectory() as tmpdir:
             root = _write_minimal_repo(tmpdir)
             jobs = wha._load_cron_jobs(root)
             self.assertIn("grok-daily-brief", jobs)
-            self.assertIn("grok-openclaw-research", jobs)
             self.assertIn("alpha-polymarket", jobs)
             self.assertEqual(jobs["grok-daily-brief"].schedule_expr, "0 8 * * *")
-            self.assertEqual(
-                jobs["grok-openclaw-research"].schedule_expr, "0 7,13,19 * * *"
-            )
             self.assertEqual(jobs["alpha-polymarket"].schedule_expr, "0 * * * *")
 
 

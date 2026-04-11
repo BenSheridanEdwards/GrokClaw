@@ -151,7 +151,7 @@ class CronRunRecordTests(unittest.TestCase):
             env["PAPERCLIP_ISSUE_UUID"] = "issue-123"
 
             result = subprocess.run(
-                ["sh", str(self.script), "grok-openclaw-research", "grok", "skipped", "nothing new to report"],
+                ["sh", str(self.script), "grok-daily-brief", "grok", "skipped", "nothing new to report"],
                 cwd=str(self.workspace),
                 env=env,
                 capture_output=True,

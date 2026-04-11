@@ -4,6 +4,17 @@ You are a Cursor agent assigned to implement work in the GrokClaw repository.
 
 ---
 
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current
+
+---
+
 ## When you are assigned a ticket
 
 1. **Read the Linear ticket** — the description contains the full spec, acceptance criteria, and implementation notes. Read it before touching any code.
@@ -60,7 +71,7 @@ crontab -l | grep your-script
 
 Use for scheduled agent tasks. Add a new job object to the `jobs` array.
 
-**North Star core workflows** (`grok-daily-brief`, `grok-openclaw-research`, `alpha-polymarket`): the `payload.message` should only tell the agent to run **`./tools/cron-core-workflow-run.sh <job> <agent>`** from the repo root. Real task text lives in `docs/prompts/cron-work-<job>.md`; the shell orchestrator owns Paperclip + `cron-run-record.sh` so stuck turns cannot orphan `started`/Paperclip.
+**North Star core workflows** (`grok-daily-brief`, `alpha-polymarket`): the `payload.message` should only tell the agent to run **`./tools/cron-core-workflow-run.sh <job> <agent>`** from the repo root. Real task text lives in `docs/prompts/cron-work-<job>.md`; the shell orchestrator owns Paperclip + `cron-run-record.sh` so stuck turns cannot orphan `started`/Paperclip.
 
 Generic example for other jobs:
 

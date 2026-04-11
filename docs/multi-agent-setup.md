@@ -1,18 +1,18 @@
 # Multi-Agent Setup
 
-`NorthStar.md` is the policy document. This file is the runtime setup companion for the current 3-workflow system.
+`NorthStar.md` is the policy document. This file is the runtime setup companion for the current 2-workflow system.
 
 ## Current agent routing
 
 | Agent | Model | Active work |
 |-------|-------|-------------|
-| Grok | `xai/grok-4-1-fast-non-reasoning` | Daily system brief, OpenClaw research, PR review, Telegram/Linear coordination |
+| Grok | `xai/grok-4-1-fast-non-reasoning` | Daily system brief, PR review, Telegram/Linear coordination |
 | Alpha | `xai/grok-4-1-fast-non-reasoning` (fallback: `openrouter/nvidia/nemotron-3-super-120b-a12b:free`) | Hourly Polymarket research and trading |
 | Kimi | placeholder shell | Reserved for future reassignment; no active jobs, memory, or runtime state |
 
 ## Gateway LaunchAgent and cron timezone
 
-OpenClaw evaluates `cron/jobs.json` expressions in the **gateway process timezone**. `agents.defaults.userTimezone` affects agent-facing time, not the cron scheduler. GrokClaw’s workflow health and docs assume **UTC** schedules (`08:00` daily brief, `07/13/19` research, top-of-hour Polymarket).
+OpenClaw evaluates `cron/jobs.json` expressions in the **gateway process timezone**. `agents.defaults.userTimezone` affects agent-facing time, not the cron scheduler. GrokClaw’s workflow health and docs assume **UTC** schedules (`08:00` daily brief, top-of-hour Polymarket).
 
 Set **`TZ=UTC`** in the gateway LaunchAgent `EnvironmentVariables` (see `launchd/com.grokclaw.gateway.plist` in this repo) so `0 8 * * *` fires at 08:00 UTC. Without it, the Mac system zone shifts every job and `_workflow_health.py` will report stale or missing runs.
 
@@ -32,7 +32,6 @@ After changing the plist: `cp launchd/com.grokclaw.gateway.plist ~/Library/Launc
 The only OpenClaw cron jobs that should exist are:
 
 - `grok-daily-brief`
-- `grok-openclaw-research`
 - `alpha-polymarket`
 
 Each of these uses a **thin** `agentTurn` message: run **`./tools/cron-core-workflow-run.sh <job> <agent>`** from the GrokClaw repo root. That script starts Paperclip, records `started`, runs one `openclaw agent` turn from `docs/prompts/cron-work-<job>.md`, and **always** records a terminal line + finishes Paperclip on exit (including failures). Tune agent wall time with `OPENCLAW_AGENT_TIMEOUT_SECONDS` (especially for Alpha).
@@ -48,7 +47,7 @@ openclaw cron list
 
 ## Supporting reliability workflows
 
-These are outside the three core cron jobs but are still part of the live runtime:
+These are outside the two core cron jobs but are still part of the live runtime:
 
 - `tools/health-check.sh` from system cron every 2 minutes for fast gateway death detection and watchdog handoff
 - `tools/gateway-watchdog.sh` via launchd `com.grokclaw.gateway-watchdog` at `01,06,11,16,21,26,31,36,41,46,51,56` for bounded automatic gateway repair
@@ -121,7 +120,7 @@ If `openclaw cron run` returns `"reason": "already-running"` or workflow health 
 ./tools/cron-unstick-and-run.sh 9c1b0a7d4e2f1003 9c1b0a7d4e2f1001
 ```
 
-(IDs are from `~/.openclaw/cron/jobs.json` / `openclaw cron list`.) The script **disables all three core jobs** before restart so the scheduler does not immediately start due runs and race `openclaw cron run`. Dry strip only: `python3 tools/_cron_unstick_running.py --dry-run`.
+(IDs are from `~/.openclaw/cron/jobs.json` / `openclaw cron list`.) The script **disables both core jobs** before restart so the scheduler does not immediately start due runs and race `openclaw cron run`. Dry strip only: `python3 tools/_cron_unstick_running.py --dry-run`.
 
 ## Verification
 

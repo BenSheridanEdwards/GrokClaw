@@ -4,7 +4,6 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -102,10 +101,6 @@ def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def slot_for_hour(hour: int) -> Optional[str]:
-    return {7: "morning", 13: "afternoon", 19: "evening"}.get(hour)
-
-
 def first_headline(path: Path) -> str:
     try:
         text = path.read_text(encoding="utf-8")
@@ -134,55 +129,6 @@ def ensure_daily_brief(root: Path, run_id: str, start: dt.datetime, end: dt.date
         repairs.append("posted_fallback_daily_brief")
     else:
         repairs.append(f"failed_daily_brief_post:{output}")
-
-
-def ensure_openclaw_research(root: Path, run_id: str, start: dt.datetime, end: dt.datetime, repairs: list[str]) -> None:
-    slot = slot_for_hour(start.hour)
-    if slot is None:
-        slot = "morning"
-    directory = root / "data" / "research" / "openclaw"
-    directory.mkdir(parents=True, exist_ok=True)
-    expected = directory / f"{start.strftime('%Y-%m-%d')}-{slot}.md"
-    if not expected.exists():
-        same_day = sorted(directory.glob(f"{start.strftime('%Y-%m-%d')}-*.md"))
-        source = same_day[-1] if same_day else None
-        if source and source.exists():
-            shutil.copyfile(source, expected)
-            repairs.append(f"copied_research_to_expected_slot:{source.name}->{expected.name}")
-        else:
-            expected.write_text(
-                "\n".join(
-                    [
-                        f"# OpenClaw Research - {start.strftime('%Y-%m-%d')} {slot}",
-                        "",
-                        "## Latest stable",
-                        "- Fallback artifact generated for consistency.",
-                        "",
-                        "## Notable changes",
-                        "- Agent output missing; rerun recommended.",
-                        "",
-                        "## Interesting integrations",
-                        "- No structured output captured in this run.",
-                        "",
-                        "## Recommended action",
-                        "- Re-run workflow and inspect gateway logs.",
-                        "",
-                    ]
-                ),
-                encoding="utf-8",
-            )
-            repairs.append("created_fallback_research_file")
-
-    events = load_audit_events(root)
-    if has_audit_event(events, {"health", "health-alerts"}, (f"OpenClaw research ({slot}):",), start, end):
-        return
-    headline = first_headline(expected)
-    message = f"OpenClaw research ({slot}): {headline}"
-    code, output = call_script(root / "tools" / "telegram-post.sh", ["health-alerts", message])
-    if code == 0:
-        repairs.append("posted_fallback_research_headline")
-    else:
-        repairs.append(f"failed_research_post:{output}")
 
 
 def has_recent_alpha_report(root: Path, start: dt.datetime) -> bool:
@@ -285,8 +231,6 @@ def main(argv: list[str]) -> int:
     repairs: list[str] = []
     if job == "grok-daily-brief":
         ensure_daily_brief(root, run_id, start, end, repairs)
-    elif job == "grok-openclaw-research":
-        ensure_openclaw_research(root, run_id, start, end, repairs)
     elif job == "alpha-polymarket":
         ensure_alpha_polymarket(root, run_id, start, end, repairs)
 

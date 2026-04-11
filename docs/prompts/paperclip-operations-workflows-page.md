@@ -4,7 +4,7 @@ Use this document as the single spec when implementing the highest-ROI GrokClaw 
 
 ## Goal
 
-Give operators an **at-a-glance table** of the **three North Star scheduled workflows** (one row per workflow), grounded in **Paperclip issues** created by `tools/cron-paperclip-lifecycle.sh` / cron prompts — not in raw `data/cron-runs` JSONL (that stays the automation audit trail; this page is the human shell).
+Give operators an **at-a-glance table** of the **two North Star scheduled workflows** (one row per workflow), grounded in **Paperclip issues** created by `tools/cron-paperclip-lifecycle.sh` / cron prompts — not in raw `data/cron-runs` JSONL (that stays the automation audit trail; this page is the human shell).
 
 ## Workflow identity
 
@@ -13,13 +13,12 @@ Fixed workflow keys (match OpenClaw cron job `name` / bracket prefix in issue ti
 | Workflow key              | Title prefix (regex group 1)   |
 |---------------------------|---------------------------------|
 | `grok-daily-brief`        | `[grok-daily-brief]`            |
-| `grok-openclaw-research`| `[grok-openclaw-research]`      |
 | `alpha-polymarket`        | `[alpha-polymarket]`            |
 
 **Detection (v1):** Parse each issue `title` with:
 
 ```regexp
-^\[(grok-daily-brief|grok-openclaw-research|alpha-polymarket)\]\s*
+^\[(grok-daily-brief|alpha-polymarket)\]\s*
 ```
 
 Capture group 1 is the workflow key. **Optional v2:** If the product adds **labels** per workflow (e.g. `workflow:grok-daily-brief`), prefer label match when present and fall back to title regex for backward compatibility.
@@ -31,7 +30,7 @@ Capture group 1 is the workflow key. **Optional v2:** If the product adds **labe
 - **Linked heartbeat runs:** `activityApi.runsForIssue(issueId)` from `paperclip/ui/src/api/activity.ts` (see `IssueDetail.tsx` — `runsForIssue` / timeline). Pick the **latest** run by `createdAt` or `startedAt` (define one rule and document it).
 - **Live / active run (optional enhancement):** `heartbeatsApi.liveRunsForIssue` / `activeRunForIssue` if you need “in flight” vs historical.
 
-Do **not** invent new backend contracts unless necessary; if the UI would N+1 too hard, add a **single** aggregated endpoint (e.g. `GET /companies/:id/workflow-runs-summary`) as a follow-up — not required for v1 if performance is acceptable for three rows × a few issues.
+Do **not** invent new backend contracts unless necessary; if the UI would N+1 too hard, add a **single** aggregated endpoint (e.g. `GET /companies/:id/workflow-runs-summary`) as a follow-up — not required for v1 if performance is acceptable for two rows × a few issues.
 
 ## Row selection: “Last issue” per workflow
 
@@ -39,7 +38,7 @@ For each workflow key:
 
 1. Consider all issues in the **current company** whose title matches the regex (or label, if v2).
 2. **Last issue** = the one with the greatest `updatedAt` (or `createdAt` if you lack updates — pick one and stay consistent).
-3. Always show **three rows** (one per workflow), even when **no** matching issue exists — empty cells + copy like “No run issue yet”.
+3. Always show **two rows** (one per workflow), even when **no** matching issue exists — empty cells + copy like “No run issue yet”.
 
 ## Table columns (exact semantics)
 
@@ -71,7 +70,7 @@ For each workflow key:
 
 ## Acceptance criteria
 
-1. Page loads for a selected company and shows **exactly three** workflow rows.
+1. Page loads for a selected company and shows **exactly two** workflow rows.
 2. Columns match the table above; empty states are explicit, not blank confusion.
 3. Issue and run links work in local dev (`paperclip` + gateway).
 4. No regression to existing Issues / IssueDetail behavior.

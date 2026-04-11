@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Read-only audit: verify the three core cron workflows recorded a run near each
+Read-only audit: verify the two core cron workflows recorded a run near each
 expected schedule fire time (data/cron-runs/*.jsonl).
 
 Exit 0 if all checks pass, 1 if any expected window is missing a record.
@@ -109,7 +109,6 @@ def audit(now: datetime | None = None, repo: Path | None = None) -> tuple[list[s
     jobs = _load_cron_jobs(repo)
     core = (
         "grok-daily-brief",
-        "grok-openclaw-research",
         "alpha-polymarket",
     )
     paths = _read_jsonl_paths(repo, now)

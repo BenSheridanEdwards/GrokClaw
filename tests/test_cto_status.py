@@ -51,16 +51,6 @@ class CtoStatusTests(unittest.TestCase):
                                 "runId": "run-1",
                             }
                         ),
-                        json.dumps(
-                            {
-                                "job": "grok-openclaw-research",
-                                "agent": "grok",
-                                "ts": "2026-04-01T13:05:00Z",
-                                "status": "ok",
-                                "summary": "research posted",
-                                "runId": "run-2",
-                            }
-                        ),
                     ]
                 )
                 + "\n",
@@ -93,8 +83,8 @@ class CtoStatusTests(unittest.TestCase):
             self.assertEqual(payload["kpis"]["reliability"]["slotAdherencePercent"], 95.0)
             self.assertEqual(payload["serviceHealth"]["gateway"], "unknown")
             self.assertEqual(payload["serviceHealth"]["paperclip"], "unknown")
-            self.assertEqual(payload["latestRuns"][0]["job"], "grok-openclaw-research")
-            self.assertEqual(payload["latestRuns"][0]["runId"], "run-2")
+            self.assertEqual(payload["latestRuns"][0]["job"], "alpha-polymarket")
+            self.assertEqual(payload["latestRuns"][0]["runId"], "run-1")
 
 
 if __name__ == "__main__":

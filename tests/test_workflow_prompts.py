@@ -11,16 +11,16 @@ def load_core_jobs_fixture(workspace: Path) -> list[dict]:
 
 
 class WorkflowPromptTests(unittest.TestCase):
-    def test_repo_cron_jobs_contain_the_three_core_workflows(self):
+    def test_repo_cron_jobs_contain_the_two_core_workflows(self):
         workspace = Path(__file__).resolve().parents[1]
         jobs = load_core_jobs_fixture(workspace)
         names = {job.get("name") for job in jobs}
-        core = {"grok-daily-brief", "grok-openclaw-research", "alpha-polymarket"}
+        core = {"grok-daily-brief", "alpha-polymarket"}
         self.assertTrue(core.issubset(names), f"missing core workflows: {core - names}")
         self.assertNotIn("kimi-polymarket", names)
         self.assertNotIn("kimi-daily-brief", names)
 
-    def test_three_workflow_cron_messages_invoke_orchestrator_only(self):
+    def test_two_workflow_cron_messages_invoke_orchestrator_only(self):
         workspace = Path(__file__).resolve().parents[1]
         jobs = {
             job["name"]: job
@@ -30,10 +30,6 @@ class WorkflowPromptTests(unittest.TestCase):
         daily_brief = jobs["grok-daily-brief"]["payload"]["message"]
         self.assertIn("./tools/cron-core-workflow-run.sh grok-daily-brief grok", daily_brief)
         self.assertNotIn("cron-paperclip-lifecycle.sh start", daily_brief)
-
-        openclaw = jobs["grok-openclaw-research"]["payload"]["message"]
-        self.assertIn("./tools/cron-core-workflow-run.sh grok-openclaw-research grok", openclaw)
-        self.assertNotIn("cron-paperclip-lifecycle.sh start", openclaw)
 
         alpha = jobs["alpha-polymarket"]["payload"]["message"]
         self.assertIn("./tools/cron-core-workflow-run.sh alpha-polymarket alpha", alpha)
@@ -45,7 +41,6 @@ class WorkflowPromptTests(unittest.TestCase):
         jobs = {job["name"]: job for job in load_core_jobs_fixture(workspace)}
         self.assertEqual(jobs["alpha-polymarket"]["delivery"]["mode"], "none")
         self.assertEqual(jobs["grok-daily-brief"]["delivery"]["mode"], "announce")
-        self.assertEqual(jobs["grok-openclaw-research"]["delivery"]["mode"], "announce")
 
     def test_work_prompt_files_contain_task_bodies(self):
         workspace = Path(__file__).resolve().parents[1]
@@ -56,12 +51,6 @@ class WorkflowPromptTests(unittest.TestCase):
         self.assertIn("data/linear-creations/", daily)
         self.assertIn("user_request", daily)
         self.assertIn("./tools/telegram-suggestion.sh", daily)
-
-        research = (prompts / "cron-work-grok-openclaw-research.md").read_text(encoding="utf-8")
-        self.assertIn("morning", research.lower())
-        self.assertIn("afternoon", research.lower())
-        self.assertIn("evening", research.lower())
-        self.assertIn("data/research/openclaw/", research)
 
         alpha = (prompts / "cron-work-alpha-polymarket.md").read_text(encoding="utf-8")
         self.assertIn("data/alpha/research/", alpha)
@@ -134,7 +123,7 @@ class WorkflowPromptTests(unittest.TestCase):
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
-    def test_three_core_workflows_have_expected_schedules(self):
+    def test_two_core_workflows_have_expected_schedules(self):
         workspace = Path(__file__).resolve().parents[1]
         jobs = {
             job["name"]: job["schedule"]["expr"]
@@ -142,7 +131,6 @@ class WorkflowPromptTests(unittest.TestCase):
         }
 
         self.assertEqual(jobs["grok-daily-brief"], "0 8 * * *")
-        self.assertEqual(jobs["grok-openclaw-research"], "0 7,13,19 * * *")
         self.assertEqual(jobs["alpha-polymarket"], "0 * * * *")
         self.assertNotIn("kimi-polymarket", jobs)
 

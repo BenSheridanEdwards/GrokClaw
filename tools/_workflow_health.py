@@ -22,13 +22,7 @@ CORE_WORKFLOWS = {
         "grace_minutes": 20,
         "audit_checks": [(("suggestions", "health"), ("Daily system brief:", "Daily system brief (", "Daily Suggestion #", "Daily brief "))],
     },
-    "grok-openclaw-research": {
-        "schedule": {"kind": "daily", "hours": (7, 13, 19)},
-        "grace_minutes": 20,
-        "research_glob": "data/research/openclaw/*.md",
-        "audit_checks": [(("health", "health-alerts"), ("OpenClaw research (",))],
-    },
-    "alpha-polymarket": {
+"alpha-polymarket": {
         "schedule": {"kind": "hourly", "minute": 0},
         "grace_minutes": 20,
         "research_glob": "data/alpha/research/*.md",
@@ -168,11 +162,6 @@ def _research_dir_from_glob(research_glob: str) -> Path:
 def expected_research_path_for_record(root: Path, job: str, research_glob: str, record_ts: dt.datetime) -> Optional[Path]:
     """Path the workflow prompt names for this job at record_ts (UTC), if known."""
     base = root / _research_dir_from_glob(research_glob)
-    if job == "grok-openclaw-research":
-        slot = {7: "morning", 13: "afternoon", 19: "evening"}.get(record_ts.hour)
-        if not slot:
-            return None
-        return base / f"{record_ts.strftime('%Y-%m-%d')}-{slot}.md"
     if job == "alpha-polymarket":
         return base / f"{record_ts.strftime('%Y-%m-%d-%H')}.md"
     return None
@@ -357,7 +346,6 @@ REMEDIATION_HINTS = {
 
 WORKFLOW_AGENTS = {
     "grok-daily-brief": "grok",
-    "grok-openclaw-research": "grok",
     "alpha-polymarket": "alpha",
 }
 

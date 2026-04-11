@@ -12,7 +12,7 @@ GrokClaw runs multiple OpenClaw agents on one gateway:
 
 | Agent | Model | Fallbacks | Workloads |
 |-------|-------|-----------|-----------|
-| **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | — | Daily system brief, OpenClaw research, PR review, feature intake |
+| **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | — | Daily system brief, PR review, feature intake |
 | **Alpha** | `xai/grok-4-1-fast-non-reasoning` | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Hourly Polymarket research and trading; OpenRouter fallback when xAI is unavailable (`OPENROUTER_API_KEY`) |
 | **Kimi** | placeholder shell | — | Reserved for future reassignment; no active jobs, memory, or runtime state |
 
@@ -27,11 +27,10 @@ Routing: Cron jobs with `agentId: "alpha"` run on Alpha. Alpha reports to Grok v
 GrokClaw is an OpenClaw instance where Grok acts as a daily research operator and engineering coordinator.
 
 Primary responsibilities:
-1. Research latest OpenClaw features and compare against this deployment.
-2. Post one high-leverage suggestion inside the daily system brief when warranted.
-3. Turn approved ideas into PM-quality Linear tickets delegated to Cursor.
-4. Review PRs on GitHub before Telegram ever asks Ben to merge.
-5. Keep the system healthy (alerts, retries, watchdog, deploy loop).
+1. Post one high-leverage suggestion inside the daily system brief when warranted.
+2. Turn approved ideas into PM-quality Linear tickets delegated to Cursor.
+3. Review PRs on GitHub before Telegram ever asks Ben to merge.
+4. Keep the system healthy (alerts, retries, watchdog, deploy loop).
 
 ---
 
@@ -110,13 +109,12 @@ Do not skip these updates. Skipping memory causes repeated work and regressions.
 
 ## Core workflow schedule
 
-OpenClaw cron now runs exactly three workflows:
+OpenClaw cron runs exactly two workflows:
 
 1. `grok-daily-brief` at 08:00 — the last 24h of GrokClaw: Paperclip issues, cron runs, audit logs, health checks, agent reports, and Linear-usage violations.
-2. `grok-openclaw-research` at 07:00 / 13:00 / 19:00 — latest stable version, ecosystem changes, new integrations, and notable OpenClaw chatter.
-3. `alpha-polymarket` hourly — Polymarket research, trader discovery, trade decisions, markdown research output, Telegram post, report to Grok.
+2. `alpha-polymarket` hourly — Polymarket research, trader discovery, trade decisions, markdown research output, Telegram post, report to Grok.
 
-All three workflows create a fresh Paperclip issue per run.
+Both workflows create a fresh Paperclip issue per run.
 
 ---
 

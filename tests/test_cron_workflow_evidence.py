@@ -107,48 +107,6 @@ class CronWorkflowEvidenceTests(unittest.TestCase):
             self.assertTrue(audit_log.exists(), "enforcer should post fallback Telegram line")
             self.assertIn("Alpha · Hourly · HOLD", audit_log.read_text(encoding="utf-8"))
 
-    def test_research_enforcer_backfills_expected_slot_file(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workspace = Path(tmpdir)
-            run_id = "run-research-1"
-            self._seed_cron_run(
-                workspace,
-                job="grok-openclaw-research",
-                agent="grok",
-                run_id=run_id,
-                started_ts="2026-04-09T07:51:07Z",
-                terminal_ts="2026-04-09T07:51:55Z",
-            )
-            research_dir = workspace / "data" / "research" / "openclaw"
-            research_dir.mkdir(parents=True, exist_ok=True)
-            (research_dir / "2026-04-09-afternoon.md").write_text(
-                "# OpenClaw Research - 2026-04-09 afternoon\n\n## Latest stable\n- v2026.4.9\n",
-                encoding="utf-8",
-            )
-
-            self._write_stub(
-                workspace / "tools" / "telegram-post.sh",
-                "#!/bin/sh\nset -eu\nexit 0\n",
-            )
-            self._write_stub(
-                workspace / "tools" / "agent-report.sh",
-                "#!/bin/sh\nset -eu\nexit 0\n",
-            )
-
-            env = os.environ.copy()
-            env["WORKSPACE_ROOT"] = str(workspace)
-            env["CRON_RUN_ID"] = run_id
-            result = subprocess.run(
-                ["sh", str(self.script), "grok-openclaw-research", "grok"],
-                cwd=str(self.repo),
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-            expected = research_dir / "2026-04-09-morning.md"
-            self.assertTrue(expected.exists(), "enforcer should ensure expected UTC slot file exists")
 
 
 if __name__ == "__main__":

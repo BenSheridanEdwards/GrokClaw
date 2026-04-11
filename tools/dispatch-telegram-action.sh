@@ -106,7 +106,7 @@ case "$ACTION" in
   rerun_workflow)
     JOB_NAME="$PR_NUM"
     AGENT="$(python3 -c "
-m={'grok-daily-brief':'grok','grok-openclaw-research':'grok','alpha-polymarket':'alpha'}
+m={'grok-daily-brief':'grok','alpha-polymarket':'alpha'}
 print(m.get('$JOB_NAME','grok'))
 ")"
     CRON_MSG="$(python3 -c "

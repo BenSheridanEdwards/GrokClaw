@@ -25,10 +25,6 @@ CORE_WORKFLOWS: Dict[str, Dict[str, Any]] = {
         "schedule": {"kind": "daily", "hours": (8,)},
         "grace_minutes": 20,
     },
-    "grok-openclaw-research": {
-        "schedule": {"kind": "daily", "hours": (7, 13, 19)},
-        "grace_minutes": 20,
-    },
     "alpha-polymarket": {
         "schedule": {"kind": "hourly", "minute": 0},
         "grace_minutes": 20,

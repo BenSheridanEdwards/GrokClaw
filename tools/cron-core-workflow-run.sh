@@ -18,7 +18,7 @@ JOB="${1:?usage: cron-core-workflow-run.sh <job_name> <agent_id>}"
 AGENT="${2:?usage: cron-core-workflow-run.sh <job_name> <agent_id>}"
 
 case "$JOB" in
-  grok-daily-brief | grok-openclaw-research | alpha-polymarket) ;;
+  grok-daily-brief | alpha-polymarket) ;;
   *)
     echo "cron-core-workflow-run.sh: unknown job: $JOB" >&2
     exit 2
@@ -35,13 +35,12 @@ if [ "$JOB" = "alpha-polymarket" ]; then
   TIMEOUT_SEC="${OPENCLAW_AGENT_TIMEOUT_SECONDS_ALPHA:-${OPENCLAW_AGENT_TIMEOUT_SECONDS:-900}}"
   RETRIES="${OPENCLAW_AGENT_RETRIES_ALPHA:-${OPENCLAW_AGENT_RETRIES:-2}}"
   RETRY_BACKOFF_SEC="${OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS_ALPHA:-${OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS:-3}}"
-  RETRY_TELEMETRY_FILE="$LOG_DIR/alpha-retry-telemetry.jsonl"
 else
   TIMEOUT_SEC="${OPENCLAW_AGENT_TIMEOUT_SECONDS:-600}"
-  RETRIES="${OPENCLAW_AGENT_RETRIES:-0}"
-  RETRY_BACKOFF_SEC="${OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS:-1}"
-  RETRY_TELEMETRY_FILE=""
+  RETRIES="${OPENCLAW_AGENT_RETRIES:-1}"
+  RETRY_BACKOFF_SEC="${OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS:-5}"
 fi
+RETRY_TELEMETRY_FILE="$LOG_DIR/${JOB}-retry-telemetry.jsonl"
 LOCK_DIR="$WORKSPACE_ROOT/.openclaw/locks/cron-core-${JOB}.lock"
 LOCK_ACQUIRED=0
 
@@ -138,11 +137,34 @@ trap '_finalize' EXIT
 mkdir -p "$WORKSPACE_ROOT/.openclaw" "$LOG_DIR"
 mkdir -p "$WORKSPACE_ROOT/.openclaw/locks"
 
+LOCK_STALE_SECONDS="${OPENCLAW_LOCK_STALE_SECONDS:-1800}"
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  _CRON_CORE_FINALIZED=1
-  env CRON_RUN_ID="$CRON_RUN_ID" \
-    "$WORKSPACE_ROOT/tools/cron-run-record.sh" "$JOB" "$AGENT" skipped "already running: lock exists for ${JOB}" || true
-  exit 0
+  lock_age="$(python3 -c "
+import os, time
+try:
+    age = time.time() - os.path.getmtime('$LOCK_DIR')
+    print(int(age))
+except Exception:
+    print(0)
+" 2>/dev/null || echo 0)"
+  if [ "$lock_age" -ge "$LOCK_STALE_SECONDS" ]; then
+    rmdir "$LOCK_DIR" 2>/dev/null || true
+    if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+      _CRON_CORE_FINALIZED=1
+      env CRON_RUN_ID="$CRON_RUN_ID" \
+        "$WORKSPACE_ROOT/tools/cron-run-record.sh" "$JOB" "$AGENT" skipped "already running: lock exists for ${JOB}" || true
+      exit 0
+    fi
+    {
+      printf '%s job=%s stale_lock_reclaimed age_seconds=%s\n' \
+        "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$JOB" "$lock_age"
+    } >>"$LOG_FILE" 2>/dev/null || true
+  else
+    _CRON_CORE_FINALIZED=1
+    env CRON_RUN_ID="$CRON_RUN_ID" \
+      "$WORKSPACE_ROOT/tools/cron-run-record.sh" "$JOB" "$AGENT" skipped "already running: lock exists for ${JOB}" || true
+    exit 0
+  fi
 fi
 LOCK_ACQUIRED=1
 
@@ -161,29 +183,16 @@ env CRON_RUN_ID="$CRON_RUN_ID" \
 set +e
 if [ "$JOB" = "alpha-polymarket" ] && [ -x "$WORKSPACE_ROOT/tools/alpha-polymarket-deterministic.sh" ]; then
   CRON_RUN_ID="$CRON_RUN_ID" "$WORKSPACE_ROOT/tools/alpha-polymarket-deterministic.sh"
-elif [ "$JOB" = "grok-openclaw-research" ] && [ -x "$WORKSPACE_ROOT/tools/grok-openclaw-research-deterministic.sh" ]; then
-  CRON_RUN_ID="$CRON_RUN_ID" "$WORKSPACE_ROOT/tools/grok-openclaw-research-deterministic.sh"
 else
-  if [ -n "$RETRY_TELEMETRY_FILE" ]; then
-    OPENCLAW_AGENT_RETRIES="$RETRIES" OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS="$RETRY_BACKOFF_SEC" \
-      CRON_RUN_ID="$CRON_RUN_ID" python3 "$SCRIPT_DIR/_cron_openclaw_agent.py" "$PROMPT_FILE" \
-      --agent "$AGENT" \
-      --session-id "$SESSION_ID" \
-      --timeout "$TIMEOUT_SEC" \
-      --retries "$RETRIES" \
-      --retry-backoff "$RETRY_BACKOFF_SEC" \
-      --telemetry-file "$RETRY_TELEMETRY_FILE" \
-      --cwd "$WORKSPACE_ROOT"
-  else
-    OPENCLAW_AGENT_RETRIES="$RETRIES" OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS="$RETRY_BACKOFF_SEC" \
-      CRON_RUN_ID="$CRON_RUN_ID" python3 "$SCRIPT_DIR/_cron_openclaw_agent.py" "$PROMPT_FILE" \
-      --agent "$AGENT" \
-      --session-id "$SESSION_ID" \
-      --timeout "$TIMEOUT_SEC" \
-      --retries "$RETRIES" \
-      --retry-backoff "$RETRY_BACKOFF_SEC" \
-      --cwd "$WORKSPACE_ROOT"
-  fi
+  OPENCLAW_AGENT_RETRIES="$RETRIES" OPENCLAW_AGENT_RETRY_BACKOFF_SECONDS="$RETRY_BACKOFF_SEC" \
+    CRON_RUN_ID="$CRON_RUN_ID" python3 "$SCRIPT_DIR/_cron_openclaw_agent.py" "$PROMPT_FILE" \
+    --agent "$AGENT" \
+    --session-id "$SESSION_ID" \
+    --timeout "$TIMEOUT_SEC" \
+    --retries "$RETRIES" \
+    --retry-backoff "$RETRY_BACKOFF_SEC" \
+    --telemetry-file "$RETRY_TELEMETRY_FILE" \
+    --cwd "$WORKSPACE_ROOT"
 fi
 AGENT_EXIT=$?
 set -e

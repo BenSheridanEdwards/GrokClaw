@@ -37,13 +37,6 @@ class CtoKpiReportTests(unittest.TestCase):
                     "summary": "trade placed",
                 },
                 {
-                    "job": "grok-openclaw-research",
-                    "agent": "grok",
-                    "ts": "2026-04-01T07:05:00Z",
-                    "status": "ok",
-                    "summary": "research saved",
-                },
-                {
                     "job": "grok-daily-brief",
                     "agent": "grok",
                     "ts": "2026-04-01T08:04:00Z",
@@ -137,7 +130,7 @@ class CtoKpiReportTests(unittest.TestCase):
 
             reliability = payload["reliability"]
             self.assertEqual(reliability["statusCounts"]["error"], 1)
-            self.assertEqual(reliability["statusCounts"]["ok"], 3)
+            self.assertEqual(reliability["statusCounts"]["ok"], 2)
             self.assertGreaterEqual(reliability["meanRecoveryMinutes"], 60.0)
             self.assertEqual(reliability["unrecoveredErrorCount"], 0)
 
