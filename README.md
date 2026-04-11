@@ -83,6 +83,8 @@ GrokClaw uses [Graphify](https://github.com/BenSheridanEdwards/graphify) to main
 
 The daily brief prompt reads the wiki index to navigate the codebase efficiently instead of scanning raw files.
 
+Rebuild after code changes: `./tools/graphify-rebuild.sh` (install [Graphify](https://github.com/BenSheridanEdwards/graphify) with `pip install -e /path/to/graphify`, or set `GRAPHIFY_SRC` to that repo root if the package is not already importable).
+
 ## Polymarket Strategy
 
 Alpha runs a bonding-copy strategy (Dexter-style):
