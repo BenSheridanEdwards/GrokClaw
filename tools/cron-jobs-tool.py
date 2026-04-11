@@ -32,6 +32,27 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def ensure_cron_job_state_dicts(store: dict[str, Any]) -> None:
+    """Mutate store so every job has ``state`` as a dict.
+
+    OpenClaw's cron ``start()`` reads ``job.state.runningAtMs`` before other code
+    initializes ``state``. Repo ``cron/jobs.json`` omits ``state``; merge only copies
+    ``state`` when the previous runtime row had that key, so first-time IDs can be
+    written without ``state`` and crash the scheduler. Legacy string ``state`` values
+    are coerced to ``{}``.
+    """
+    jobs = store.get("jobs")
+    if not isinstance(jobs, list):
+        return
+    for job in jobs:
+        if not isinstance(job, dict):
+            continue
+        st = job.get("state")
+        if isinstance(st, dict):
+            continue
+        job["state"] = {}
+
+
 def validate_jobs(data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     jobs = data.get("jobs")
@@ -94,10 +115,12 @@ def merge_runtime_fields(
     legacy rows (e.g. agentTurn without message) that crash the gateway scheduler.
     """
     if not target_path.is_file():
+        ensure_cron_job_state_dicts(repo_jobs)
         return repo_jobs
     try:
         old = load_json(target_path)
     except (OSError, json.JSONDecodeError):
+        ensure_cron_job_state_dicts(repo_jobs)
         return repo_jobs
     old_by_id = {
         j["id"]: j for j in old.get("jobs", []) if isinstance(j, dict) and "id" in j
@@ -131,6 +154,7 @@ def merge_runtime_fields(
             continue
         merged.append(old_job)
     out["jobs"] = merged
+    ensure_cron_job_state_dicts(out)
     return out
 
 

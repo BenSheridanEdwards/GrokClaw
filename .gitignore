@@ -15,3 +15,7 @@ data/
 __pycache__/
 *.py[cod]
 node_modules/
+# Graphify
+graphify-out/graph.html
+graphify-out/graph.json
+graphify-out/cache/

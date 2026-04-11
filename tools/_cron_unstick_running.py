@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""Remove stale `runningAtMs` from ~/.openclaw/cron/jobs.json (zombie in-flight cron).
+"""Normalize ~/.openclaw/cron/jobs.json for a healthy OpenClaw cron scheduler.
 
-OpenClaw refuses `openclaw cron run` with reason \"already-running\" while this field
-is set. After a crash or dropped client, clear it and restart the gateway.
+1. Ensure every job has a dict `state` (OpenClaw's cron `start()` reads
+   `job.state.runningAtMs` before other code paths initialize `state`; a missing
+   `state` crashes the whole scheduler with:
+   TypeError: Cannot read properties of undefined (reading 'runningAtMs').
+2. Remove stale `runningAtMs` (zombie in-flight). OpenClaw refuses `cron run`
+   with \"already-running\" while this field is set.
+
+After changes, restart the gateway (e.g. ./tools/gateway-ctl.sh restart).
 """
 from __future__ import annotations
 
@@ -18,6 +24,23 @@ def default_cron_path() -> Path:
     if override:
         return Path(override)
     return Path.home() / ".openclaw" / "cron" / "jobs.json"
+
+
+def ensure_job_state_dicts(data: dict) -> tuple[int, list[str]]:
+    """Ensure each job has ``state: {}`` when missing or not a dict. Returns (fixed_count, names)."""
+    fixed = 0
+    names: list[str] = []
+    for job in data.get("jobs", []):
+        if not isinstance(job, dict):
+            continue
+        st = job.get("state")
+        if isinstance(st, dict):
+            continue
+        job["state"] = {}
+        fixed += 1
+        n = job.get("name")
+        names.append(str(n) if n else job.get("id", "?"))
+    return fixed, names
 
 
 def strip_running_at_ms(data: dict) -> tuple[int, list[str]]:
@@ -39,7 +62,9 @@ def strip_running_at_ms(data: dict) -> tuple[int, list[str]]:
 
 
 def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description="Strip runningAtMs from OpenClaw cron jobs.json")
+    parser = argparse.ArgumentParser(
+        description="Normalize OpenClaw cron jobs.json (state dict + clear runningAtMs)"
+    )
     parser.add_argument(
         "--path",
         default=None,
@@ -56,11 +81,17 @@ def main(argv: list[str]) -> int:
         print(f"cron-unstick: missing {path}", file=sys.stderr)
         return 1
     data = json.loads(path.read_text(encoding="utf-8"))
-    removed, names = strip_running_at_ms(data)
-    if removed == 0:
-        print("cron-unstick: no runningAtMs fields found")
+    fixed, state_names = ensure_job_state_dicts(data)
+    if fixed:
+        print(
+            f"cron-unstick: ensured state object on {fixed} job(s): {', '.join(state_names)}"
+        )
+    removed, run_names = strip_running_at_ms(data)
+    if removed:
+        print(f"cron-unstick: clearing runningAtMs on {removed} job(s): {', '.join(run_names)}")
+    if fixed == 0 and removed == 0:
+        print("cron-unstick: no changes needed")
         return 0
-    print(f"cron-unstick: clearing runningAtMs on {removed} job(s): {', '.join(names)}")
     if args.dry_run:
         return 0
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")

@@ -30,6 +30,19 @@ class CronUnstickRunningTests(unittest.TestCase):
         data = {"jobs": [{"state": {}}]}
         self.assertEqual(mod.strip_running_at_ms(data), (0, []))
 
+    def test_ensure_state_adds_empty_dict_when_missing(self) -> None:
+        data = {"version": 1, "jobs": [{"id": "1", "name": "legacy"}]}
+        n, names = mod.ensure_job_state_dicts(data)
+        self.assertEqual(n, 1)
+        self.assertEqual(names, ["legacy"])
+        self.assertEqual(data["jobs"][0]["state"], {})
+
+    def test_ensure_state_replaces_non_dict(self) -> None:
+        data = {"jobs": [{"id": "x", "name": "n", "state": None}]}
+        n, _ = mod.ensure_job_state_dicts(data)
+        self.assertEqual(n, 1)
+        self.assertEqual(data["jobs"][0]["state"], {})
+
 
 if __name__ == "__main__":
     unittest.main()

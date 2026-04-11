@@ -186,7 +186,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                         "channel": "telegram",
                         "to": "-1003831656556",
                     },
-                    "state": "enabled",
+                    "state": {"nextRunAtMs": 1712000000000},
                     "createdAtMs": 1712000000000,
                     "updatedAtMs": 1712000000000,
                 },
@@ -201,7 +201,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                         "to": "-1003831656556",
                     },
                     "agentId": "alpha",
-                    "state": "disabled",
+                    "state": {"nextRunAtMs": 1711900000000},
                     "createdAtMs": 1711900000000,
                     "updatedAtMs": 1711950000000,
                 },
@@ -213,10 +213,10 @@ class TestCronJobsToolSync(unittest.TestCase):
         try:
             merged = cjt.merge_runtime_fields(repo_jobs, runtime_path)
             merged_jobs = {j["id"]: j for j in merged["jobs"]}
-            self.assertEqual(merged_jobs["1"]["state"], "enabled")
+            self.assertEqual(merged_jobs["1"]["state"]["nextRunAtMs"], 1712000000000)
             self.assertEqual(merged_jobs["1"]["createdAtMs"], 1712000000000)
             self.assertEqual(merged_jobs["1"]["updatedAtMs"], 1712000000000)
-            self.assertEqual(merged_jobs["2"]["state"], "disabled")
+            self.assertEqual(merged_jobs["2"]["state"]["nextRunAtMs"], 1711900000000)
             self.assertEqual(merged_jobs["2"]["createdAtMs"], 1711900000000)
             self.assertEqual(merged_jobs["2"]["updatedAtMs"], 1711950000000)
         finally:
@@ -226,7 +226,8 @@ class TestCronJobsToolSync(unittest.TestCase):
         cjt = _load_cron_jobs_tool()
         repo_jobs = {"version": 1, "jobs": [{"id": "1", "name": "test"}]}
         result = cjt.merge_runtime_fields(repo_jobs, Path("/nonexistent/target.json"))
-        self.assertEqual(result, repo_jobs)
+        self.assertIs(result, repo_jobs)
+        self.assertEqual(result["jobs"][0]["state"], {})
 
     def test_merge_runtime_fields_handles_corrupt_target(self):
         cjt = _load_cron_jobs_tool()
@@ -236,11 +237,12 @@ class TestCronJobsToolSync(unittest.TestCase):
             corrupt_path = Path(f.name)
         try:
             result = cjt.merge_runtime_fields(repo_jobs, corrupt_path)
-            self.assertEqual(result, repo_jobs)
+            self.assertIs(result, repo_jobs)
+            self.assertEqual(result["jobs"][0]["state"], {})
         finally:
             corrupt_path.unlink()
 
-    def test_merge_runtime_fields_new_job_in_repo_gets_no_state(self):
+    def test_merge_runtime_fields_new_job_in_repo_gets_empty_state_dict(self):
         cjt = _load_cron_jobs_tool()
         repo_jobs = {
             "version": 1,
@@ -248,7 +250,7 @@ class TestCronJobsToolSync(unittest.TestCase):
         }
         runtime_jobs = {
             "version": 1,
-            "jobs": [{"id": "1", "name": "existing", "state": "enabled"}],
+            "jobs": [{"id": "1", "name": "existing", "state": {"fromRuntime": True}}],
         }
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as f:
             json.dump(runtime_jobs, f)
@@ -256,8 +258,8 @@ class TestCronJobsToolSync(unittest.TestCase):
         try:
             merged = cjt.merge_runtime_fields(repo_jobs, runtime_path)
             merged_jobs = {j["id"]: j for j in merged["jobs"]}
-            self.assertEqual(merged_jobs["1"]["state"], "enabled")
-            self.assertNotIn("state", merged_jobs["2"])
+            self.assertEqual(merged_jobs["1"]["state"], {"fromRuntime": True})
+            self.assertEqual(merged_jobs["2"]["state"], {})
         finally:
             runtime_path.unlink()
 
@@ -375,7 +377,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     {
                         "id": "1",
                         "name": "grok-daily-brief",
-                        "state": "disabled",
+                        "state": {"nextRunAtMs": 999},
                         "createdAtMs": 111111,
                     }
                 ],
@@ -398,7 +400,7 @@ class TestCronJobsToolSync(unittest.TestCase):
 
             self.assertEqual(ret, 0)
             written = json.loads(target.read_text(encoding="utf-8"))
-            self.assertEqual(written["jobs"][0]["state"], "disabled")
+            self.assertEqual(written["jobs"][0]["state"]["nextRunAtMs"], 999)
             self.assertEqual(written["jobs"][0]["createdAtMs"], 111111)
 
     def test_sync_dry_run_does_not_write(self):
@@ -429,7 +431,9 @@ class TestCronJobsToolSync(unittest.TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             prev_state = {
                 "version": 1,
-                "jobs": [{"id": "1", "name": "grok-daily-brief", "state": "disabled"}],
+                "jobs": [
+                    {"id": "1", "name": "grok-daily-brief", "state": {"nextRunAtMs": 42}}
+                ],
             }
             target.write_text(json.dumps(prev_state), encoding="utf-8")
 
@@ -450,7 +454,7 @@ class TestCronJobsToolSync(unittest.TestCase):
 
             self.assertEqual(ret, 0)
             still_prev = json.loads(target.read_text(encoding="utf-8"))
-            self.assertEqual(still_prev["jobs"][0].get("state"), "disabled")
+            self.assertEqual(still_prev["jobs"][0].get("state"), {"nextRunAtMs": 42})
 
     def test_sync_validation_failure_returns_nonzero(self):
         cjt = _load_cron_jobs_tool()
