@@ -7,7 +7,13 @@ from pathlib import Path
 
 
 def _git_init(repo):
-    subprocess.run(["git", "init"], cwd=str(repo), capture_output=True, check=True)
+    # Linux git default branch is often master; tests push to origin main.
+    subprocess.run(
+        ["git", "init", "-b", "main"],
+        cwd=str(repo),
+        capture_output=True,
+        check=True,
+    )
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
         cwd=str(repo),
