@@ -1,5 +1,6 @@
 #!/bin/sh
-# End-to-end reliability checks for GrokClaw workflows.
+# Offline smoke checks (approval + polymarket). Does not run unit tests.
+# Full verification: ./tools/test-all.sh
 # Usage: reliability-e2e.sh
 set -eu
 
@@ -10,15 +11,11 @@ echo "== GrokClaw reliability e2e =="
 echo "Workspace: $WORKSPACE_ROOT"
 echo ""
 
-echo "[1/3] Unit tests"
-python3 -m unittest discover -s "$WORKSPACE_ROOT/tests" -p "test_*.py"
-echo ""
-
-echo "[2/3] Approval smoke"
+echo "[1/2] Approval smoke"
 "$WORKSPACE_ROOT/tools/approval-smoke.sh"
 echo ""
 
-echo "[3/3] Polymarket smoke"
+echo "[2/2] Polymarket smoke"
 "$WORKSPACE_ROOT/tools/polymarket-smoke.sh"
 echo ""
 

@@ -8,7 +8,7 @@
 # Example:
 #   ./tools/cron-unstick-and-run.sh 9c1b0a7d4e2f1003 9c1b0a7d4e2f1001
 #
-# Core job IDs match ~/.openclaw/cron/jobs.json (North Star three workflows).
+# Core job IDs match ~/.openclaw/cron/jobs.json (grok-daily-brief, alpha-polymarket).
 # Env: OPENCLAW_CONFIG_PATH (default ~/.openclaw/openclaw.json)
 set -eu
 
