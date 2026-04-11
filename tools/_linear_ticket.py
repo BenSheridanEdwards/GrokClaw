@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Create a Linear ticket for an approved Grok suggestion."""
 import json
+import os
 import re
 import sys
 import time
@@ -12,8 +13,8 @@ suggestion_num   = sys.argv[2]
 suggestion_title = sys.argv[3]
 description      = sys.argv[4] if len(sys.argv) > 4 else ""
 
-TEAM_ID          = "3f1b1054-07c6-4aad-a02c-89c78a43946b"
-CURSOR_DELEGATE  = "ca233eb8-8630-49c9-8f7c-3708c1bd1c4b"
+TEAM_ID          = os.environ["LINEAR_TEAM_ID"]
+CURSOR_DELEGATE  = os.environ["CURSOR_DELEGATE_ID"]
 
 def compact_title(raw_title: str, max_len: int = 72) -> str:
     """Return a concise PR-style one-liner title."""

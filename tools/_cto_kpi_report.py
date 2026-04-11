@@ -68,7 +68,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--paperclip-company-id",
-        default=os.environ.get("PAPERCLIP_COMPANY_ID", "2e003f55-4bdf-465b-acd3-143ce3745aa8"),
+        default=os.environ.get("PAPERCLIP_COMPANY_ID", ""),
         help="Paperclip company UUID",
     )
     return parser.parse_args()

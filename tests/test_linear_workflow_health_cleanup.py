@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -55,15 +56,19 @@ class LinearWorkflowHealthCleanupTests(unittest.TestCase):
             }
         }
 
-        with patch.object(lwh, "graphql", return_value=sample):
-            open_issues = lwh.find_open_workflow_health_issues("fake-key")
+        with patch.dict(os.environ, {"LINEAR_TEAM_ID": "team-test-id"}, clear=False):
+            with patch.object(lwh, "graphql", return_value=sample):
+                open_issues = lwh.find_open_workflow_health_issues("fake-key")
         ids = {n["id"] for n in open_issues}
         self.assertEqual(ids, {"a"})
 
     def test_graphql_error_raises(self) -> None:
-        with patch.object(lwh, "graphql", return_value={"errors": [{"message": "bad"}]}):
-            with self.assertRaises(RuntimeError):
-                lwh.find_open_workflow_health_issues("k")
+        with patch.dict(os.environ, {"LINEAR_TEAM_ID": "team-test-id"}, clear=False):
+            with patch.object(
+                lwh, "graphql", return_value={"errors": [{"message": "bad"}]}
+            ):
+                with self.assertRaises(RuntimeError):
+                    lwh.find_open_workflow_health_issues("k")
 
     def test_cancel_issue_parses_success(self) -> None:
         payload = {

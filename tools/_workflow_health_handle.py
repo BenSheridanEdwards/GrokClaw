@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-LINEAR_TEAM_ID = "3f1b1054-07c6-4aad-a02c-89c78a43946b"
+LINEAR_TEAM_ID = os.environ["LINEAR_TEAM_ID"]
 TERMINAL_LINEAR_STATES = {"done", "canceled", "cancelled", "duplicate", "completed"}
 
 

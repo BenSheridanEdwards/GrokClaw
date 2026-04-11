@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Transition a Linear issue to a new workflow state."""
-import json, sys, urllib.request
+import json, os, sys, urllib.request
 
 api_key    = sys.argv[1]
 issue_id   = sys.argv[2]  # e.g. "GRO-17"
 target_state = sys.argv[3]  # e.g. "Done", "In Progress", "Canceled"
 
-TEAM_ID = "3f1b1054-07c6-4aad-a02c-89c78a43946b"
+TEAM_ID = os.environ["LINEAR_TEAM_ID"]
 
 STATE_MAP = {
     "backlog":     "984f610b-9331-4398-8ad5-5a89dc71e4e3",

@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -28,8 +30,33 @@ AGENT_TURN_KINDS = frozenset({"agentTurn", "agent_turn"})
 SELF_ANNOUNCE_DELIVERY_NONE_JOBS = frozenset({"alpha-polymarket"})
 
 
-def load_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+def _load_dotenv() -> None:
+    env_path = Path(__file__).resolve().parents[1] / ".env"
+    if not env_path.is_file():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, _, val = line.partition("=")
+        if key and _ and key not in os.environ:
+            os.environ[key] = val
+
+
+def _expand_env(text: str) -> str:
+    _load_dotenv()
+    return re.sub(
+        r"\$\{(\w+)\}",
+        lambda m: os.environ.get(m.group(1), m.group(0)),
+        text,
+    )
+
+
+def load_json(path: Path, *, expand: bool = False) -> dict[str, Any]:
+    raw = path.read_text(encoding="utf-8")
+    if expand:
+        raw = _expand_env(raw)
+    return json.loads(raw)
 
 
 def ensure_cron_job_state_dicts(store: dict[str, Any]) -> None:
@@ -222,7 +249,7 @@ def main() -> int:
     if args.cmd == "validate":
         path = Path(args.path) if args.path else workspace / "cron" / "jobs.json"
         try:
-            data = load_json(path)
+            data = load_json(path, expand=True)
         except FileNotFoundError:
             print(f"cron-jobs-tool: not found: {path}", file=sys.stderr)
             return 2
@@ -246,7 +273,7 @@ def main() -> int:
     )
 
     try:
-        data = load_json(repo_path)
+        data = load_json(repo_path, expand=True)
     except FileNotFoundError:
         print(f"cron-jobs-tool: not found: {repo_path}", file=sys.stderr)
         return 2

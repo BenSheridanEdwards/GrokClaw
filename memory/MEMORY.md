@@ -45,7 +45,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 - **2026-04-08** — **Paperclip Alpha “invalid agent params” / session mismatch:** OpenClaw only parses agent id from session keys shaped **`agent:<openclawAgentId>:<rest>`**; keys like `paperclip:issue:…` or `paperclip-alpha` resolve to default session agent **`main`**, so `agentId: "alpha"` fails validation. **Code:** `paperclip/packages/adapters/openclaw-gateway/src/server/execute.ts` — `resolveSessionKey` now emits `agent:<id>:paperclip:issue|run|…`, infers `<id>` from `adapterConfig.agentId` or agent display name (`alpha`/`kimi`/`grok`), and sets `agentParams.agentId` to the same normalized id when absent. Restart Paperclip after deploy. (Prior live PATCH `sessionKey=paperclip-alpha` was a partial workaround; issue-assignment runs still needed the adapter fix.)
 
-- **2026-04-08** — **Paperclip org: Alpha (Research Worker):** Created via `POST /api/companies/.../agents` — **Alpha**, title **Research Worker**, role `researcher`, **reportsTo** Grok, `openclaw_gateway` adapter cloned from Grok with **`agentId: "alpha"`** and Alpha-specific wake message. UUID `77ddae44-7d64-4783-adc4-2299fddc95b2` appended to `.env` as **`PAPERCLIP_ALPHA_AGENT_ID`** for `cron-paperclip-lifecycle` assignee routing.
+- **2026-04-08** — **Paperclip org: Alpha (Research Worker):** Created via `POST /api/companies/.../agents` — **Alpha**, title **Research Worker**, role `researcher`, **reportsTo** Grok, `openclaw_gateway` adapter cloned from Grok with **`agentId: "alpha"`** and Alpha-specific wake message. UUID appended to `.env` as **`PAPERCLIP_ALPHA_AGENT_ID`** for `cron-paperclip-lifecycle` assignee routing.
 
 - **2026-04-08** — **Paperclip Alpha as separate employee:** Explained that Paperclip only shows multiple workers when multiple **agents** exist on the company, and that `tools/paperclip-api.sh` always used Grok’s hardcoded `AGENT_ID` for `create-issue`. Fix: `PAPERCLIP_ASSIGNEE_AGENT_ID` override in `paperclip-api.sh`; `cron-paperclip-lifecycle.sh` sets it from **`PAPERCLIP_ALPHA_AGENT_ID`** (`.env`) when `start … alpha`. Docs: `AGENTS.md`, `docs/multi-agent-setup.md`. Tests: `tests/test_cron_paperclip_lifecycle.py`.
 
@@ -92,7 +92,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 - **2026-03-19** — Updated agent documentation set for OpenClaw + Telegram + persistent memory contract: `README.md`, `AGENTS.md`, `CURSOR.md`, `IDENTITY.md`, `USER.md`.
 - **2026-03-14** — Created private GitHub repo `BenSheridanEdwards/GrokClaw` and pushed the full workspace as the initial commit.
 - **2026-03-14** — Connected GitHub to the GrokClaw Linear workspace (`github` + `githubPersonal` integrations active). Commits referencing `GRO-XXX` auto-link to Linear tickets.
-- **2026-03-14** — Verified Cursor agent exists in the GrokClaw Linear workspace (ID: `ca233eb8-8630-49c9-8f7c-3708c1bd1c4b`) and can be delegated tickets via `delegateId` on `IssueCreateInput`.
+- **2026-03-14** — Verified Cursor agent exists in the GrokClaw Linear workspace (ID in `.env` as `CURSOR_DELEGATE_ID`) and can be delegated tickets via `delegateId` on `IssueCreateInput`.
 - **2026-03-14** — Upgraded `tools/linear-ticket.sh` to always set `delegateId` to Cursor on every new issue. Verified working.
 - **2026-03-14** — Created `tools/create-pr.sh`: creates a `grok/<issue-id>` branch off main, pushes it, and opens a draft GitHub PR linked to the Linear issue. Verified working (produced PR #2).
 - **2026-03-14** — Full approval flow confirmed working end-to-end: `approve` → Linear ticket (with Cursor delegated) → GitHub PR → Slack reply with both links.
@@ -139,10 +139,10 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 | Integration | Status | Key detail |
 |-------------|--------|-----------|
-| Telegram | ✅ Active | Forum group `-1003831656556`, topics: suggestions(2), polymarket(3), health(4), pr-reviews(5) |
-| Linear | ✅ Active | GrokClaw team ID `3f1b1054-07c6-4aad-a02c-89c78a43946b`, API key in `.env` |
+| Telegram | ✅ Active | Forum group `$TELEGRAM_GROUP_ID`, topics: suggestions(2), polymarket(3), health(4), pr-reviews(5) |
+| Linear | ✅ Active | GrokClaw team ID `$LINEAR_TEAM_ID`, API key in `.env` |
 | GitHub | ✅ Active | Repo `BenSheridanEdwards/GrokClaw`, `gh` CLI as `BenSheridanEdwards` |
-| Cursor agent | ✅ Active | Linear user ID `ca233eb8-8630-49c9-8f7c-3708c1bd1c4b`, assigned via `delegateId` |
+| Cursor agent | ✅ Active | Linear user ID `$CURSOR_DELEGATE_ID`, assigned via `delegateId` |
 
 ---
 
@@ -189,8 +189,8 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 | Config | `~/.openclaw/openclaw.json` |
 | Cron jobs | 3 active OpenClaw cron jobs across 2 active agents (Grok, Alpha) plus Kimi placeholder shell; see `docs/system-architecture.md` |
 | GitHub repo | `BenSheridanEdwards/GrokClaw` |
-| Linear team | `GrokClaw` (`3f1b1054-07c6-4aad-a02c-89c78a43946b`) |
-| Telegram group | `-1003831656556` (topics: suggestions=2, polymarket=3, health=4, pr-reviews=5) |
+| Linear team | `GrokClaw` (`$LINEAR_TEAM_ID`) |
+| Telegram group | `$TELEGRAM_GROUP_ID` (topics: suggestions=2, polymarket=3, health=4, pr-reviews=5) |
 | Paperclip | `http://127.0.0.1:3100`, company `GrokClaw`, adapter `openclaw_gateway`, heartbeat 6h |
 
 ---

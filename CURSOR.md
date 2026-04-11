@@ -88,7 +88,7 @@ Generic example for other jobs:
   "delivery": {
     "mode": "announce",
     "channel": "telegram",
-    "to": "-1003831656556",
+    "to": "$TELEGRAM_GROUP_ID",
     "bestEffort": true
   },
   "payload": {
@@ -144,7 +144,7 @@ Include the test output in your PR description under a **Verification** section.
 **Key config file locations:**
 - OpenClaw config: `~/.openclaw/openclaw.json`
 - Gateway port: `18800` (from config — do not hardcode other values)
-- Telegram group: `-1003831656556` (topic routing in `.env`)
+- Telegram group: `$TELEGRAM_GROUP_ID` (topic routing in `.env`)
 
 ---
 

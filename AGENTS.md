@@ -38,10 +38,10 @@ Primary responsibilities:
 
 | Integration | Details |
 |-------------|---------|
-| Telegram | Group `-1003831656556`; topics: suggestions(2), polymarket(3), health(4), pr-reviews(5) |
-| Linear | Team `GrokClaw`, ID `3f1b1054-07c6-4aad-a02c-89c78a43946b` |
+| Telegram | Group `$TELEGRAM_GROUP_ID`; topics: suggestions(2), polymarket(3), health(4), pr-reviews(5) |
+| Linear | Team `GrokClaw`, ID `$LINEAR_TEAM_ID` |
 | GitHub | `BenSheridanEdwards/GrokClaw` |
-| Cursor | Delegate ID `ca233eb8-8630-49c9-8f7c-3708c1bd1c4b` |
+| Cursor | Delegate ID `$CURSOR_DELEGATE_ID` |
 | Paperclip | Board at `http://127.0.0.1:3100`, company `GrokClaw`, adapter `openclaw_gateway` |
 
 Always use `tools/telegram-post.sh` for outbound messages.

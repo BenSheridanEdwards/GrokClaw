@@ -31,7 +31,12 @@ class TestSelfDeployScript(unittest.TestCase):
 
     def _write_dummy_env(self, repo):
         env_file = repo / ".env"
-        env_file.write_text("OPENCLAW_API_KEY=test\n", encoding="utf-8")
+        env_file.write_text(
+            "OPENCLAW_API_KEY=test\n"
+            # cron-jobs-tool validate expands ${TELEGRAM_GROUP_ID} in jobs.json
+            "TELEGRAM_GROUP_ID=-1001234567890\n",
+            encoding="utf-8",
+        )
         return env_file
 
     def _copy_tool(self, repo, name):
@@ -120,7 +125,7 @@ class TestSelfDeployScript(unittest.TestCase):
                                 "delivery": {
                                     "mode": "announce",
                                     "channel": "telegram",
-                                    "to": "-1003831656556",
+                                    "to": "${TELEGRAM_GROUP_ID}",
                                 },
                             },
                         ],

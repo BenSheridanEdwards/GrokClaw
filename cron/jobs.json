@@ -13,7 +13,7 @@
       "delivery": {
         "mode": "announce",
         "channel": "telegram",
-        "to": "-1003831656556",
+        "to": "${TELEGRAM_GROUP_ID}",
         "bestEffort": true
       },
       "payload": {

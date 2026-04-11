@@ -18,7 +18,6 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-LINEAR_TEAM_ID = "3f1b1054-07c6-4aad-a02c-89c78a43946b"
 # Must match tools/_workflow_health.py build_draft title
 WORKFLOW_HEALTH_ISSUE_TITLE = "Fix workflow health failure in core cron workflows"
 TERMINAL_LINEAR_STATES = frozenset(
@@ -52,6 +51,9 @@ def graphql(api_key: str, query: str, variables: dict) -> dict:
 
 def find_open_workflow_health_issues(api_key: str) -> list[dict]:
     """Return issue nodes {id, identifier, title} that are still open."""
+    team_id = os.environ.get("LINEAR_TEAM_ID", "").strip()
+    if not team_id:
+        raise RuntimeError("LINEAR_TEAM_ID not set")
     q = """
 query WhIssues($teamId: ID!, $needle: String!) {
   issues(
@@ -73,7 +75,7 @@ query WhIssues($teamId: ID!, $needle: String!) {
     data = graphql(
         api_key,
         q,
-        {"teamId": LINEAR_TEAM_ID, "needle": WORKFLOW_HEALTH_ISSUE_TITLE},
+        {"teamId": team_id, "needle": WORKFLOW_HEALTH_ISSUE_TITLE},
     )
     errors = data.get("errors") or []
     if errors:

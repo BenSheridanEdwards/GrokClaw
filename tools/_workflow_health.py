@@ -263,7 +263,7 @@ def fetch_paperclip_issues() -> List[dict]:
         headers["X-Paperclip-Local"] = "true"
 
     request = urllib.request.Request(
-        "http://127.0.0.1:3100/api/companies/2e003f55-4bdf-465b-acd3-143ce3745aa8/issues",
+        f"http://127.0.0.1:3100/api/companies/{os.environ['PAPERCLIP_COMPANY_ID']}/issues",
         headers=headers,
     )
     with urllib.request.urlopen(request, timeout=5) as response:

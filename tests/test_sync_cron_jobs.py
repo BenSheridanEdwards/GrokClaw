@@ -59,7 +59,7 @@ class TestSyncCronJobsScript(unittest.TestCase):
                                 "delivery": {
                                     "mode": "announce",
                                     "channel": "telegram",
-                                    "to": "-1003831656556",
+                                    "to": "${TELEGRAM_GROUP_ID}",
                                 },
                             },
                         ],
@@ -117,7 +117,7 @@ class TestSyncCronJobsScript(unittest.TestCase):
                                 "delivery": {
                                     "mode": "announce",
                                     "channel": "telegram",
-                                    "to": "-1003831656556",
+                                    "to": "${TELEGRAM_GROUP_ID}",
                                 },
                             },
                         ],
@@ -156,7 +156,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
-                        "to": "-1003831656556",
+                        "to": "${TELEGRAM_GROUP_ID}",
                     },
                 },
                 {
@@ -167,7 +167,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
-                        "to": "-1003831656556",
+                        "to": "${TELEGRAM_GROUP_ID}",
                     },
                     "agentId": "alpha",
                 },
@@ -184,7 +184,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
-                        "to": "-1003831656556",
+                        "to": "${TELEGRAM_GROUP_ID}",
                     },
                     "state": {"nextRunAtMs": 1712000000000},
                     "createdAtMs": 1712000000000,
@@ -198,7 +198,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
-                        "to": "-1003831656556",
+                        "to": "${TELEGRAM_GROUP_ID}",
                     },
                     "agentId": "alpha",
                     "state": {"nextRunAtMs": 1711900000000},
@@ -277,7 +277,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
-                        "to": "-1003831656556",
+                        "to": "${TELEGRAM_GROUP_ID}",
                     },
                 },
             ],
@@ -292,7 +292,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
-                        "to": "-1003831656556",
+                        "to": "${TELEGRAM_GROUP_ID}",
                     },
                     "state": {"lastRunStatus": "ok"},
                 },
@@ -303,7 +303,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
-                        "to": "-1003831656556",
+                        "to": "${TELEGRAM_GROUP_ID}",
                     },
                     "state": {"lastRunStatus": "error"},
                 },
@@ -361,7 +361,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                         "delivery": {
                             "mode": "announce",
                             "channel": "telegram",
-                            "to": "-1003831656556",
+                            "to": "${TELEGRAM_GROUP_ID}",
                         },
                     },
                 ],
@@ -419,7 +419,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                         "delivery": {
                             "mode": "announce",
                             "channel": "telegram",
-                            "to": "-1003831656556",
+                            "to": "${TELEGRAM_GROUP_ID}",
                         },
                     },
                 ],

@@ -16,7 +16,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 KEY_FILE="${HOME}/.openclaw/workspace/paperclip-claimed-api-key.json"
 API_BASE="http://127.0.0.1:3100/api"
-COMPANY_ID="2e003f55-4bdf-465b-acd3-143ce3745aa8"
+COMPANY_ID="${PAPERCLIP_COMPANY_ID:?PAPERCLIP_COMPANY_ID not set}"
 AGENT_ID="b5bb9ffe-2b4e-437a-b7d7-feee36da31fb"
 # create-issue uses PAPERCLIP_ASSIGNEE_AGENT_ID when set (see cron-paperclip-lifecycle.sh + PAPERCLIP_ALPHA_AGENT_ID).
 ASSIGNEE_FOR_CREATE="${PAPERCLIP_ASSIGNEE_AGENT_ID:-$AGENT_ID}"
