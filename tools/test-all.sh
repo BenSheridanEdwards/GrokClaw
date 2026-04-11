@@ -11,7 +11,12 @@ echo ""
 
 echo "[1/4] Shell syntax checks"
 for script in "$WORKSPACE_ROOT"/tools/*.sh; do
-  sh -n "$script"
+  # Ubuntu /bin/sh is dash; bash-only scripts (e.g. arrays in paperclip-api.sh) need bash -n.
+  first=$(head -n 1 "$script")
+  case "$first" in
+    *bash*) bash -n "$script" ;;
+    *) sh -n "$script" ;;
+  esac
 done
 echo "OK"
 echo ""

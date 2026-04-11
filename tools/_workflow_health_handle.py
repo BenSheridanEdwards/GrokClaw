@@ -10,8 +10,14 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-LINEAR_TEAM_ID = os.environ["LINEAR_TEAM_ID"]
 TERMINAL_LINEAR_STATES = {"done", "canceled", "cancelled", "duplicate", "completed"}
+
+
+def _linear_team_id() -> str:
+    tid = os.environ.get("LINEAR_TEAM_ID", "").strip()
+    if not tid:
+        raise RuntimeError("LINEAR_TEAM_ID not set")
+    return tid
 
 
 def utc_now() -> str:
@@ -137,7 +143,7 @@ query ExistingIssues($teamId: ID!, $title: String!) {
         {
             "query": query,
             "variables": {
-                "teamId": LINEAR_TEAM_ID,
+                "teamId": _linear_team_id(),
                 "title": draft_title,
             },
         }

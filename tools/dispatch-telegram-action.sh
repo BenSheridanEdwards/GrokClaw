@@ -50,7 +50,8 @@ while [ "$acquired" -eq 0 ]; do
 done
 trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
-if rg -F -x -- "$TOKEN" "$SEEN_FILE" >/dev/null 2>&1; then
+# Use grep (POSIX) so CI runners without ripgrep still dedupe actions.
+if grep -F -x -q -- "$TOKEN" "$SEEN_FILE" 2>/dev/null; then
   echo "Action already processed, skipping: $TOKEN"
   exit 0
 fi

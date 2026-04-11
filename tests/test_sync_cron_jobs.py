@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,6 +33,7 @@ class TestSyncCronJobsScript(unittest.TestCase):
         workspace = repo or self.workspace
         env = os.environ.copy()
         env["WORKSPACE_ROOT"] = str(workspace)
+        env.setdefault("TELEGRAM_GROUP_ID", "-1001234567890")
         result = subprocess.run(
             ["sh", str(self.script)] + list(args),
             capture_output=True,
@@ -142,6 +144,19 @@ class TestSyncCronJobsScript(unittest.TestCase):
 
 class TestCronJobsToolSync(unittest.TestCase):
     """Direct unit tests for cron-jobs-tool.py sync logic"""
+
+    def setUp(self):
+        super().setUp()
+        self._telegram_env = patch.dict(
+            os.environ,
+            {"TELEGRAM_GROUP_ID": "-1001234567890"},
+            clear=False,
+        )
+        self._telegram_env.start()
+
+    def tearDown(self):
+        self._telegram_env.stop()
+        super().tearDown()
 
     def test_merge_runtime_fields_preserves_state(self):
         cjt = _load_cron_jobs_tool()
