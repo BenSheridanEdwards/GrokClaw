@@ -79,32 +79,31 @@ _finalize() {
   # exist even when the model returns narrative output without executing operational commands.
   EVIDENCE_PATH="$WORKSPACE_ROOT/tools/cron-workflow-evidence.sh"
   EVIDENCE_FILE=""
-  EVIDENCE_REPAIRS="0"
+  EVIDENCE_MAX_SEVERITY=""
   if [ -x "$EVIDENCE_PATH" ]; then
     EVIDENCE_FILE="$(env CRON_RUN_ID="${CRON_RUN_ID}" "$EVIDENCE_PATH" "$JOB" "$AGENT" 2>/dev/null || true)"
     EVIDENCE_FILE="$(printf '%s' "$EVIDENCE_FILE" | tr -d '\r\n')"
     if [ -n "$EVIDENCE_FILE" ] && [ -f "$EVIDENCE_FILE" ]; then
-      EVIDENCE_REPAIRS="$(
+      EVIDENCE_MAX_SEVERITY="$(
         python3 - "$EVIDENCE_FILE" <<'PY'
 import json, sys
 path = sys.argv[1]
 try:
     payload = json.loads(open(path, encoding="utf-8").read() or "{}")
 except Exception:
-    print(0)
+    print("ok")
     raise SystemExit(0)
-repairs = payload.get("repairs") or []
-print(len(repairs))
+print(payload.get("maxSeverity", "ok"))
 PY
       )"
-      EVIDENCE_REPAIRS="${EVIDENCE_REPAIRS:-0}"
+      EVIDENCE_MAX_SEVERITY="${EVIDENCE_MAX_SEVERITY:-ok}"
     fi
   fi
 
-  if [ "$status" = "ok" ] && [ "${EVIDENCE_REPAIRS:-0}" -gt 0 ]; then
+  if [ "$status" = "ok" ] && [ "${EVIDENCE_MAX_SEVERITY:-ok}" = "error" ]; then
     status="error"
-    summary="orchestrator: evidence repairs applied (${EVIDENCE_REPAIRS})"
-    export CRON_ERROR_DETAILS="evidence contract auto-repaired missing outputs"
+    summary="orchestrator: evidence repairs applied (critical)"
+    export CRON_ERROR_DETAILS="evidence contract auto-repaired missing primary outputs"
   fi
 
   # Terminal record + Paperclip finish (cron-run-record.sh); tolerate failure so trap completes.

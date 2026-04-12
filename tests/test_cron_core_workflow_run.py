@@ -317,7 +317,7 @@ class CronCoreWorkflowRunTests(unittest.TestCase):
                     set -eu
                     mkdir -p "{evidence_path.parent}"
                     cat > "{evidence_path}" <<'JSON'
-                    {{"job":"grok-daily-brief","runId":"test-run","repairs":["posted_fallback_daily_brief"]}}
+                    {{"job":"grok-daily-brief","runId":"test-run","maxSeverity":"error","repairs":["posted_fallback_daily_brief"]}}
                     JSON
                     printf '%s\\n' "{evidence_path}"
                     """
