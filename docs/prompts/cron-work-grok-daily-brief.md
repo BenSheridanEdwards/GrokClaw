@@ -54,17 +54,23 @@ Any creation flow violations. If none, state "No violations."
 
 ## GitHub Discoveries
 
-### Starred (new repos Ben starred this week)
-For EACH starred repo in data/github-discover/*.json:
-- **[repo/name]** (N stars, Language) — [description]
-  - Cross-ref: [IN YOUR STACK: used in X | NEW: relevant because Y | SKIP: not relevant]
-  - If IN YOUR STACK: check for version updates or new features worth knowing about
-  - If NEW and relevant: one sentence on how it could improve GrokClaw
+### Starred (repos Ben starred this week)
+For EACH starred repo in data/github-discover/*.json, write **at least 2-3 sentences**:
+
+**Good example:**
+> **karpathy/autoresearch** (70k stars, Python) — Single-GPU autonomous research agents that can run multi-step investigations with tool use. NEW: This could enhance Alpha's market research pipeline. Currently Alpha uses a deterministic bonding-copy strategy with no autonomous research — autoresearch's agent loop pattern could let Alpha independently investigate market fundamentals before making trade decisions. Worth evaluating as an Alpha subsystem.
+
+**Bad example (too short, do NOT do this):**
+> **karpathy/autoresearch** (70k stars, Python) — Research agents. NEW: Alpha research boost.
+
+For each repo:
+- State the full description from the JSON, not a truncated version
+- Cross-reference against memory/MEMORY.md and graphify-out/wiki/index.md
+- Label: IN YOUR STACK (with where it's used) | NEW (with specific GrokClaw integration idea) | SKIP (with one-line reason)
+- For NEW repos: explain concretely how it could plug into GrokClaw's architecture
 
 ### Trending (hot repos this week)
-For the top 5 trending repos by stars:
-- Same treatment as starred repos
-- Filter aggressively: only include repos genuinely useful for multi-agent systems, crypto trading, or developer tooling
+For the top 5 trending repos by stars — same depth as starred. Filter aggressively: skip repos not relevant to multi-agent systems, crypto trading, or developer tooling.
 
 If the discovery file is empty or missing, state: "Discovery file not found — run ./tools/github-discover.sh"
 
@@ -113,9 +119,11 @@ NEEDS ATTENTION
 
 DISCOVERED
 - [only NEW repos — omit anything already integrated in GrokClaw]
-- [repo] — [what it does and why YOU should care] (starred/trending)
-- [e.g. "karpathy/autoresearch — autonomous research agents, could power Alpha market analysis (70k stars, starred)"]
-- [max 5 entries, skip irrelevant repos and in-stack repos]
+- [format: "repo — what it does + why it matters to GrokClaw (Nk stars, starred/trending)"]
+- [e.g. "karpathy/autoresearch — autonomous research agents; could replace Alpha deterministic pipeline with adaptive research (70k stars, starred)"]
+- [e.g. "nuwa-skill — distill expert decision patterns into agents; could capture Ben decision style for Grok suggestions (8k stars, trending)"]
+- [each entry must explain the GrokClaw connection, not just describe the repo]
+- [max 5 entries]
 - [or "No new discoveries today"]
 
 X SIGNALS
