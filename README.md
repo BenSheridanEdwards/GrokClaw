@@ -98,6 +98,20 @@ Both agents run through the OpenClaw Gateway — PaperClip sees the same executi
 
 Health monitoring alerts Telegram once per failure with a one-tap rerun button. Workflow failures enter Linear only through an approval-gated draft — no automatic ticket creation.
 
+### Evidence Contract
+
+Every workflow run is checked post-completion for required artifacts (Telegram posts, research files, agent reports). Missing artifacts are auto-repaired and classified by severity:
+
+| Severity | Meaning | Effect on run status |
+|----------|---------|---------------------|
+| **error** | Primary deliverable missing (Telegram post fabricated) | Run marked as `error` |
+| **warning** | Secondary artifact missing (agent report, research file) | Run stays `ok` |
+
+### Dedup Guards
+
+- **Health alerts** — same job+error combination is only posted to Telegram once per hour
+- **Telegram posts** — during cron runs, duplicate posts to the same topic for the same run ID are suppressed
+
 ## Knowledge Graph
 
 GrokClaw uses [Graphify](https://github.com/BenSheridanEdwards/graphify) to maintain a navigable knowledge graph of the codebase.
