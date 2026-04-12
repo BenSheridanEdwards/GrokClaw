@@ -4,6 +4,8 @@ GrokClaw is an OpenClaw-powered multi-agent system with two active agents and tw
 
 ## Agents
 
+![PaperClip Org Chart](docs/images/paperclip-org-chart.png)
+
 | Agent | Model | Fallback | Role |
 |-------|-------|----------|------|
 | **Grok** | xAI Grok Fast | OpenRouter Nemotron 3 Super (free) | Coordinator, daily brief, PR review, Linear intake |
@@ -59,6 +61,30 @@ Every workflow run creates a Paperclip issue, writes a cron record, and posts to
 | `polymarket` (3) | Alpha trading summaries |
 | `health` (4) | Incidents, watchdog alerts, deploy results |
 | `pr-reviews` (5) | Grok-reviewed PRs ready for merge |
+
+## PaperClip — Operational Dashboard
+
+[PaperClip](https://paperclip.dev) is the control plane for GrokClaw's agents. Every workflow run, every issue, and every cost event flows through it.
+
+![PaperClip Dashboard](docs/images/paperclip-dashboard.png)
+
+### How GrokClaw uses PaperClip
+
+Every cron workflow run automatically creates a PaperClip issue, giving full traceability from trigger to completion. The dashboard surfaces what matters: which runs succeeded, which failed, and what needs attention — without digging through logs.
+
+| Capability | How it's used |
+|------------|---------------|
+| **Run tracking** | Each agent run is recorded with status, run ID, and type — viewable in the Runs tab |
+| **Issue lifecycle** | Workflow runs create issues; priorities (Critical → Low) and statuses (Done, Cancelled) track operational health |
+| **Agent control** | Assign tasks, trigger heartbeats, and pause agents directly from the UI |
+| **Cost visibility** | Per-agent and company-level cost tracking across all runs |
+| **Activity feed** | Chronological log of everything that happened across the system |
+
+### The org
+
+PaperClip models GrokClaw as a company with an org chart. Grok is the CEO coordinating daily operations; Alpha reports in as a Research Worker running the Polymarket loop.
+
+Both agents run through the OpenClaw Gateway — PaperClip sees the same execution layer that powers the cron scheduler and Telegram integration.
 
 ## Reliability Stack
 

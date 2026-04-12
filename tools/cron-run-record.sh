@@ -90,6 +90,11 @@ if [ -n "$ISSUE_UUID" ]; then
     diag "paperclip_finish_failed job=$JOB issue=$ISSUE_UUID status=$LIFECYCLE_STATUS"
   fi
 
+  if [ "$STATUS" = "ok" ]; then
+    python3 "$WORKSPACE_ROOT/tools/_post_run_usage.py" "$AGENT" "$ISSUE_UUID" 2>&1 || \
+      diag "post_run_usage_failed job=$JOB agent=$AGENT issue=$ISSUE_UUID"
+  fi
+
   if [ -n "${CRON_RUN_ID:-}" ]; then
     if ! "$PAPERCLIP_API" comment "$ISSUE_UUID" "Run ID: ${CRON_RUN_ID} | terminal status: ${STATUS}"; then
       diag "paperclip_runid_comment_failed job=$JOB issue=$ISSUE_UUID run_id=${CRON_RUN_ID}"
