@@ -61,6 +61,28 @@ else
   MESSAGE=$(cat)
 fi
 
+# Dedup: skip if this runId+topic already posted
+if [ -n "${CRON_RUN_ID:-}" ]; then
+  TODAY_LOG="$WORKSPACE_ROOT/data/audit-log/$(date -u +%Y-%m-%d).jsonl"
+  if [ -f "$TODAY_LOG" ] && python3 -c "
+import json, sys
+run_id = '${CRON_RUN_ID}'
+topic = '${RAW_TOPIC}'
+for line in open('${TODAY_LOG}', encoding='utf-8'):
+    line = line.strip()
+    if not line: continue
+    try:
+        e = json.loads(line)
+    except: continue
+    if e.get('topic') == topic and e.get('kind') == 'telegram_post' and run_id in (e.get('message') or ''):
+        sys.exit(0)
+sys.exit(1)
+" 2>/dev/null; then
+    echo "telegram-post.sh: dedup — already posted to $RAW_TOPIC for run $CRON_RUN_ID" >&2
+    exit 0
+  fi
+fi
+
 attempt=1
 delay=1
 max_attempts=3
