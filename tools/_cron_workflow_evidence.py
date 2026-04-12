@@ -127,7 +127,7 @@ def ensure_daily_brief(root: Path, run_id: str, start: dt.datetime, end: dt.date
     if has_audit_event(
         events,
         {"suggestions", "health"},
-        ("Daily system brief:", "Daily system brief (", "Daily Suggestion #", "Daily brief "),
+        ("Daily system brief:", "Daily system brief (", "Daily Suggestion #", "Daily brief ", "GROKCLAW DAILY BRIEF"),
         start,
         end,
     ):

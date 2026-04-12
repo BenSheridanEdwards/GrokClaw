@@ -20,7 +20,7 @@ CORE_WORKFLOWS = {
     "grok-daily-brief": {
         "schedule": {"kind": "daily", "hours": (8,)},
         "grace_minutes": 20,
-        "audit_checks": [(("suggestions", "health"), ("Daily system brief:", "Daily system brief (", "Daily Suggestion #", "Daily brief "))],
+        "audit_checks": [(("suggestions", "health"), ("Daily system brief:", "Daily system brief (", "Daily Suggestion #", "Daily brief ", "GROKCLAW DAILY BRIEF"))],
     },
 "alpha-polymarket": {
         "schedule": {"kind": "hourly", "minute": 0},
