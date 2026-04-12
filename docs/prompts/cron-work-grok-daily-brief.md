@@ -57,15 +57,24 @@ Any creation flow violations. If none, state "No violations."
 ### Starred (repos Ben starred this week)
 For EACH starred repo in data/github-discover/*.json, write **at least 2-3 sentences**:
 
-**Good example:**
-> **karpathy/autoresearch** (70k stars, Python) — Single-GPU autonomous research agents that can run multi-step investigations with tool use. NEW: This could enhance Alpha's market research pipeline. Currently Alpha uses a deterministic bonding-copy strategy with no autonomous research — autoresearch's agent loop pattern could let Alpha independently investigate market fundamentals before making trade decisions. Worth evaluating as an Alpha subsystem.
+**Good example (NEW repo):**
+> **lost-pixel/lost-pixel** (1.6k stars, TypeScript) — Open source visual regression testing, a free Percy/Chromatic alternative. NEW: GrokClaw has no visual testing for Paperclip's web UI. lost-pixel could run in CI via GitHub Actions to catch UI regressions after deploys. Integration: add to `.github/workflows/`, point at Paperclip's dashboard pages.
+
+**Good example (IN YOUR STACK repo):**
+> **karpathy/autoresearch** (70k stars, Python) — Autonomous research agents. IN YOUR STACK: Alpha uses autoresearch for self-improving market research (see NorthStar.md:77). Each run produces one saved autoresearch report.
 
 **Bad example (too short, do NOT do this):**
-> **karpathy/autoresearch** (70k stars, Python) — Research agents. NEW: Alpha research boost.
+> **lost-pixel/lost-pixel** (1.6k stars, TS) — Visual testing. NEW: UI testing.
 
 For each repo:
 - State the full description from the JSON, not a truncated version
-- Cross-reference against memory/MEMORY.md and graphify-out/wiki/index.md
+- Cross-reference against ALL of these to determine if it's already integrated:
+  - `memory/MEMORY.md`
+  - `graphify-out/wiki/index.md` (drill into community articles)
+  - `NorthStar.md` (the operating model — mentions tools like autoresearch, MemPalace, etc.)
+  - `AGENTS.md` (agent configurations and tool references)
+  - `docs/prompts/cron-work-alpha-polymarket.md` (Alpha's workflow tools)
+- If the repo name OR its core concept appears in ANY of those files, it is IN YOUR STACK — not NEW
 - Label: IN YOUR STACK (with where it's used) | NEW (with specific GrokClaw integration idea) | SKIP (with one-line reason)
 - For NEW repos: explain concretely how it could plug into GrokClaw's architecture
 
@@ -86,7 +95,7 @@ If browser was unavailable, state "Browser unavailable — skipped X browsing."
 Look at everything above. Is there ONE concrete improvement that would make GrokClaw meaningfully better?
 
 Good suggestions:
-- "Integrate karpathy/autoresearch for Alpha's market research pipeline — here's how..."
+- "Add lost-pixel visual regression to CI — catches Paperclip UI breaks after deploys"
 - "Alpha evaluated 12 markets today but only looked at BTC — diversify to ETH/SOL near-resolution markets"
 - "Gateway is 2 versions behind — update with: npm update openclaw"
 
@@ -120,7 +129,7 @@ NEEDS ATTENTION
 DISCOVERED
 - [only NEW repos — omit anything already integrated in GrokClaw]
 - [format: "repo — what it does + why it matters to GrokClaw (Nk stars, starred/trending)"]
-- [e.g. "karpathy/autoresearch — autonomous research agents; could replace Alpha deterministic pipeline with adaptive research (70k stars, starred)"]
+- [e.g. "lost-pixel — visual regression testing; catches Paperclip UI breaks in CI (1.6k stars, starred)"]
 - [e.g. "nuwa-skill — distill expert decision patterns into agents; could capture Ben decision style for Grok suggestions (8k stars, trending)"]
 - [each entry must explain the GrokClaw connection, not just describe the repo]
 - [max 5 entries]
