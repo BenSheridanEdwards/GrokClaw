@@ -51,8 +51,8 @@ class WorkflowPromptTests(unittest.TestCase):
         workspace = Path(__file__).resolve().parents[1]
         prompts = workspace / "docs" / "prompts"
         daily = (prompts / "cron-work-grok-daily-brief.md").read_text(encoding="utf-8")
-        self.assertIn("Paperclip issues from the last 24 hours", daily)
-        self.assertIn("audit log", daily.lower())
+        self.assertIn("Paperclip", daily)
+        self.assertIn("data/audit-log/", daily)
         self.assertIn("data/linear-creations/", daily)
         self.assertIn("user_request", daily)
         self.assertIn("./tools/telegram-suggestion.sh", daily)

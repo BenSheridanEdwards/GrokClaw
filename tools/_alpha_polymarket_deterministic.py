@@ -224,7 +224,26 @@ def main(argv: list[str]) -> int:
     if action == "trade":
         line = "Alpha · Hourly · TRADE — deterministic copy-signal trade executed with gated sizing."
     else:
-        line = "Alpha · Hourly · HOLD — deterministic gates found no robust edge this hour."
+        # Build contextual HOLD message
+        if candidate and isinstance(candidate, dict):
+            question = candidate.get("question", "unknown market")
+            source = candidate.get("selection_source", "unknown")
+            copy = candidate.get("copy_strategy") if isinstance(candidate.get("copy_strategy"), dict) else {}
+            status = copy.get("status", "n/a")
+            traders = int(copy.get("traders_with_matching_positions", 0) or 0)
+            if source == "bonding_copy" and traders < BONDING_MIN_MATCHING_TRADERS:
+                reject_reason = f"insufficient bonding wallets ({traders}/{BONDING_MIN_MATCHING_TRADERS})"
+            elif source != "bonding_copy":
+                reject_reason = f"source={source} (bonding_copy required)"
+            elif status != "ok":
+                reject_reason = f"copy status={status}"
+            else:
+                reject_reason = "confidence below threshold"
+            # Truncate question to keep Telegram message readable
+            short_q = question[:60] + "..." if len(question) > 60 else question
+            line = f"Alpha · Hourly · HOLD — evaluated \"{short_q}\"; rejected: {reject_reason}."
+        else:
+            line = "Alpha · Hourly · HOLD — no near-resolution markets found this hour."
     run_command(root, str(tools / "telegram-post.sh"), "polymarket", line, check=False)
 
     summary = (
