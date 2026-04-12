@@ -144,7 +144,7 @@ When behavior looks wrong, check both layers before concluding the system is bro
 The 2026-04-05 runtime audit found a few important differences between the repo docs and the live runtime:
 
 - live runtime currently has 2 active OpenClaw cron workflows
-- live runtime routes `alpha` to `xai/grok-4-1-fast-non-reasoning` with OpenRouter Nemotron free fallback
+- live runtime routes `alpha` to `openrouter/nvidia/nemotron-3-super-120b-a12b:free` (no fallback)
 - `kimi` is present only as a placeholder shell, but because it has no explicit model block it still inherits the default model if manually targeted
 - `~/.openclaw/openclaw.json` still reports stale `meta.lastTouchedVersion` even though the installed CLI is newer
 

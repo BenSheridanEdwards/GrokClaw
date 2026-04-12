@@ -39,7 +39,7 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 - **2026-04-09** — **Alpha strategy hardening (Dexter-style bonding copy):** `tools/_polymarket_trade.py` now prioritizes a bonding-copy selector before whale/volume fallback (seed wallets: Sharky6999, 033033033, ForesightOracle), targets near-resolution high-probability setups (97-100c), and filters 15-minute latency-arb style markets. `tools/_polymarket_decide.py` adds a dedicated `bonding_copy` risk profile (lower edge/confidence thresholds but tighter stake/exposure caps) so copied late-stage edges can be taken with controlled sizing. Prompt updated at `docs/prompts/cron-work-alpha-polymarket.md`. Tests added/updated: `tests/test_polymarket_trade.py`, `tests/test_polymarket_decide.py`. Verification: `python3 -m unittest tests/test_polymarket_trade.py tests/test_polymarket_decide.py tests/test_workflow_prompts.py tests/test_workflow_health.py`.
 
-- **2026-04-09** — **Alpha primary model → Grok:** `~/.openclaw/openclaw.json` — Alpha `model.primary` set to `xai/grok-4-1-fast-non-reasoning` (same as Grok), fallbacks `openrouter/nvidia/nemotron-3-super-120b-a12b:free`. Docs: `AGENTS.md`, `NorthStar.md`, `README.md`, `docs/multi-agent-setup.md`, `docs/system-architecture.md`. Restart gateway to apply.
+- **2026-04-12** — **Alpha primary model → Nemotron free:** `~/.openclaw/openclaw.json` — Alpha `model.primary` set to `openrouter/nvidia/nemotron-3-super-120b-a12b:free` (no fallback). Docs: `AGENTS.md`, `NorthStar.md`, `README.md`, `docs/multi-agent-setup.md`, `docs/system-architecture.md`. Restart gateway to apply.
 
 - **2026-04-09** — **OpenClaw CLI upgrade:** `npm install -g openclaw@latest` — **2026.4.5 → 2026.4.9** (git `0512059`). Operator: restart gateway with `./tools/gateway-ctl.sh restart` and confirm `./tools/health-check.sh` when launchd is running (`openclaw cron list` needs a healthy gateway).
 
@@ -188,7 +188,7 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 | Runtime | OpenClaw v2026.4.9 |
 | Grok model | `xai/grok-4-1-fast-non-reasoning` (alias: `grok-fast`) |
 | Kimi model | placeholder shell only; no active scheduled work or dedicated model block |
-| Alpha model | `xai/grok-4-1-fast-non-reasoning` primary; Nemotron 3 Super free on OpenRouter as fallback (`OPENROUTER_API_KEY`) |
+| Alpha model | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` primary; no fallback (`OPENROUTER_API_KEY`) |
 | Workspace | `/Users/jarvis/Engineering/Projects/GrokClaw` |
 | Config | `~/.openclaw/openclaw.json` |
 | Cron jobs | 3 active OpenClaw cron jobs across 2 active agents (Grok, Alpha) plus Kimi placeholder shell; see `docs/system-architecture.md` |

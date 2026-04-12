@@ -13,10 +13,10 @@ GrokClaw runs multiple OpenClaw agents on one gateway:
 | Agent | Model | Fallbacks | Workloads |
 |-------|-------|-----------|-----------|
 | **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Daily system brief, PR review, feature intake |
-| **Alpha** | `xai/grok-4-1-fast-non-reasoning` | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Hourly Polymarket research and trading; OpenRouter fallback when xAI is unavailable (`OPENROUTER_API_KEY`) |
+| **Alpha** | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | — | Hourly Polymarket research and trading (`OPENROUTER_API_KEY`) |
 | **Kimi** | placeholder shell | — | Reserved for future reassignment; no active jobs, memory, or runtime state |
 
-Fallback chain: Alpha uses **Grok** (`xai/grok-4-1-fast-non-reasoning`) as primary (same fast model as Grok), then NVIDIA Nemotron 3 Super (free on OpenRouter) if xAI fails. Jobs must never silently die because a provider is down.
+Fallback chain: Grok uses `xai/grok-4-1-fast-non-reasoning` as primary, falling back to NVIDIA Nemotron 3 Super (free on OpenRouter) if xAI fails. Alpha uses Nemotron 3 Super as its only model. Fallback isn't needed as it's a fun side mission rather than a critical workflow.
 
 Routing: Cron jobs with `agentId: "alpha"` run on Alpha. Alpha reports to Grok via `agent-report.sh`; Grok synthesizes and reports to you in the daily brief (08:00). See `docs/agent-tasks.md` for the active task breakdown. Paperclip may target Alpha or another future shell explicitly via `adapterConfig.agentId`. Manual runs: `OPENCLAW_AGENT_ID=alpha ./tools/run-openclaw-agent.sh`.
 

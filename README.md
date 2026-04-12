@@ -9,7 +9,7 @@ GrokClaw is an OpenClaw-powered multi-agent system with two active agents and tw
 | Agent | Model | Fallback | Role |
 |-------|-------|----------|------|
 | **Grok** | xAI Grok Fast | OpenRouter Nemotron 3 Super (free) | Coordinator, daily brief, PR review, Linear intake |
-| **Alpha** | xAI Grok Fast | OpenRouter Nemotron 3 Super (free) | Hourly Polymarket research and trading |
+| **Alpha** | OpenRouter Nemotron 3 Super (free) | — | Hourly Polymarket research and trading |
 | **Kimi** | — | — | Empty shell reserved for future assignment |
 
 Every agent has a fallback chain so jobs never silently die when a provider hits rate limits.

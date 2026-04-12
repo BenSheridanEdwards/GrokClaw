@@ -19,7 +19,7 @@ The goal is a system that is simple, inspectable, and operationally honest. Ever
 GrokClaw is a multi-agent OpenClaw system with 2 active agents:
 
 - `Grok` is the coordinator, reviewer, and system operator (xai/grok → OpenRouter Nemotron free fallback)
-- `Alpha` is the hourly Polymarket research and trading agent (Grok primary → OpenRouter Nemotron free fallback)
+- `Alpha` is the hourly Polymarket research and trading agent (OpenRouter Nemotron free)
 - `Kimi` is an empty reusable shell retained for future reassignment
 
 Every agent has a fallback chain so jobs never silently die when a free-tier provider hits rate limits. The gateway falls through automatically; the doctor reports fallback activity once per day.

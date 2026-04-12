@@ -7,7 +7,7 @@
 | Agent | Model | Active work |
 |-------|-------|-------------|
 | Grok | `xai/grok-4-1-fast-non-reasoning` | Daily system brief, PR review, Telegram/Linear coordination |
-| Alpha | `xai/grok-4-1-fast-non-reasoning` (fallback: `openrouter/nvidia/nemotron-3-super-120b-a12b:free`) | Hourly Polymarket research and trading |
+| Alpha | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Hourly Polymarket research and trading |
 | Kimi | placeholder shell | Reserved for future reassignment; no active jobs, memory, or runtime state |
 
 ## Gateway LaunchAgent and cron timezone
@@ -22,7 +22,7 @@ After changing the plist: `cp launchd/com.grokclaw.gateway.plist ~/Library/Launc
 
 ### Alpha
 
-1. Keep `OPENROUTER_API_KEY` in `.env` so Alpha can fall back to Nemotron if xAI is unavailable.
+1. Keep `OPENROUTER_API_KEY` in `.env` — Alpha uses Nemotron on OpenRouter as its primary model.
 2. Restart the gateway with `./tools/gateway-ctl.sh restart`.
 3. Verify agent model routing with `openclaw agents list` and a quick `openclaw agent --agent alpha --message "reply OK" --json`.
 4. **Paperclip:** Add a second company agent (e.g. title **Research Worker**) with adapter `openclaw_gateway` and `agentId: "alpha"`. Copy that agent’s UUID into `.env` as **`PAPERCLIP_ALPHA_AGENT_ID`** so hourly Polymarket run issues assign to them instead of Grok (see `AGENTS.md` → Paperclip second agent).
