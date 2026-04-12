@@ -112,9 +112,11 @@ NEEDS ATTENTION
 - [or "Nothing — all systems healthy"]
 
 DISCOVERED
+- [only NEW repos — omit anything already integrated in GrokClaw]
 - [repo] — [what it does and why YOU should care] (starred/trending)
 - [e.g. "karpathy/autoresearch — autonomous research agents, could power Alpha market analysis (70k stars, starred)"]
-- [max 5 entries, skip irrelevant repos]
+- [max 5 entries, skip irrelevant repos and in-stack repos]
+- [or "No new discoveries today"]
 
 X SIGNALS
 - [one-line signal with substance, not hype]
@@ -132,7 +134,7 @@ If you have a suggestion worth approval, use `./tools/telegram-suggestion.sh` in
 
 - **Read every data source listed in Step 1** — do not skip files or assume they're empty
 - **NEEDS ATTENTION must be actionable** — include the exact command to run, file to check, or URL to visit. "openclaw update" alone is unacceptable; "Run: npm update openclaw (v2026.4.9 → v2026.4.11)" is correct.
-- **DISCOVERED must add value** — don't just list repo names. Say what the repo does and why it matters to GrokClaw specifically. Cross-reference existing integrations; label in-stack repos clearly.
+- **DISCOVERED is for NEW repos only** — the Telegram message must only list repos NOT already integrated in GrokClaw. Cross-reference against memory/MEMORY.md and graphify-out/wiki/index.md. If a repo is already in your stack (e.g. graphify, MemPalace), do NOT include it in the Telegram DISCOVERED section — it belongs in the research file only. The Telegram DISCOVERED section is for genuinely new finds that Ben hasn't seen before.
 - **X SIGNALS must have substance** — new tool launches, market events, or notable technical threads only. No engagement bait, no "AI is the future" takes.
 - **Suggestions must be concrete** — include the command, file, or integration path. If you can't articulate the specific action, don't suggest it.
 - The companion research file must be written BEFORE the Telegram message
