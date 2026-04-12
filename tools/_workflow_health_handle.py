@@ -241,7 +241,6 @@ def main() -> int:
     state_path = state_file()
     state = read_state(state_path)
     now = utc_now()
-    today = now[:10]
 
     if payload.get("healthy"):
         if state:
@@ -252,9 +251,19 @@ def main() -> int:
 
     struct_hash = structural_hash(payload.get("failures", []))
     already_open = state.get("status") == "open" and state.get("structHash") == struct_hash
-    already_posted_today = already_open and state.get("last_seen", "")[:10] == today
 
-    if already_posted_today:
+    last_seen_ts = state.get("last_seen", "")
+    if last_seen_ts and already_open:
+        try:
+            last_dt = dt.datetime.strptime(last_seen_ts, "%Y-%m-%dT%H:%M:%SZ")
+            now_dt = dt.datetime.strptime(now, "%Y-%m-%dT%H:%M:%SZ")
+            already_posted_recently = (now_dt - last_dt).total_seconds() < 3600
+        except ValueError:
+            already_posted_recently = False
+    else:
+        already_posted_recently = False
+
+    if already_posted_recently:
         return 0
 
     RERUNNABLE_KINDS = {"missing_run", "stale_run", "error_run", "missing_research",

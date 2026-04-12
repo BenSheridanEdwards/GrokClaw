@@ -162,13 +162,13 @@ class WorkflowHealthHandleTests(unittest.TestCase):
             struct_hash = hashlib.sha256(
                 json.dumps(sorted({(f["workflow"], f["kind"]) for f in failures}), sort_keys=True).encode()
             ).hexdigest()[:12]
-            today = dt.datetime.utcnow().strftime("%Y-%m-%d")
+            recent_ts = dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
             state_file.write_text(json.dumps({
                 "hash": "samehash",
                 "structHash": struct_hash,
                 "status": "open",
-                "last_seen": f"{today}T00:00:00Z",
+                "last_seen": recent_ts,
             }), encoding="utf-8")
 
             payload = {
