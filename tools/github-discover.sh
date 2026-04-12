@@ -31,32 +31,49 @@ starred="$(gh api "/users/$GITHUB_USER/starred" \
   }] | .[0:30]
 " 2>/dev/null || echo "[]")"
 
-# 2. Trending repos (created in last 7 days, Python/TypeScript/AI-related, sorted by stars)
-trending="$(gh api '/search/repositories' \
-  --method GET \
-  -f q="created:>=$WEEK_AGO stars:>100 language:python OR language:typescript" \
-  -f sort=stars \
-  -f order=desc \
-  -f per_page=20 \
-  --jq '
-  [.items[] | {
-    name: .full_name,
-    description: .description,
-    stars: .stargazers_count,
-    language: .language,
-    created_at: .created_at,
-    url: .html_url,
-    source: "trending"
-  }]
-' 2>/dev/null || echo "[]")"
+# 2. Trending repos (created in last 7 days, sorted by stars, Python then TypeScript)
+JQ_TRENDING='[.items[] | {name: .full_name, description: .description, stars: .stargazers_count, language: .language, created_at: .created_at, url: .html_url, source: "trending"}]'
+trending_py="$(gh api '/search/repositories' --method GET \
+  -f q="created:>=$WEEK_AGO stars:>100 language:python" \
+  -f sort=stars -f order=desc -f per_page=10 \
+  --jq "$JQ_TRENDING" 2>/dev/null || echo "[]")"
+trending_ts="$(gh api '/search/repositories' --method GET \
+  -f q="created:>=$WEEK_AGO stars:>100 language:typescript" \
+  -f sort=stars -f order=desc -f per_page=10 \
+  --jq "$JQ_TRENDING" 2>/dev/null || echo "[]")"
+trending="${trending_py}
+${trending_ts}"
 
-# Merge and write
-python3 - "$starred" "$trending" "$OUTPUT_FILE" <<'PY'
-import json, sys
-starred = json.loads(sys.argv[1]) if sys.argv[1] != "[]" else []
-trending = json.loads(sys.argv[2]) if sys.argv[2] != "[]" else []
-output = {"date": sys.argv[3].split("/")[-1].replace(".json", ""), "starred": starred, "trending": trending}
-with open(sys.argv[3], "w") as f:
+# Merge and write (--paginate may produce concatenated JSON arrays per page)
+python3 - "$OUTPUT_FILE" <<PY
+import json, re, sys
+
+def parse_concat_json(raw):
+    """Parse potentially concatenated JSON arrays from gh --paginate."""
+    raw = raw.strip()
+    if not raw or raw == "[]":
+        return []
+    # Try single parse first
+    try:
+        result = json.loads(raw)
+        return result if isinstance(result, list) else [result]
+    except json.JSONDecodeError:
+        pass
+    # Split concatenated arrays and merge
+    items = []
+    for chunk in re.split(r'(?<=\])\s*(?=\[)', raw):
+        try:
+            parsed = json.loads(chunk)
+            if isinstance(parsed, list):
+                items.extend(parsed)
+        except json.JSONDecodeError:
+            continue
+    return items
+
+starred = parse_concat_json('''$starred''')
+trending = parse_concat_json('''$trending''')
+output = {"date": sys.argv[1].split("/")[-1].replace(".json", ""), "starred": starred, "trending": trending}
+with open(sys.argv[1], "w") as f:
     json.dump(output, f, indent=2, ensure_ascii=False)
-print(sys.argv[3])
+print(sys.argv[1])
 PY
