@@ -206,7 +206,8 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
             self.assertNotIn(" 1.0000 ", f" {args} ")
             self.assertNotIn(" 0.0000 ", f" {args} ")
 
-    def test_deterministic_flow_skips_non_bonding_copy_sources(self):
+    def test_deterministic_flow_evaluates_non_bonding_copy_sources(self):
+        """whale_top_trader_copy with valid copy signal should be evaluated through gates, not auto-skipped."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             tools = workspace / "tools"
@@ -231,7 +232,7 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
                     #!/bin/sh
                     set -eu
                     printf '%s\\n' "$*" >> "{decide_log}"
-                    printf '%s\\n' '{{"action":"skip","reasoning":"non-bonding blocked","edge":0.0,"stake_amount":0.0}}'
+                    printf '%s\\n' '{{"action":"trade","reasoning":"whale copy accepted","edge":0.08,"stake_amount":10.0}}'
                     """
                 ),
             )
@@ -252,7 +253,11 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-            self.assertIn("SKIP", decide_log.read_text(encoding="utf-8"))
+            logged_args = decide_log.read_text(encoding="utf-8")
+            # Should pass side + probability + confidence to decide, not SKIP
+            self.assertIn("YES", logged_args)
+            self.assertIn("0.7800", logged_args)
+            self.assertNotIn("SKIP", logged_args)
 
     def test_deterministic_flow_trades_with_single_matching_wallet(self):
         with tempfile.TemporaryDirectory() as tmpdir:

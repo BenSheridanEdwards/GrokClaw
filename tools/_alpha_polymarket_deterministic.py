@@ -164,23 +164,22 @@ def main(argv: list[str]) -> int:
         confidence = copy.get("confidence")
         traders = int(copy.get("traders_with_matching_positions", 0) or 0)
         selection_source = str(candidate.get("selection_source", ""))
-        can_trade_from_copy = (
+        has_valid_copy_signal = (
             copy.get("status") == "ok"
             and isinstance(consensus_yes, (int, float))
             and isinstance(confidence, (int, float))
             and math.isfinite(float(consensus_yes))
             and math.isfinite(float(confidence))
-            and selection_source == "bonding_copy"
             and traders >= BONDING_MIN_MATCHING_TRADERS
         )
-        if can_trade_from_copy:
+        if has_valid_copy_signal:
             selected_prob_yes = clamp_open_probability(float(consensus_yes))
             side = "YES" if selected_prob_yes >= 0.5 else "NO"
             selected_prob = selected_prob_yes if side == "YES" else (1.0 - selected_prob_yes)
             selected_prob = clamp_open_probability(selected_prob)
             conf = max(min(float(confidence), 0.95), BONDING_MIN_CONFIDENCE)
             reasoning = (
-                "Deterministic bonding-copy execution from wallet alignment; "
+                f"Deterministic copy execution from {selection_source} wallet alignment; "
                 f"source={selection_source}, consensus_yes={selected_prob_yes:.4f}, confidence={conf:.4f}"
             )
             decision_out = run_command(
@@ -195,7 +194,7 @@ def main(argv: list[str]) -> int:
             decision = parse_json_maybe(decision_out)
         else:
             reason = (
-                "No deterministic bonding-copy edge this hour; "
+                "No copy-trader edge this hour; "
                 f"source={selection_source or 'unknown'}, copy_status={copy.get('status', 'n/a')}"
             )
             decision_out = run_command(
@@ -231,14 +230,15 @@ def main(argv: list[str]) -> int:
             copy = candidate.get("copy_strategy") if isinstance(candidate.get("copy_strategy"), dict) else {}
             status = copy.get("status", "n/a")
             traders = int(copy.get("traders_with_matching_positions", 0) or 0)
-            if source == "bonding_copy" and traders < BONDING_MIN_MATCHING_TRADERS:
-                reject_reason = f"insufficient bonding wallets ({traders}/{BONDING_MIN_MATCHING_TRADERS})"
-            elif source != "bonding_copy":
-                reject_reason = f"source={source} (bonding_copy required)"
-            elif status != "ok":
-                reject_reason = f"copy status={status}"
+            gate_failures = (decision or {}).get("gate_failures", [])
+            if status != "ok":
+                reject_reason = f"no copy signal (status={status})"
+            elif traders < BONDING_MIN_MATCHING_TRADERS:
+                reject_reason = f"insufficient matching wallets ({traders}/{BONDING_MIN_MATCHING_TRADERS})"
+            elif gate_failures:
+                reject_reason = ", ".join(gate_failures)
             else:
-                reject_reason = "confidence below threshold"
+                reject_reason = "gate check failed"
             # Truncate question to keep Telegram message readable
             short_q = question[:60] + "..." if len(question) > 60 else question
             line = f"Alpha · Hourly · HOLD — evaluated \"{short_q}\"; rejected: {reject_reason}."

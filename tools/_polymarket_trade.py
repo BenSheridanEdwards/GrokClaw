@@ -28,6 +28,7 @@ MARKET_MAX_PAGES = 10
 LEADERBOARD_LIMIT = 5  # Whale focus: top 5 traders by PNL
 POSITIONS_PAGE_SIZE = 100
 BONDING_MAX_HOURS_TO_RESOLUTION = 36
+WHALE_COPY_MAX_DAYS = 90
 BONDING_MIN_PRICE = 0.95
 BONDING_MAX_PRICE = 1.0
 BONDING_MIN_MATCHING_TRADERS = 1
@@ -173,21 +174,39 @@ def market_is_within_window(market, now=None, days=7):
     return now < end <= cutoff
 
 
+LEADERBOARD_CATEGORIES = ("CRYPTO", "POLITICS")
+
+
 def fetch_top_traders(limit=LEADERBOARD_LIMIT):
-    query = urllib.parse.urlencode(
-        {
-            "category": "OVERALL",
-            "timePeriod": "WEEK",
-            "orderBy": "PNL",
-            "limit": str(limit),
-            "offset": "0",
-        }
-    )
-    url = f"{DATA_API_URL}/v1/leaderboard?{query}"
-    data = fetch_json(url, timeout=20)
-    if isinstance(data, list):
-        return data
-    return []
+    """Fetch top traders from crypto and politics leaderboards (not OVERALL, which returns sports bettors)."""
+    seen_wallets = set()
+    combined = []
+    for category in LEADERBOARD_CATEGORIES:
+        query = urllib.parse.urlencode(
+            {
+                "category": category,
+                "timePeriod": "WEEK",
+                "orderBy": "PNL",
+                "limit": str(limit),
+                "offset": "0",
+            }
+        )
+        url = f"{DATA_API_URL}/v1/leaderboard?{query}"
+        try:
+            data = fetch_json(url, timeout=20)
+        except Exception:
+            continue
+        if not isinstance(data, list):
+            continue
+        for trader in data:
+            wallet = (trader.get("proxyWallet") or "").lower()
+            if wallet and wallet not in seen_wallets:
+                seen_wallets.add(wallet)
+                combined.append(trader)
+    # Re-rank by position in the combined list
+    for i, trader in enumerate(combined):
+        trader["rank"] = str(i + 1)
+    return combined
 
 
 def fetch_bonding_traders():
@@ -444,7 +463,7 @@ def select_copy_candidate(markets, excluded_ids=None):
     best_score = 0.0
 
     for market in markets:
-        if not market_is_within_window(market):
+        if not market_is_within_window(market, days=WHALE_COPY_MAX_DAYS):
             continue
         if not market_matches_categories(market):
             continue
