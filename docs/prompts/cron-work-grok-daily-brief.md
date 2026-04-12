@@ -11,99 +11,130 @@ Read these sources — **you must actually read every file listed, not skip them
 - `memory/MEMORY.md` in full
 - `graphify-out/wiki/index.md` — navigate community articles for subsystem context
 - `data/cron-runs/*.jsonl` — last 24h execution history (read today's and yesterday's files)
-- `data/audit-log/*.jsonl` — last 24h Telegram audit trail (read today's and yesterday's files)
+- `data/audit-log/*.jsonl` — last 24h Telegram audit trail (read today's and yesterday's files). For Alpha HOLD messages, extract the market names and rejection reasons from the contextual messages.
 - `data/agent-reports/*.json` — today's agent reports
 - `data/linear-creations/*.jsonl` — flag any flow outside `suggestion` or `user_request`
-- `data/github-discover/*.json` — **you must read today's file** (e.g. `data/github-discover/2026-04-12.json`). It contains `starred` and `trending` arrays of repos. Parse the JSON and extract repo names, descriptions, stars, and languages.
+- `data/github-discover/*.json` — **you must read today's file** (e.g. `data/github-discover/2026-04-12.json`). It contains `starred` and `trending` arrays of repos. Parse the JSON and extract every repo's `name`, `description`, `stars`, `language`, and `source` fields.
 - Run read-only health checks: gateway, Paperclip, Telegram, Ollama
 
 ## Step 2: Browse X for AI and crypto trending topics
 
 Use the `browser` tool to check what's trending on X that's relevant to GrokClaw's domains (AI agents, crypto/Polymarket, developer tools):
 
-1. `browser(action="snapshot", url="https://x.com/search?q=AI%20agents&f=top")` — scan top AI agent posts
-2. `browser(action="snapshot", url="https://x.com/search?q=polymarket&f=top")` — scan Polymarket activity
-3. Pick up to 3 genuinely interesting signals (new tool launches, market events, notable threads)
+1. `browser(action="start")` — ensure browser is running
+2. `browser(action="snapshot", url="https://x.com/search?q=AI%20agents&f=top")` — scan top AI agent posts from last 24h
+3. `browser(action="snapshot", url="https://x.com/search?q=polymarket&f=top")` — scan Polymarket activity
+4. Pick up to 3 genuinely interesting signals: new tool launches, market-moving events, notable threads with real substance. Ignore hype, engagement bait, and generic takes.
 
-If the browser is unavailable or X is unreachable, skip this step — do not fail the brief over it.
+If the browser is unavailable or X is unreachable, state "Browser unavailable" in the X Signals section — do not fail the brief over it.
 
 ## Step 3: Write companion research file
 
-Write a detailed markdown file to `data/briefs/YYYY-MM-DD.md` with these sections:
+Write a detailed markdown file to `data/briefs/YYYY-MM-DD.md`. **This must be substantive — not a skeleton.** Each section should have real analysis, not one-liners.
 
 ```
 # GrokClaw Daily Brief — YYYY-MM-DD
 
 ## Run Breakdown
-Per-agent stats with counts. For any errors: root cause analysis.
-For Alpha: summarise what markets were evaluated, any trades executed.
+Per-agent run counts and success rates.
+
+For Alpha specifically:
+- List the markets that were evaluated (extract from audit-log HOLD messages)
+- Note rejection reasons (e.g. "source=volume_fallback", "insufficient bonding wallets")
+- If any trades were executed, detail the market, side, and outcome
+
+For Grok: note what the brief covered and any suggestions made.
 
 ## Health Status
 Gateway, Paperclip, Telegram, Ollama — current state and any incidents in last 24h.
-Include version numbers where available.
+Include version numbers. If an update is available, include the exact command to update.
 
 ## Linear Audit
 Any creation flow violations. If none, state "No violations."
 
 ## GitHub Discoveries
-For EACH repo in the starred array from data/github-discover/*.json:
-- State the repo name, star count, language, and description
-- Cross-reference against memory/MEMORY.md and graphify-out/wiki/index.md
-- If already integrated: label "IN YOUR STACK" and note any recent version updates
-- If new and relevant to GrokClaw: label "NEW" and explain why it matters
-- If irrelevant: skip silently
 
-For the top 5 trending repos:
-- Same treatment: name, stars, language, description, relevance assessment
+### Starred (new repos Ben starred this week)
+For EACH starred repo in data/github-discover/*.json:
+- **[repo/name]** (N stars, Language) — [description]
+  - Cross-ref: [IN YOUR STACK: used in X | NEW: relevant because Y | SKIP: not relevant]
+  - If IN YOUR STACK: check for version updates or new features worth knowing about
+  - If NEW and relevant: one sentence on how it could improve GrokClaw
 
-If the discovery file is empty or missing, state "GitHub discovery file not found — run ./tools/github-discover.sh"
+### Trending (hot repos this week)
+For the top 5 trending repos by stars:
+- Same treatment as starred repos
+- Filter aggressively: only include repos genuinely useful for multi-agent systems, crypto trading, or developer tooling
+
+If the discovery file is empty or missing, state: "Discovery file not found — run ./tools/github-discover.sh"
 
 ## X Signals
-Top 3 signals from X browsing (if browser step ran):
-- [topic] — [one-line summary of what's happening]
+Top 3 signals from X browsing (if browser step ran). For each:
+- **Topic**: [what's happening]
+- **Why it matters**: [relevance to GrokClaw]
+- **Source**: [link or account if notable]
+
+If browser was unavailable, state "Browser unavailable — skipped X browsing."
 
 ## Suggestion
-If you have a concrete improvement: full reasoning, impact assessment, implementation sketch.
-If not, state "No suggestion today" — do not invent low-value suggestions.
+Look at everything above. Is there ONE concrete improvement that would make GrokClaw meaningfully better?
+
+Good suggestions:
+- "Integrate karpathy/autoresearch for Alpha's market research pipeline — here's how..."
+- "Alpha evaluated 12 markets today but only looked at BTC — diversify to ETH/SOL near-resolution markets"
+- "Gateway is 2 versions behind — update with: npm update openclaw"
+
+Bad suggestions (do not make these):
+- Generic security improvements with no specific action
+- "Add more tests" without identifying what's untested
+- Suggestions that require major refactoring with unclear payoff
+
+If you have a genuinely good suggestion, use `./tools/telegram-suggestion.sh <next-N> "<title>" "<reasoning>" "<impact>" "<description>"` to create an approvable suggestion.
+
+If nothing rises to that bar, state "No suggestion today" — silence is better than noise.
 ```
 
 ## Step 4: Post structured Telegram message
 
-Post to suggestions using this exact format (fill in the data):
+Post to suggestions using this exact format. **Every line must have real data — no placeholders, no vague items.**
 
 ```
 printf '%s\n' 'GROKCLAW DAILY BRIEF — YYYY-MM-DD
 
 RUNS (24h)
-Grok: N/N status | Alpha: N/N status
+Grok: N/N ok | Alpha: N/N ok (N markets evaluated, N trades)
 Total: N runs, N% success
 
 NEEDS ATTENTION
-- [actionable item — be specific, include the command or file]
+- [specific action: include the exact command, file path, or URL]
+- [e.g. "Run: npm update openclaw (v2026.4.9 → v2026.4.11)"]
+- [e.g. "Check: 5 CRITICAL items in tools/security-audit.sh output"]
 - [or "Nothing — all systems healthy"]
 
 DISCOVERED
-- [repo name] — [one-line why it matters] (starred/trending)
-- [or "No new discoveries today"]
+- [repo] — [what it does and why YOU should care] (starred/trending)
+- [e.g. "karpathy/autoresearch — autonomous research agents, could power Alpha market analysis (70k stars, starred)"]
+- [max 5 entries, skip irrelevant repos]
 
 X SIGNALS
-- [one-line signal from X browsing]
-- [or "No notable signals"]
+- [one-line signal with substance, not hype]
+- [or "Browser unavailable" / "No notable signals"]
 
 SUGGESTION
-[one-line title — or "No suggestion today"]
+[one-line actionable title — or "No suggestion today"]
 
 Full details: data/briefs/YYYY-MM-DD.md' | ./tools/telegram-post.sh suggestions
 ```
 
-If you have a concrete improvement worth approval, use `./tools/telegram-suggestion.sh` instead of the plain post for the SUGGESTION section.
+If you have a suggestion worth approval, use `./tools/telegram-suggestion.sh` instead of the plain post.
 
 ## Rules
 
 - **Read every data source listed in Step 1** — do not skip files or assume they're empty
-- The Telegram message must be scannable — no paragraphs, no walls of text
-- NEEDS ATTENTION items must be actionable (include the command to run or file to check)
-- DISCOVERED must cross-reference existing integrations — never recommend something already in use as if it's new
-- X SIGNALS must be genuinely interesting — not generic "AI is growing" noise
-- Never fabricate data — if a source file doesn't exist, say so explicitly
+- **NEEDS ATTENTION must be actionable** — include the exact command to run, file to check, or URL to visit. "openclaw update" alone is unacceptable; "Run: npm update openclaw (v2026.4.9 → v2026.4.11)" is correct.
+- **DISCOVERED must add value** — don't just list repo names. Say what the repo does and why it matters to GrokClaw specifically. Cross-reference existing integrations; label in-stack repos clearly.
+- **X SIGNALS must have substance** — new tool launches, market events, or notable technical threads only. No engagement bait, no "AI is the future" takes.
+- **Suggestions must be concrete** — include the command, file, or integration path. If you can't articulate the specific action, don't suggest it.
 - The companion research file must be written BEFORE the Telegram message
+- Never fabricate data — if a source file doesn't exist, say so explicitly
+- The Telegram message is a summary. The research file is the depth. Both must be useful on their own.
