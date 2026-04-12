@@ -101,6 +101,15 @@ def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def max_severity(repairs: list[dict]) -> str:
+    """Return the highest severity across all repairs: 'error' > 'warning' > 'ok'."""
+    if any(r.get("severity") == "error" for r in repairs):
+        return "error"
+    if any(r.get("severity") == "warning" for r in repairs):
+        return "warning"
+    return "ok"
+
+
 def first_headline(path: Path) -> str:
     try:
         text = path.read_text(encoding="utf-8")
@@ -113,7 +122,7 @@ def first_headline(path: Path) -> str:
     return "artifact captured"
 
 
-def ensure_daily_brief(root: Path, run_id: str, start: dt.datetime, end: dt.datetime, repairs: list[str]) -> None:
+def ensure_daily_brief(root: Path, run_id: str, start: dt.datetime, end: dt.datetime, repairs: list[dict]) -> None:
     events = load_audit_events(root)
     if has_audit_event(
         events,
@@ -126,9 +135,9 @@ def ensure_daily_brief(root: Path, run_id: str, start: dt.datetime, end: dt.date
     message = f"Daily system brief: run {run_id} completed; fallback consistency record."
     code, output = call_script(root / "tools" / "telegram-post.sh", ["suggestions", message])
     if code == 0:
-        repairs.append("posted_fallback_daily_brief")
+        repairs.append({"name": "posted_fallback_daily_brief", "severity": "error"})
     else:
-        repairs.append(f"failed_daily_brief_post:{output}")
+        repairs.append({"name": f"failed_daily_brief_post:{output}", "severity": "error"})
 
 
 def has_recent_alpha_report(root: Path, start: dt.datetime) -> bool:
@@ -149,7 +158,7 @@ def has_recent_alpha_report(root: Path, start: dt.datetime) -> bool:
     return False
 
 
-def ensure_alpha_polymarket(root: Path, run_id: str, start: dt.datetime, end: dt.datetime, repairs: list[str]) -> None:
+def ensure_alpha_polymarket(root: Path, run_id: str, start: dt.datetime, end: dt.datetime, repairs: list[dict]) -> None:
     research_dir = root / "data" / "alpha" / "research"
     research_dir.mkdir(parents=True, exist_ok=True)
     expected = research_dir / f"{start.strftime('%Y-%m-%d-%H')}.md"
@@ -182,15 +191,15 @@ def ensure_alpha_polymarket(root: Path, run_id: str, start: dt.datetime, end: dt
             ),
             encoding="utf-8",
         )
-        repairs.append("created_fallback_alpha_research")
+        repairs.append({"name": "created_fallback_alpha_research", "severity": "warning"})
 
     if not has_recent_alpha_report(root, start):
         summary = "Alpha · Hourly · HOLD — Fallback consistency record created when structured output was missing."
         code, output = call_script(root / "tools" / "agent-report.sh", ["alpha", "alpha-polymarket", summary])
         if code == 0:
-            repairs.append("posted_fallback_agent_report")
+            repairs.append({"name": "posted_fallback_agent_report", "severity": "warning"})
         else:
-            repairs.append(f"failed_agent_report:{output}")
+            repairs.append({"name": f"failed_agent_report:{output}", "severity": "warning"})
 
     events = load_audit_events(root)
     if has_audit_event(
@@ -204,9 +213,9 @@ def ensure_alpha_polymarket(root: Path, run_id: str, start: dt.datetime, end: dt
     message = "Alpha · Hourly · HOLD — No trade executed; fallback consistency record generated."
     code, output = call_script(root / "tools" / "telegram-post.sh", ["polymarket", message])
     if code == 0:
-        repairs.append("posted_fallback_polymarket_line")
+        repairs.append({"name": "posted_fallback_polymarket_line", "severity": "error"})
     else:
-        repairs.append(f"failed_polymarket_post:{output}")
+        repairs.append({"name": f"failed_polymarket_post:{output}", "severity": "error"})
 
 
 def main(argv: list[str]) -> int:
@@ -228,7 +237,7 @@ def main(argv: list[str]) -> int:
     if end is None:
         end = start
 
-    repairs: list[str] = []
+    repairs: list[dict] = []
     if job == "grok-daily-brief":
         ensure_daily_brief(root, run_id, start, end, repairs)
     elif job == "alpha-polymarket":
@@ -242,6 +251,7 @@ def main(argv: list[str]) -> int:
         "startTs": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "endTs": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "repairs": repairs,
+        "maxSeverity": max_severity(repairs) if repairs else "ok",
         "status": "ok",
     }
     write_json(evidence_file, payload)
