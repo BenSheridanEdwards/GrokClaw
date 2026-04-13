@@ -22,11 +22,22 @@ Every agent has a fallback chain so jobs never silently die when a provider hits
 
 Produces one Telegram message covering the last 24 hours: what succeeded, what failed, what needs attention. Optionally posts one high-leverage improvement suggestion with an inline Approve button.
 
-### 2. Alpha Polymarket Research and Paper Trading (Purely for fun)
+## Alpha
+
+Alpha is the hourly Polymarket research and paper trading agent. Purely for fun.
 
 **Schedule:** Hourly
 
-Autonomous bonding-first trading loop: discovers near-resolution markets from known bonding wallets, evaluates edge, decides TRADE or HOLD, and posts a one-line summary to Telegram. No whale fallback — if no valid bonding setup exists, the run records HOLD.
+Every hour, Alpha looks for prediction markets that are close to resolving (within ~36 hours) and checks whether three trusted professional traders have taken positions. If they have, and the risk checks pass, Alpha copies the trade. If not, it records HOLD. All trades are simulated — no real money.
+
+**How it works:**
+
+1. **Find a candidate** — fetch active Polymarket markets sorted by volume, filter to those near resolution, and check if any of three known profitable wallets have positions
+2. **Evaluate risk** — the candidate must clear minimum edge (0.5%), confidence, and volume gates, then gets sized using a conservative Kelly fraction (25% of optimal) capped at 1% of bankroll
+3. **Decide** — TRADE if all gates pass, HOLD if not. Every decision is logged with full reasoning
+4. **Learn** — results are tracked and fed back into memory so Alpha can self-correct over time
+
+Decision tools: `polymarket-trade.sh` → `polymarket-decide.sh` → `polymarket-resolve-turn.sh`
 
 ## How It Works
 
