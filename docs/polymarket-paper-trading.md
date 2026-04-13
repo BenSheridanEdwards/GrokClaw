@@ -34,13 +34,27 @@ Each hourly run should:
 
 Normal runs should not spam Telegram health. Only failures belong there.
 
-## Strategy notes
+## Strategy
 
-The core research and risk posture still applies:
+Alpha copies trades from three trusted professional wallets (Sharky6999, 033033033, ForesightOracle) on markets close to resolution. The logic: these traders provided early liquidity and have skin in the game, so their late-stage positions carry signal.
 
-- prefer markets backed by strong evidence and notable trader behavior
-- skip when conviction is weak instead of forcing trades
-- keep the write-up grounded in observed data, not generic market commentary
+**Each hourly run:**
+
+1. Fetches active markets sorted by volume, filters to those resolving within ~36 hours
+2. Checks whether any of the three wallets hold positions on matching markets
+3. If a candidate is found, evaluates it against risk gates:
+   - Minimum edge: 0.5% over market odds
+   - Minimum volume: $2,000
+   - Position sized at 25% of Kelly fraction, capped at 1% of bankroll
+   - Total open exposure capped at 8% of bankroll
+4. If all gates pass → TRADE. If not → HOLD (no fallback to other strategies)
+5. Logs the decision with full reasoning, resolves any prior trades, and feeds results back into memory
+
+**Principles:**
+
+- Skip when conviction is weak — forcing trades is worse than holding
+- Write-ups must be grounded in observed data, not generic market commentary
+- One matching wallet is enough to proceed, but more wallets raise confidence
 
 ## Verification
 
