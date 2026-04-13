@@ -12,15 +12,15 @@ GrokClaw is an OpenClaw-powered multi-agent system with two active agents and tw
 | **Alpha** | OpenRouter Nemotron 3 Super (free) | — | Hourly Polymarket research and trading |
 | **Kimi** | — | — | Empty shell reserved for future assignment |
 
-Every agent has a fallback chain so jobs never silently die when a provider hits rate limits.
+Grok has a fallback chain so daily briefs never silently die when a provider hits rate limits. Alpha runs on a single provider without fallback.
 
-## Core Workflows
+## Grok
 
-### 1. Grok Daily System Brief
+Grok is the coordinator, reviewer, and system operator. It runs the daily system brief, reviews PRs on GitHub before Telegram asks Ben to merge, and turns approved suggestions into PM-quality Linear tickets delegated to Cursor.
 
 **Schedule:** 08:00 UTC daily
 
-Produces one Telegram message covering the last 24 hours: what succeeded, what failed, what needs attention. Optionally posts one high-leverage improvement suggestion with an inline Approve button.
+Produces one Telegram message covering the last 24 hours: what succeeded, what failed, what needs attention.
 
 ## Alpha
 
@@ -125,27 +125,14 @@ Every workflow run is checked post-completion for required artifacts (Telegram p
 
 ## Knowledge Graph
 
-GrokClaw uses [Graphify](https://github.com/BenSheridanEdwards/graphify) to maintain a navigable knowledge graph of the codebase.
+GrokClaw uses [Graphify](https://github.com/BenSheridanEdwards/graphify) to maintain a navigable knowledge graph of the codebase. Graphify makes building with Claude Code and other coding agents more efficient — agents query the graph instead of scanning raw files, using ~28x fewer tokens per codebase question.
 
 - `graphify-out/wiki/index.md` — agent-crawlable wiki with community articles
 - `graphify-out/graph.html` — interactive HTML visualization
 - `graphify-out/graph.json` — GraphRAG-ready JSON
 - `graphify-out/GRAPH_REPORT.md` — god nodes, communities, surprising connections
 
-The daily brief prompt reads the wiki index to navigate the codebase efficiently instead of scanning raw files.
-
 Rebuild after code changes: `./tools/graphify-rebuild.sh` (install [Graphify](https://github.com/BenSheridanEdwards/graphify) with `pip install -e /path/to/graphify`, or set `GRAPHIFY_SRC` to that repo root if the package is not already importable).
-
-## Polymarket Strategy
-
-Alpha runs a bonding-copy strategy (Dexter-style):
-
-- Near-resolution evaluation window: 95c–100c, up to ~36h to resolution
-- Copy-trader positions from known bonding wallets with consensus alignment
-- Deterministic bonding gates — no whale fallback path
-- Paper trading with memory-backed self-improvement (MemPalace)
-
-Decision tools: `polymarket-trade.sh` → `polymarket-decide.sh` → `polymarket-resolve-turn.sh`
 
 ## Linear Policy
 
