@@ -175,7 +175,7 @@ class CronCoreWorkflowRunTests(unittest.TestCase):
             self.assertEqual(result.returncode, 7, msg=result.stderr or result.stdout)
 
             runs = tmp / "data" / "cron-runs"
-            day_file = next(runs.glob("*.jsonl"))
+            day_file = next(runs.glob("2*-*-*.jsonl"))
             lines = [
                 json.loads(line)
                 for line in day_file.read_text(encoding="utf-8").splitlines()
@@ -211,7 +211,7 @@ class CronCoreWorkflowRunTests(unittest.TestCase):
             self.assertEqual(result.returncode, 124, msg=result.stderr or result.stdout)
 
             runs = tmp / "data" / "cron-runs"
-            day_file = next(runs.glob("*.jsonl"))
+            day_file = next(runs.glob("2*-*-*.jsonl"))
             lines = [
                 json.loads(line)
                 for line in day_file.read_text(encoding="utf-8").splitlines()
