@@ -217,6 +217,20 @@ except Exception as e:
   esac
 fi
 
+# Job-specific data gathering that the agent needs ready before its turn.
+# These run deterministically and fast; failures are non-fatal.
+case "$JOB" in
+  grok-daily-brief)
+    if [ -x "$WORKSPACE_ROOT/tools/github-discover.sh" ]; then
+      {
+        printf '%s job=%s pre_step=github-discover\n' \
+          "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$JOB"
+      } >>"$LOG_FILE" 2>/dev/null || true
+      "$WORKSPACE_ROOT/tools/github-discover.sh" >>"$LOG_FILE" 2>&1 || true
+    fi
+    ;;
+esac
+
 UUID="$("$WORKSPACE_ROOT/tools/cron-paperclip-lifecycle.sh" start "$JOB" "$AGENT")"
 printf '%s' "$UUID" >"$ISSUE_FILE_ABS"
 
