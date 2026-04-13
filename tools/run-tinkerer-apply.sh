@@ -2,7 +2,7 @@
 # Launch the Tinkerer application agent.
 # Usage:
 #   ./tools/run-tinkerer-apply.sh --safe      # generate answers, no browser
-#   ./tools/run-tinkerer-apply.sh --trial     # fill form with test data (dry run)
+#   ./tools/run-tinkerer-apply.sh --trial     # headed browser, live form, test placeholders, no Submit
 #   ./tools/run-tinkerer-apply.sh --submit    # fill form with real data, prompt before submitting
 set -eu
 

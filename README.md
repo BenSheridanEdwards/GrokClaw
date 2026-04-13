@@ -52,7 +52,7 @@ Tinkerer is a proper OpenClaw agent — it uses the same xAI Grok infrastructure
 | Mode | What happens | Browser? |
 |------|-------------|----------|
 | `--safe` | Reads profile, runs interactive interview (4 questions), generates all form answers via xAI Grok. Outputs `safe-trial.md` for review. | No |
-| `--trial` | Opens a real browser, navigates to the form, fills every field dynamically. Stops before Submit. | Yes |
+| `--trial` | Headed browser on the live application URL; fills every field with built-in test placeholders (not your `BUILDER.md` / `sensitive-data.md`). Stops before Submit. | Yes |
 | `--submit` | Same as trial, clicks Submit. | Yes |
 
 `--safe` uses `grok-4-1-fast-non-reasoning` for answer generation. `--trial` and `--submit` use `grok-3-fast` via [browser-use](https://github.com/browser-use/browser-use) Agent for autonomous form navigation.
@@ -70,7 +70,7 @@ cp tinkerer/sensitive-data.md.example tinkerer/sensitive-data.md
 
 # 3. Review tinkerer/safe-trial.md, tweak your inputs, re-run --safe until satisfied
 
-# 4. Watch the agent fill the real form in a visible browser (doesn't submit)
+# 4. Pipeline check: visible browser on the live form, test placeholders only (doesn't submit)
 ./tools/run-tinkerer-apply.sh --trial
 
 # 5. Submit for real

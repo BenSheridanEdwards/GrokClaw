@@ -94,8 +94,8 @@ OPENCLAW_AGENT_TIMEOUT_SECONDS=900 OPENCLAW_AGENT_RETRIES=1 ./tools/run-openclaw
 
 # Tinkerer (application agent — three modes)
 ./tools/run-tinkerer-apply.sh --safe      # generate answers, no browser
-./tools/run-tinkerer-apply.sh --trial     # dry run with test data
-./tools/run-tinkerer-apply.sh --submit    # fill with real data, prompt before submitting
+./tools/run-tinkerer-apply.sh --trial     # headed browser, live form, test placeholders, stop before Submit
+./tools/run-tinkerer-apply.sh --submit    # headed browser, your profile (+ optional safe-trial.md), prompt then Submit
 
 # PR queue wake check
 ./tools/pr-review-watch.sh

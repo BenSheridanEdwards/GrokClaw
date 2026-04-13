@@ -38,7 +38,11 @@ def parse_args():
     parser.add_argument("--workspace", default=".", help="GrokClaw repo root")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--safe", action="store_true", help="Generate answers, no browser")
-    group.add_argument("--trial", action="store_true", help="Fill form with test data to prove the pipeline works")
+    group.add_argument(
+        "--trial",
+        action="store_true",
+        help="Headed browser on the live form; built-in test placeholders; stop before Submit",
+    )
     group.add_argument("--submit", action="store_true", help="Fill form with real data, prompt before submitting")
     return parser.parse_args()
 

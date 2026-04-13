@@ -3,7 +3,7 @@
 **Date:** 2026-04-13
 **Goal:** Build Tinkerer, GrokClaw's third OpenClaw agent — a browser-use application agent for the Stationed AI Tinkerer role (Challenge 1: "Let Your Agent Apply").
 
-**Architecture:** Three-mode CLI tool (`--safe`, `--trial`, `--submit`). `--safe` generates answers with no browser. `--trial` fills the real form but stops before submit. `--submit` sends it. All profile data comes from `tinkerer/BUILDER.md` (public) and `tinkerer/sensitive-data.md` (gitignored). Interview answers live in `tinkerer/tinkerer-interview.md` (gitignored).
+**Architecture:** Three-mode CLI tool (`--safe`, `--trial`, `--submit`). `--safe` generates answers with no browser. `--trial` uses a headed browser on the live URL with built-in test placeholders and stops before Submit (no `BUILDER.md` / `sensitive-data.md`). `--submit` uses your profile and optional `safe-trial.md`, prompts, then submits. Profile data for `--safe` / `--submit` comes from `tinkerer/BUILDER.md` (public) and `tinkerer/sensitive-data.md` (gitignored). Interview answers live in `tinkerer/tinkerer-interview.md` (gitignored).
 
 **Tech Stack:** Python 3, browser-use SDK, xAI Grok API (`grok-4-1-fast-non-reasoning` for generation, `grok-3-fast` for browser), shell launcher.
 
@@ -95,8 +95,8 @@ sh -n tools/run-tinkerer-apply.sh  # clean syntax
 The core script with all three modes:
 
 - `--safe`: Interactive interview (if needed) → answer generation via `grok-4-1-fast-non-reasoning` → `safe-trial.md`
-- `--trial`: browser-use Agent with `grok-3-fast` fills the real form, stops before Submit
-- `--submit`: Same as trial, clicks Submit
+- `--trial`: browser-use Agent with `grok-3-fast`, headed browser, live form, test placeholders, stops before Submit
+- `--submit`: browser-use Agent with real profile / `safe-trial.md`, confirm prompt, then Submit
 
 Key implementation details:
 - `parse_sensitive_data()` extracts `**Key**: value` fields from markdown
@@ -162,6 +162,6 @@ python3 -c "import ast; ast.parse(open('tools/tinkerer-apply.py').read())"
 # --safe mode (requires BUILDER.md and sensitive-data.md filled)
 ./tools/run-tinkerer-apply.sh --safe
 
-# --trial mode (requires --safe completed first)
+# --trial mode (no BUILDER.md / interview required; optional any time before --submit)
 ./tools/run-tinkerer-apply.sh --trial
 ```

@@ -118,7 +118,7 @@ Ben reviews, tweaks `BUILDER.md` or `tinkerer-interview.md` if needed, runs `--s
 
 ### `--trial`
 
-Dry run with test data. Proves the browser-use pipeline works end-to-end without touching real profile data. Does not require `BUILDER.md` or `sensitive-data.md`.
+**Pipeline check (not an offline dry run):** launches a **headed** browser against the **live** application URL, fills every field with **hardcoded test placeholders** (does not read `BUILDER.md` or `sensitive-data.md`), then stops before Submit. Use this to prove browser-use end-to-end before you run `--submit` with real answers.
 
 1. Launch browser-use agent with headed browser (visible)
 2. Agent navigates to application URL
@@ -166,7 +166,7 @@ For `--trial` and `--submit` modes, Tinkerer uses browser-use Agent with `grok-3
 
 - If `BUILDER.md` doesn't exist or is empty, exit with clear error message
 - If `sensitive-data.md` doesn't exist, exit with message pointing to `sensitive-data.md.example`
-- If `tinkerer-interview.md` doesn't exist in `--trial`/`--submit` mode, exit with message: "Run --safe first to complete the interview"
+- If `tinkerer-interview.md` doesn't exist in `--submit` mode, exit with message: "Run --safe first to complete the interview" (`--trial` does not use the interview)
 - If browser-use fails to navigate or fill, the agent's built-in retry/recovery handles it
 - `--trial` and `--submit` modes require `browser-use` to be installed; `--safe` does not
 
@@ -175,6 +175,6 @@ For `--trial` and `--submit` modes, Tinkerer uses browser-use Agent with `grok-3
 1. Ben fills in `BUILDER.md` with his profile
 2. `./tools/run-tinkerer-apply.sh --safe` asks 4 interview questions, saves answers, generates `safe-trial.md`
 3. Ben reviews `safe-trial.md`, tweaks inputs, re-runs `--safe` until satisfied
-4. `./tools/run-tinkerer-apply.sh --trial` fills the real form visibly — Ben watches
+4. `./tools/run-tinkerer-apply.sh --trial` exercises the live form in a visible browser with test placeholders only — Ben watches
 5. `./tools/run-tinkerer-apply.sh --submit` sends the application
 6. Stationed reviewers click the GitHub link, land on `README.md#tinkerer`, and see exactly how this was built
