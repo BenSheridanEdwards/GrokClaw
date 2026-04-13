@@ -8,7 +8,7 @@
 |-------|-------|-------------|
 | Grok | `xai/grok-4-1-fast-non-reasoning` | Daily system brief, PR review, Telegram/Linear coordination |
 | Alpha | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Hourly Polymarket research and trading |
-| Kimi | placeholder shell | Reserved for future reassignment; no active jobs, memory, or runtime state |
+| Tinkerer | `xai/grok-4-1-fast-non-reasoning` + `grok-3-fast` (browser) | Application agent for Stationed AI Tinkerer role (Challenge 1); manual invoke only |
 
 ## Gateway LaunchAgent and cron timezone
 
@@ -91,6 +91,11 @@ OPENCLAW_AGENT_ID=alpha ./tools/run-openclaw-agent.sh
 
 # Bound long runs or add one retry for transient provider failures
 OPENCLAW_AGENT_TIMEOUT_SECONDS=900 OPENCLAW_AGENT_RETRIES=1 ./tools/run-openclaw-agent.sh
+
+# Tinkerer (application agent — three modes)
+./tools/run-tinkerer-apply.sh --safe      # generate answers, no browser
+./tools/run-tinkerer-apply.sh --trial     # dry run with test data
+./tools/run-tinkerer-apply.sh --submit    # fill with real data, prompt before submitting
 
 # PR queue wake check
 ./tools/pr-review-watch.sh

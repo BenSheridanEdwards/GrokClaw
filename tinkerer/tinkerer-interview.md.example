@@ -1,0 +1,19 @@
+# Tinkerer Interview
+
+Recorded on YYYY-MM-DD
+
+These answers feed the Submission field of the Stationed application.
+Run `./tools/run-tinkerer-apply.sh --safe` to be interviewed interactively,
+or fill this in manually and re-run --safe to regenerate safe-trial.md.
+
+## Tell me about GrokClaw
+[What is it, what did you build, what's interesting about it?]
+
+## Why Challenge 1?
+[Why "Let Your Agent Apply" specifically?]
+
+## What would you do with another week?
+[Where would you take this?]
+
+## What excites you most about AI right now?
+[The thing that keeps you up at night — in a good way]

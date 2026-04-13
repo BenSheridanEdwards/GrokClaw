@@ -18,7 +18,7 @@ Active agent roles in the live runtime:
 
 - `grok` is the coordinator, reviewer, and operator
 - `alpha` runs the hourly Polymarket workflow
-- `kimi` is reserved as a placeholder shell and has no active scheduled work
+- `tinkerer` is the application agent for the Stationed AI Tinkerer role (manual invoke, not cron-scheduled)
 
 Active scheduled OpenClaw workflows in the live runtime:
 
@@ -46,18 +46,23 @@ flowchart LR
     Gw[OpenClaw gateway]
     Grok[Grok agent]
     Alpha[Alpha agent]
-    Kimi[Kimi placeholder shell]
+    Tinkerer[Tinkerer application agent]
+
+    xAI[xAI Grok API]
+    BU[browser-use]
 
     Ben --> TG
     TG <--> Gw
     Gw --> Grok
     Gw --> Alpha
-    Gw -. reserved .-> Kimi
+    Gw --> Tinkerer
     Grok <--> GH
     Grok <--> Lin
     Grok <--> Pc
     Alpha --> TG
     Alpha --> Pc
+    Tinkerer --> xAI
+    Tinkerer --> BU
     Repo --> Rt
     Rt --> Gw
 ```
@@ -145,7 +150,7 @@ The 2026-04-05 runtime audit found a few important differences between the repo 
 
 - live runtime currently has 2 active OpenClaw cron workflows
 - live runtime routes `alpha` to `openrouter/nvidia/nemotron-3-super-120b-a12b:free` (no fallback)
-- `kimi` is present only as a placeholder shell, but because it has no explicit model block it still inherits the default model if manually targeted
+- `tinkerer` is the application agent for the Stationed AI Tinkerer role, manually invoked via `./tools/run-tinkerer-apply.sh`; uses `xai/grok-4-1-fast-non-reasoning` for answer generation and `grok-3-fast` for browser automation
 - `~/.openclaw/openclaw.json` still reports stale `meta.lastTouchedVersion` even though the installed CLI is newer
 
 Treat this section as an operator warning: when in doubt, verify with `openclaw --version`, `openclaw agents list`, and `openclaw cron list`.

@@ -105,7 +105,7 @@ log "Checking Ollama..."
 if curl -sf --connect-timeout 3 http://127.0.0.1:11434/ >/dev/null 2>&1; then
   log "  Ollama: UP"
 else
-  add_issue "Ollama DOWN (Kimi jobs will fail)"
+  add_issue "Ollama DOWN"
   if [ "$HEAL" -eq 1 ]; then
     log "  Healing: starting Ollama via brew services..."
     if brew services start ollama >/dev/null 2>&1 || ollama serve >/dev/null 2>&1 &

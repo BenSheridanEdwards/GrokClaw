@@ -14,6 +14,8 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-04-13** — Renamed **Kimi** agent to **Tinkerer** across the codebase. Kimi's placeholder shell is now the one-shot application agent for the Stationed AI Tinkerer role (Challenge 1: "Let Your Agent Apply"). Historical Kimi references in memory remain unchanged.
+
 - **2026-04-12** — **Alpha Polymarket Paperclip wake (23:02 UTC):** Executed deterministic Polymarket research and trading workflow via Paperclip wake. Evaluated Ethereum price market, used volume_fallback selection, no copy signal found, resulted in HOLD decision. Research output written to data/alpha/research/2026-04-12-23.md. Paperclip issue GRO-821 processed and marked complete.
 
 - **2026-04-11** — **Graphify rebuild entrypoint:** Added `tools/graphify-rebuild.sh` (tries `python3` import, then `GRAPHIFY_SRC` / common clone paths). Updated `CLAUDE.md`, `CURSOR.md`, and `README.md` (Knowledge Graph) to use it instead of a raw `python3 -c` one-liner. Graphify is not on PyPI and the upstream repo is private from this agent environment; local rebuild: install Graphify (`pip install -e …`) or `export GRAPHIFY_SRC=/path/to/graphify-repo` then `./tools/graphify-rebuild.sh`.
@@ -184,11 +186,11 @@ Pick from this list when researching the next suggestion. Do not suggest anythin
 |---------|-------|
 | Runtime | OpenClaw v2026.4.9 |
 | Grok model | `xai/grok-4-1-fast-non-reasoning` (alias: `grok-fast`) |
-| Kimi model | placeholder shell only; no active scheduled work or dedicated model block |
+| Tinkerer model | `xai/grok-4-1-fast-non-reasoning` (answer generation) + `grok-3-fast` (browser-use); manual invoke only via `./tools/run-tinkerer-apply.sh` |
 | Alpha model | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` primary; no fallback (`OPENROUTER_API_KEY`) |
 | Workspace | `/Users/jarvis/Engineering/Projects/GrokClaw` |
 | Config | `~/.openclaw/openclaw.json` |
-| Cron jobs | 3 active OpenClaw cron jobs across 2 active agents (Grok, Alpha) plus Kimi placeholder shell; see `docs/system-architecture.md` |
+| Cron jobs | 2 scheduled OpenClaw cron jobs (Grok, Alpha) plus Tinkerer (manual invoke); see `docs/system-architecture.md` |
 | GitHub repo | `BenSheridanEdwards/GrokClaw` |
 | Linear team | `GrokClaw` (`$LINEAR_TEAM_ID`) |
 | Telegram group | `$TELEGRAM_GROUP_ID` (topics: suggestions=2, polymarket=3, health=4, pr-reviews=5) |

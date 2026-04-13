@@ -2,7 +2,7 @@
 
 You are **Grok**, the primary agent running inside GrokClaw.
 
-**Source of truth:** `NorthStar.md` defines the operating model (3 core workflows, Paperclip rules, health contract, Telegram, Linear). When anything in this file, `README.md`, or other docs conflicts with North Star, follow **North Star** and fix the drift.
+**Source of truth:** `NorthStar.md` defines the operating model (2 core workflows, Paperclip rules, health contract, Telegram, Linear). When anything in this file, `README.md`, or other docs conflicts with North Star, follow **North Star** and fix the drift.
 
 ---
 
@@ -14,11 +14,11 @@ GrokClaw runs multiple OpenClaw agents on one gateway:
 |-------|-------|-----------|-----------|
 | **Grok** (default) | `xai/grok-4-1-fast-non-reasoning` | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | Daily system brief, PR review, feature intake |
 | **Alpha** | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | — | Hourly Polymarket research and trading (`OPENROUTER_API_KEY`) |
-| **Kimi** | placeholder shell | — | Reserved for future reassignment; no active jobs, memory, or runtime state |
+| **Tinkerer** | `xai/grok-4-1-fast-non-reasoning` | — | Application agent for Stationed AI Tinkerer role (Challenge 1); manual invoke via `./tools/run-tinkerer-apply.sh` |
 
 Fallback chain: Grok uses `xai/grok-4-1-fast-non-reasoning` as primary, falling back to NVIDIA Nemotron 3 Super (free on OpenRouter) if xAI fails. Alpha uses Nemotron 3 Super as its only model. Fallback isn't needed as it's a fun side mission rather than a critical workflow.
 
-Routing: Cron jobs with `agentId: "alpha"` run on Alpha. Alpha reports to Grok via `agent-report.sh`; Grok synthesizes and reports to you in the daily brief (08:00). See `docs/agent-tasks.md` for the active task breakdown. Paperclip may target Alpha or another future shell explicitly via `adapterConfig.agentId`. Manual runs: `OPENCLAW_AGENT_ID=alpha ./tools/run-openclaw-agent.sh`.
+Routing: Cron jobs with `agentId: "alpha"` run on Alpha. Alpha reports to Grok via `agent-report.sh`; Grok synthesizes and reports to you in the daily brief (08:00). See `docs/agent-tasks.md` for the active task breakdown. Paperclip may target Alpha or another future shell explicitly via `adapterConfig.agentId`. Manual runs: `OPENCLAW_AGENT_ID=alpha ./tools/run-openclaw-agent.sh`. Tinkerer uses `xai/grok-4-1-fast-non-reasoning` for answer generation and `grok-3-fast` for browser automation via `XAI_API_KEY`; it is manually invoked (not cron-scheduled) via `./tools/run-tinkerer-apply.sh --safe|--trial|--submit`.
 
 ---
 
@@ -66,8 +66,8 @@ Prefer `web_fetch` for simple text from a single URL. Use sandbox profile `profi
 - Gateway process manager: `tools/gateway-ctl.sh`
 - Paperclip board (launchd): `tools/paperclip-ctl.sh` — `install` copies `launchd/com.grokclaw.paperclip.plist` to `~/Library/LaunchAgents`, then loads; use `restart` / `status` / `logs` like the gateway
 - Cron → Telegram: use job-level `delivery` in `cron/jobs.json` (`announce` + `telegram` + group id for Grok jobs). **`alpha-polymarket` uses `delivery.mode: "none"`** so OpenClaw does not post the full agent transcript (Telegram 4096 limit); Alpha still posts the session line via `tools/telegram-post.sh polymarket`. Use `payload.kind: "agentTurn"` for isolated scheduled agent turns. Validate: `python3 tools/cron-jobs-tool.py validate`; sync runtime: `./tools/sync-cron-jobs.sh --restart` (see `docs/multi-agent-setup.md`)
-- Scheduled workflow lifecycle: the 3 core workflows use **`tools/cron-core-workflow-run.sh <job> <agent>`** (OpenClaw cron’s message is only “run that command” from the repo root). The orchestrator runs `cron-paperclip-lifecycle.sh start`, `cron-run-record.sh started`, one `openclaw agent` turn from `docs/prompts/cron-work-<job>.md`, then **always** on exit runs terminal `cron-run-record.sh` (so Paperclip is finished and `audit-one` + `_workflow_health_handle.py` run). Do not embed full lifecycle shell in the LLM prompt anymore.
-- Stuck core cron (`openclaw cron run` → `already-running`, or workflow health `in_progress_run` past grace): run `./tools/cron-unstick-and-run.sh <cron-job-id> [<id>...]` (see `docs/multi-agent-setup.md`). It disables the three core jobs, clears `runningAtMs`, restarts the gateway, enqueues manual runs, then re-enables schedules.
+- Scheduled workflow lifecycle: the 2 core workflows use **`tools/cron-core-workflow-run.sh <job> <agent>`** (OpenClaw cron’s message is only “run that command” from the repo root). The orchestrator runs `cron-paperclip-lifecycle.sh start`, `cron-run-record.sh started`, one `openclaw agent` turn from `docs/prompts/cron-work-<job>.md`, then **always** on exit runs terminal `cron-run-record.sh` (so Paperclip is finished and `audit-one` + `_workflow_health_handle.py` run). Do not embed full lifecycle shell in the LLM prompt anymore.
+- Stuck core cron (`openclaw cron run` → `already-running`, or workflow health `in_progress_run` past grace): run `./tools/cron-unstick-and-run.sh <cron-job-id> [<id>...]` (see `docs/multi-agent-setup.md`). It disables the two core jobs, clears `runningAtMs`, restarts the gateway, enqueues manual runs, then re-enables schedules.
 - Workflow-health doctor: `tools/grokclaw-doctor.sh` — keeps infrastructure checks separate from workflow remediation. It runs `tools/_workflow_health.py audit-quick` as the fast cron-evidence catch-all for missed runs, stale records, in-progress runs past grace, and error runs, then validates the full workflow contract with `tools/_workflow_health.py audit` before declaring green. Any failing full audit is handed to `tools/_workflow_health_handle.py` for Telegram health alerting and approval-gated Linear draft creation. Under `--heal`, it may perform low-risk infrastructure repairs. Use `--check` for normal auditing and `--quiet` to suppress stdout. Runs via launchd at `02,17,32,47` (`com.grokclaw.doctor`).
 - External watchdog: `tools/gateway-watchdog.sh` — the primary automatic gateway repair loop. It runs via launchd at `01,06,11,16,21,26,31,36,41,46,51,56`, attempts bounded runtime repair, and alerts Telegram only if repair is exhausted or the gateway later recovers after a reported failure.
 - Health probe: `tools/health-check.sh` — runs every 2min via system crontab. Detects gateway death fast, hands off to the watchdog, and only alerts if the watchdog handoff itself is unavailable.
@@ -235,7 +235,7 @@ Paperclip only shows **separate employees** when you **create a second agent** o
 
 Then `cron-paperclip-lifecycle.sh start alpha-polymarket alpha` assigns the run issue to that employee. If unset, Alpha issues stay assigned to the default Grok agent (confusing in the UI).
 
-**OpenClaw session key:** OpenClaw only binds an agent from keys shaped `agent:<openclawAgentId>:<rest>`. The bundled `openclaw_gateway` adapter (`paperclip/packages/adapters/openclaw-gateway`) builds keys such as `agent:alpha:paperclip:issue:<uuid>`, `agent:alpha:paperclip:run:<runId>`, and `agent:alpha:paperclip:main` for heartbeats, using `adapterConfig.agentId` (or the Paperclip agent name `alpha` / `kimi` / `grok`). Optional `adapterConfig.sessionKey` without an `agent:` prefix is prefixed as `agent:<id>:<suffix>` for extra isolation.
+**OpenClaw session key:** OpenClaw only binds an agent from keys shaped `agent:<openclawAgentId>:<rest>`. The bundled `openclaw_gateway` adapter (`paperclip/packages/adapters/openclaw-gateway`) builds keys such as `agent:alpha:paperclip:issue:<uuid>`, `agent:alpha:paperclip:run:<runId>`, and `agent:alpha:paperclip:main` for heartbeats, using `adapterConfig.agentId` (or the Paperclip agent name `alpha` / `tinkerer` / `grok`). Optional `adapterConfig.sessionKey` without an `agent:` prefix is prefixed as `agent:<id>:<suffix>` for extra isolation.
 
 ### Per-run workflow issues
 
