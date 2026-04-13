@@ -355,5 +355,97 @@ class CronCoreWorkflowRunTests(unittest.TestCase):
             subprocess.run(["rm", "-rf", str(tmp)], check=False)
 
 
+    def test_orchestrator_fails_fast_when_runtime_payload_message_missing(self):
+        """Pre-flight check must abort with exit 3 when OpenClaw runtime config
+        has the job but its payload.message is empty — the exact failure mode that
+        caused grok-daily-brief to run empty agent turns."""
+        tmp, lifecycle_log = self._seed_temp_workspace(0)
+        try:
+            # Create a runtime config with missing message (reproduces the bug)
+            openclaw_cron_dir = tmp / ".openclaw-home" / ".openclaw" / "cron"
+            openclaw_cron_dir.mkdir(parents=True)
+            runtime_config = {
+                "version": 1,
+                "jobs": [
+                    {
+                        "id": "1",
+                        "name": "grok-daily-brief",
+                        "schedule": {"expr": "0 8 * * *"},
+                        "payload": {"kind": "agentTurn"},
+                        "state": {},
+                        "enabled": True,
+                    }
+                ],
+            }
+            (openclaw_cron_dir / "jobs.json").write_text(
+                json.dumps(runtime_config), encoding="utf-8"
+            )
+
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(tmp)
+            env["PATH"] = f"{tmp / 'bin'}:{env.get('PATH', '')}"
+            env["OPENCLAW_BIN"] = str(tmp / "bin" / "openclaw")
+            env["OPENCLAW_CRON_JOBS_PATH"] = str(openclaw_cron_dir / "jobs.json")
+            result = subprocess.run(
+                ["bash", str(self.wrapper), "grok-daily-brief", "grok"],
+                cwd=str(tmp),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 3, msg=result.stderr or result.stdout)
+            self.assertIn("missing payload", result.stderr.lower() + result.stdout.lower())
+            self.assertIn("auto-sync", result.stderr.lower())
+            # Paperclip lifecycle should NOT have started
+            self.assertFalse(lifecycle_log.exists())
+        finally:
+            subprocess.run(["rm", "-rf", str(tmp)], check=False)
+
+    def test_orchestrator_proceeds_when_runtime_payload_message_present(self):
+        """Pre-flight check passes when runtime config has a valid message."""
+        tmp, lifecycle_log = self._seed_temp_workspace(0)
+        try:
+            openclaw_cron_dir = tmp / ".openclaw-home" / ".openclaw" / "cron"
+            openclaw_cron_dir.mkdir(parents=True)
+            runtime_config = {
+                "version": 1,
+                "jobs": [
+                    {
+                        "id": "9c1b0a7d4e2f1001",
+                        "name": "grok-daily-brief",
+                        "schedule": {"expr": "0 8 * * *"},
+                        "payload": {
+                            "kind": "agentTurn",
+                            "message": "./tools/cron-core-workflow-run.sh grok-daily-brief grok",
+                        },
+                        "state": {},
+                        "enabled": True,
+                    }
+                ],
+            }
+            (openclaw_cron_dir / "jobs.json").write_text(
+                json.dumps(runtime_config), encoding="utf-8"
+            )
+
+            env = os.environ.copy()
+            env["WORKSPACE_ROOT"] = str(tmp)
+            env["PATH"] = f"{tmp / 'bin'}:{env.get('PATH', '')}"
+            env["OPENCLAW_BIN"] = str(tmp / "bin" / "openclaw")
+            env["OPENCLAW_CRON_JOBS_PATH"] = str(openclaw_cron_dir / "jobs.json")
+            result = subprocess.run(
+                ["bash", str(self.wrapper), "grok-daily-brief", "grok"],
+                cwd=str(tmp),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            self.assertTrue(lifecycle_log.exists(), "Paperclip lifecycle should have run")
+        finally:
+            subprocess.run(["rm", "-rf", str(tmp)], check=False)
+
+
 if __name__ == "__main__":
     unittest.main()

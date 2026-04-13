@@ -17,7 +17,12 @@ WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 export OPENCLAW_CONFIG_PATH="${OPENCLAW_CONFIG_PATH:-${HOME}/.openclaw/openclaw.json}"
 
 # grok-daily-brief, alpha-polymarket
-CORE_CRON_IDS="9c1b0a7d4e2f1001 9c1b0a7d4e2f1003"
+# Derive core cron IDs from the repo config to avoid hardcoded ID drift.
+CORE_CRON_IDS="$(python3 -c "
+import json, sys
+data = json.loads(open('$WORKSPACE_ROOT/cron/jobs.json', encoding='utf-8').read())
+print(' '.join(j['id'] for j in data.get('jobs', []) if isinstance(j, dict) and 'id' in j))
+" 2>/dev/null || echo "1 9c1b0a7d4e2f1003")"
 
 if [ "$#" -lt 1 ]; then
   echo "usage: $0 <openclaw-cron-job-id> [<id>...]" >&2

@@ -33,5 +33,48 @@ class CronRepoContractTests(unittest.TestCase):
         self.assertEqual(names, set(mod.CORE_WORKFLOWS.keys()))
 
 
+    def test_all_agentturn_jobs_have_message_payload(self) -> None:
+        """Every agentTurn job must have a non-empty message field.
+        Without it, the agent starts with no instructions and silently fails."""
+        root = Path(__file__).resolve().parents[1]
+        data = json.loads((root / "cron" / "jobs.json").read_text(encoding="utf-8"))
+        for job in data.get("jobs", []):
+            if not isinstance(job, dict):
+                continue
+            payload = job.get("payload")
+            if not isinstance(payload, dict):
+                continue
+            if payload.get("kind") not in AGENT_TURN_KINDS:
+                continue
+            name = job.get("name", "?")
+            msg = (payload.get("message") or "").strip()
+            self.assertTrue(
+                msg,
+                f"Job '{name}' has agentTurn payload but no 'message' field — "
+                f"agent will start with no instructions",
+            )
+
+    def test_all_agentturn_jobs_reference_orchestrator(self) -> None:
+        """Every agentTurn message must invoke cron-core-workflow-run.sh so the
+        orchestrator handles lifecycle, locking, and evidence checks."""
+        root = Path(__file__).resolve().parents[1]
+        data = json.loads((root / "cron" / "jobs.json").read_text(encoding="utf-8"))
+        for job in data.get("jobs", []):
+            if not isinstance(job, dict):
+                continue
+            payload = job.get("payload")
+            if not isinstance(payload, dict):
+                continue
+            if payload.get("kind") not in AGENT_TURN_KINDS:
+                continue
+            name = job.get("name", "?")
+            msg = (payload.get("message") or "")
+            self.assertIn(
+                "cron-core-workflow-run.sh",
+                msg,
+                f"Job '{name}' message does not reference cron-core-workflow-run.sh",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

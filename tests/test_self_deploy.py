@@ -127,7 +127,7 @@ class TestSelfDeployScript(unittest.TestCase):
                                 "id": "1",
                                 "name": "grok-daily-brief",
                                 "schedule": {"expr": "0 8 * * *"},
-                                "payload": {"kind": "agentTurn"},
+                                "payload": {"kind": "agentTurn", "message": "run the thing"},
                                 "delivery": {
                                     "mode": "announce",
                                     "channel": "telegram",

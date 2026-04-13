@@ -173,6 +173,50 @@ if [ ! -f "$PROMPT_FILE" ]; then
   exit 2
 fi
 
+# Pre-flight: verify OpenClaw runtime config has a non-empty message payload for this job.
+# A missing message causes the agent to start with no instructions and silently produce
+# no output, which the evidence contract then flags as a critical error.
+# If drift is detected, auto-sync and restart the gateway before aborting — so the NEXT
+# scheduled run succeeds without manual intervention.
+OPENCLAW_CRON_JOBS="${OPENCLAW_CRON_JOBS_PATH:-${HOME}/.openclaw/cron/jobs.json}"
+if [ -f "$OPENCLAW_CRON_JOBS" ]; then
+  PAYLOAD_OK="$(python3 -c "
+import json, sys
+try:
+    data = json.loads(open('$OPENCLAW_CRON_JOBS', encoding='utf-8').read())
+    for job in data.get('jobs', []):
+        if job.get('name') == '$JOB':
+            msg = (job.get('payload') or {}).get('message') or ''
+            if msg.strip():
+                print('ok')
+                sys.exit(0)
+    print('missing')
+except Exception as e:
+    print('error: ' + str(e))
+" 2>/dev/null || echo "error")"
+  case "$PAYLOAD_OK" in
+    ok) ;;
+    missing)
+      echo "cron-core-workflow-run.sh: runtime config missing payload for '$JOB' — auto-syncing..." >&2
+      {
+        printf '%s job=%s preflight_fail=missing_payload_message action=auto_sync\n' \
+          "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$JOB"
+      } >>"$LOG_FILE" 2>/dev/null || true
+      # Auto-repair: sync from repo and restart gateway so the next cron fire succeeds.
+      if "$WORKSPACE_ROOT/tools/sync-cron-jobs.sh" --restart >/dev/null 2>&1; then
+        echo "cron-core-workflow-run.sh: auto-sync succeeded; aborting this run (next scheduled run will use fixed config)" >&2
+      else
+        echo "cron-core-workflow-run.sh: auto-sync FAILED; run manually: ./tools/sync-cron-jobs.sh --restart" >&2
+      fi
+      AGENT_EXIT=3
+      exit 3
+      ;;
+    *)
+      echo "cron-core-workflow-run.sh: warning: could not verify runtime payload for '$JOB': $PAYLOAD_OK" >&2
+      ;;
+  esac
+fi
+
 UUID="$("$WORKSPACE_ROOT/tools/cron-paperclip-lifecycle.sh" start "$JOB" "$AGENT")"
 printf '%s' "$UUID" >"$ISSUE_FILE_ABS"
 

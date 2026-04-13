@@ -95,6 +95,11 @@ def validate_jobs(data: dict[str, Any]) -> list[str]:
             continue
         if payload.get("kind") not in AGENT_TURN_KINDS:
             continue
+        if not (payload.get("message") or "").strip():
+            errors.append(
+                f"{name}: agentTurn payload missing 'message' field "
+                "(agent will start with no instructions)"
+            )
         legacy = [k for k in LEGACY_DELIVERY_KEYS if k in payload]
         if legacy:
             errors.append(
@@ -185,6 +190,71 @@ def merge_runtime_fields(
     return out
 
 
+def check_runtime_drift(
+    repo_data: dict[str, Any], runtime_data: dict[str, Any]
+) -> list[str]:
+    """Compare repo config against runtime config and return drift warnings.
+
+    Catches the exact failure mode where a runtime job exists with a different ID
+    or missing payload message, which causes silent agent failures.
+    """
+    errors: list[str] = []
+    repo_by_name: dict[str, dict] = {}
+    for job in repo_data.get("jobs", []):
+        if isinstance(job, dict) and isinstance(job.get("name"), str):
+            repo_by_name[job["name"]] = job
+
+    runtime_by_name: dict[str, dict] = {}
+    for job in runtime_data.get("jobs", []):
+        if isinstance(job, dict) and isinstance(job.get("name"), str):
+            runtime_by_name[job["name"]] = job
+
+    # Check every repo job exists in runtime with correct config
+    for name, repo_job in repo_by_name.items():
+        rt_job = runtime_by_name.get(name)
+        if rt_job is None:
+            errors.append(f"{name}: missing from runtime config (run sync-cron-jobs.sh --restart)")
+            continue
+
+        # ID mismatch — the exact bug that caused grok-daily-brief to break
+        if rt_job.get("id") != repo_job.get("id"):
+            errors.append(
+                f"{name}: runtime id={rt_job.get('id')!r} != repo id={repo_job.get('id')!r} "
+                f"(stale entry; run sync-cron-jobs.sh --restart)"
+            )
+
+        # Missing payload message — causes empty agent turns
+        repo_msg = (repo_job.get("payload") or {}).get("message", "")
+        rt_msg = (rt_job.get("payload") or {}).get("message", "")
+        if repo_msg and not rt_msg:
+            errors.append(
+                f"{name}: runtime config missing payload.message "
+                f"(agent will start with no instructions; run sync-cron-jobs.sh --restart)"
+            )
+
+        # Enabled state mismatch
+        if repo_job.get("enabled", True) and not rt_job.get("enabled", True):
+            errors.append(f"{name}: disabled in runtime but enabled in repo")
+
+    # Check for orphan runtime jobs with same name as repo jobs but different IDs
+    for name, rt_job in runtime_by_name.items():
+        repo_job = repo_by_name.get(name)
+        if repo_job and rt_job.get("id") != repo_job.get("id"):
+            # Already reported above, but check for duplicates
+            rt_ids = [
+                j.get("id")
+                for j in runtime_data.get("jobs", [])
+                if isinstance(j, dict) and j.get("name") == name
+            ]
+            if len(rt_ids) > 1:
+                errors.append(
+                    f"{name}: duplicate entries in runtime config (ids: {rt_ids}); "
+                    f"will cause double-scheduling"
+                )
+
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Cron jobs validate / sync")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -212,6 +282,18 @@ def main() -> int:
         "--dry-run",
         action="store_true",
         help="Validate only; do not write",
+    )
+
+    c = sub.add_parser("check", help="Detect drift between repo and runtime config")
+    c.add_argument(
+        "--repo",
+        default=None,
+        help="Repo jobs.json path (default: <workspace>/cron/jobs.json)",
+    )
+    c.add_argument(
+        "--target",
+        default=None,
+        help="Runtime path (default: ~/.openclaw/cron/jobs.json)",
     )
 
     st = sub.add_parser("strip", help="Remove scheduler state from repo jobs.json")
@@ -265,6 +347,40 @@ def main() -> int:
         print(f"cron-jobs-tool validate: OK ({path})")
         return 0
 
+    if args.cmd == "check":
+        repo_path = Path(args.repo) if args.repo else workspace / "cron" / "jobs.json"
+        target = (
+            Path(args.target).expanduser()
+            if args.target
+            else Path.home() / ".openclaw" / "cron" / "jobs.json"
+        )
+        try:
+            repo_data = load_json(repo_path, expand=True)
+        except FileNotFoundError:
+            print(f"cron-jobs-tool check: repo config not found: {repo_path}", file=sys.stderr)
+            return 2
+        except json.JSONDecodeError as e:
+            print(f"cron-jobs-tool check: invalid repo JSON: {e}", file=sys.stderr)
+            return 2
+        if not target.is_file():
+            print(f"cron-jobs-tool check: runtime config not found: {target}", file=sys.stderr)
+            print("  Run: ./tools/sync-cron-jobs.sh --restart", file=sys.stderr)
+            return 1
+        try:
+            runtime_data = load_json(target)
+        except json.JSONDecodeError as e:
+            print(f"cron-jobs-tool check: invalid runtime JSON: {e}", file=sys.stderr)
+            return 2
+        drift = check_runtime_drift(repo_data, runtime_data)
+        if drift:
+            print("cron-jobs-tool check: DRIFT DETECTED", file=sys.stderr)
+            for d in drift:
+                print(f"  {d}", file=sys.stderr)
+            return 1
+        print(f"cron-jobs-tool check: OK (repo={repo_path}, runtime={target})")
+        return 0
+
+    # cmd == "sync"
     repo_path = Path(args.repo) if args.repo else workspace / "cron" / "jobs.json"
     target = (
         Path(args.target).expanduser()

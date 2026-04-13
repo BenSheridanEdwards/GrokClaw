@@ -1,8 +1,3 @@
-## Completed work
-
-- **2026-04-11** — **grok-daily-brief cron (14:11 UTC):** System healthy across gateway, Paperclip, cron scheduler, Linear, GitHub PR queue. Reviewed prior 24h: 7 Alpha hourly HOLDs (no edges), OpenClaw research no gaps vs v2026.4.9, no PRs, no Linear todos. No daily suggestion (no high-leverage improvements found).
-
-
 # Long-term Memory
 
 Grok must read this file in full before proposing any suggestion, and update it after every verified action.
@@ -18,6 +13,8 @@ Grok must read this file in full before proposing any suggestion, and update it 
 ---
 
 ## Completed work
+
+- **2026-04-12** — **Alpha Polymarket Paperclip wake (23:02 UTC):** Executed deterministic Polymarket research and trading workflow via Paperclip wake. Evaluated Ethereum price market, used volume_fallback selection, no copy signal found, resulted in HOLD decision. Research output written to data/alpha/research/2026-04-12-23.md. Paperclip issue GRO-821 processed and marked complete.
 
 - **2026-04-11** — **Graphify rebuild entrypoint:** Added `tools/graphify-rebuild.sh` (tries `python3` import, then `GRAPHIFY_SRC` / common clone paths). Updated `CLAUDE.md`, `CURSOR.md`, and `README.md` (Knowledge Graph) to use it instead of a raw `python3 -c` one-liner. Graphify is not on PyPI and the upstream repo is private from this agent environment; local rebuild: install Graphify (`pip install -e …`) or `export GRAPHIFY_SRC=/path/to/graphify-repo` then `./tools/graphify-rebuild.sh`.
 

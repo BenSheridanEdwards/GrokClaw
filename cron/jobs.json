@@ -2,7 +2,7 @@
   "version": 1,
   "jobs": [
     {
-      "id": "9c1b0a7d4e2f1001",
+      "id": "1",
       "name": "grok-daily-brief",
       "enabled": true,
       "sessionTarget": "isolated",

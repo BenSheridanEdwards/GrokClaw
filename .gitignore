@@ -9,6 +9,7 @@ logs/
 .gateway-watchdog-lock
 .last-deploy-sha
 .openclaw/*.issue
+.openclaw/workspace/
 cron/jobs.json
 data/
 .worktrees/

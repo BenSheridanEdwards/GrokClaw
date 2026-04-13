@@ -57,7 +57,7 @@ class TestSyncCronJobsScript(unittest.TestCase):
                                 "id": "1",
                                 "name": "grok-daily-brief",
                                 "schedule": {"expr": "0 8 * * *"},
-                                "payload": {"kind": "agentTurn"},
+                                "payload": {"kind": "agentTurn", "message": "run the thing"},
                                 "delivery": {
                                     "mode": "announce",
                                     "channel": "telegram",
@@ -102,6 +102,14 @@ class TestSyncCronJobsScript(unittest.TestCase):
             )
 
     def test_sync_without_restart_exits_zero_and_does_not_call_gateway_ctl(self):
+        """Sync without --restart should not invoke gateway-ctl.sh.
+
+        Uses --dry-run to avoid writing to the live ~/.openclaw/cron/jobs.json.
+        The sync-cron-jobs.sh script defaults its --target to the real runtime config,
+        and there's no way to override it from the outside. Writing test fixture data
+        to the live config was the root cause of recurring grok-daily-brief failures.
+        The actual write-to-target behavior is covered by TestCronJobsToolSync tests.
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             repo = Path(tmpdir)
             (repo / "cron").mkdir()
@@ -115,7 +123,7 @@ class TestSyncCronJobsScript(unittest.TestCase):
                                 "id": "1",
                                 "name": "grok-daily-brief",
                                 "schedule": {"expr": "0 8 * * *"},
-                                "payload": {"kind": "agentTurn"},
+                                "payload": {"kind": "agentTurn", "message": "run the thing"},
                                 "delivery": {
                                     "mode": "announce",
                                     "channel": "telegram",
@@ -138,7 +146,7 @@ class TestSyncCronJobsScript(unittest.TestCase):
             gateway_ctl.write_text(
                 "#!/bin/sh\ntouch /tmp/gateway_ctl_called", encoding="utf-8"
             )
-            result = self._run_sync_script(repo=repo)
+            result = self._run_sync_script("--dry-run", repo=repo)
             self.assertEqual(result.returncode, 0, msg=result.stderr)
 
 
@@ -167,7 +175,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "id": "1",
                     "name": "grok-daily-brief",
                     "schedule": {"expr": "0 8 * * *"},
-                    "payload": {"kind": "agentTurn"},
+                    "payload": {"kind": "agentTurn", "message": "run the thing"},
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
@@ -178,7 +186,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "id": "2",
                     "name": "alpha-polymarket",
                     "schedule": {"expr": "0 * * * *"},
-                    "payload": {"kind": "agentTurn"},
+                    "payload": {"kind": "agentTurn", "message": "run the thing"},
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
@@ -195,7 +203,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "id": "1",
                     "name": "grok-daily-brief",
                     "schedule": {"expr": "0 8 * * *"},
-                    "payload": {"kind": "agentTurn"},
+                    "payload": {"kind": "agentTurn", "message": "run the thing"},
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
@@ -209,7 +217,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                     "id": "2",
                     "name": "alpha-polymarket",
                     "schedule": {"expr": "0 * * * *"},
-                    "payload": {"kind": "agentTurn"},
+                    "payload": {"kind": "agentTurn", "message": "run the thing"},
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
@@ -314,7 +322,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                 {
                     "id": "1",
                     "name": "grok-daily-brief",
-                    "payload": {"kind": "agentTurn"},
+                    "payload": {"kind": "agentTurn", "message": "run the thing"},
                     "delivery": {
                         "mode": "announce",
                         "channel": "telegram",
@@ -372,7 +380,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                         "id": "1",
                         "name": "grok-daily-brief",
                         "schedule": {"expr": "0 8 * * *"},
-                        "payload": {"kind": "agentTurn"},
+                        "payload": {"kind": "agentTurn", "message": "run the thing"},
                         "delivery": {
                             "mode": "announce",
                             "channel": "telegram",
@@ -430,7 +438,7 @@ class TestCronJobsToolSync(unittest.TestCase):
                         "id": "1",
                         "name": "grok-daily-brief",
                         "schedule": {"expr": "0 8 * * *"},
-                        "payload": {"kind": "agentTurn"},
+                        "payload": {"kind": "agentTurn", "message": "run the thing"},
                         "delivery": {
                             "mode": "announce",
                             "channel": "telegram",
@@ -495,6 +503,251 @@ class TestCronJobsToolSync(unittest.TestCase):
             finally:
                 sys.argv = orig_argv
             self.assertEqual(ret, 1)
+
+
+class TestCheckRuntimeDrift(unittest.TestCase):
+    """Tests for cron-jobs-tool.py check subcommand — drift detection."""
+
+    def setUp(self):
+        super().setUp()
+        self._telegram_env = patch.dict(
+            os.environ,
+            {"TELEGRAM_GROUP_ID": "-1001234567890"},
+            clear=False,
+        )
+        self._telegram_env.start()
+
+    def tearDown(self):
+        self._telegram_env.stop()
+        super().tearDown()
+
+    def test_check_detects_missing_payload_message(self):
+        """The exact bug: runtime has agentTurn with no message, repo has the message."""
+        cjt = _load_cron_jobs_tool()
+        repo = {
+            "version": 1,
+            "jobs": [
+                {
+                    "id": "9c1b0a7d4e2f1001",
+                    "name": "grok-daily-brief",
+                    "payload": {
+                        "kind": "agentTurn",
+                        "message": "./tools/cron-core-workflow-run.sh grok-daily-brief grok",
+                    },
+                    "delivery": {
+                        "mode": "announce",
+                        "channel": "telegram",
+                        "to": "-1001234567890",
+                    },
+                },
+            ],
+        }
+        runtime = {
+            "version": 1,
+            "jobs": [
+                {
+                    "id": "9c1b0a7d4e2f1001",
+                    "name": "grok-daily-brief",
+                    "payload": {"kind": "agentTurn"},
+                    "state": {},
+                },
+            ],
+        }
+        drift = cjt.check_runtime_drift(repo, runtime)
+        self.assertTrue(any("missing payload.message" in d for d in drift), drift)
+
+    def test_check_detects_id_mismatch(self):
+        """Runtime has job with different ID than repo — stale entry."""
+        cjt = _load_cron_jobs_tool()
+        repo = {
+            "version": 1,
+            "jobs": [
+                {
+                    "id": "9c1b0a7d4e2f1001",
+                    "name": "grok-daily-brief",
+                    "payload": {
+                        "kind": "agentTurn",
+                        "message": "run it",
+                    },
+                    "delivery": {
+                        "mode": "announce",
+                        "channel": "telegram",
+                        "to": "-1001234567890",
+                    },
+                },
+            ],
+        }
+        runtime = {
+            "version": 1,
+            "jobs": [
+                {
+                    "id": "1",
+                    "name": "grok-daily-brief",
+                    "payload": {"kind": "agentTurn", "message": "run it"},
+                    "state": {},
+                },
+            ],
+        }
+        drift = cjt.check_runtime_drift(repo, runtime)
+        self.assertTrue(any("runtime id=" in d for d in drift), drift)
+
+    def test_check_detects_missing_runtime_job(self):
+        cjt = _load_cron_jobs_tool()
+        repo = {
+            "version": 1,
+            "jobs": [
+                {"id": "a", "name": "job-a", "payload": {"kind": "agentTurn", "message": "x"}},
+            ],
+        }
+        runtime = {"version": 1, "jobs": []}
+        drift = cjt.check_runtime_drift(repo, runtime)
+        self.assertTrue(any("missing from runtime" in d for d in drift), drift)
+
+    def test_check_returns_empty_when_configs_match(self):
+        cjt = _load_cron_jobs_tool()
+        repo = {
+            "version": 1,
+            "jobs": [
+                {
+                    "id": "9c1b0a7d4e2f1001",
+                    "name": "grok-daily-brief",
+                    "payload": {
+                        "kind": "agentTurn",
+                        "message": "./tools/cron-core-workflow-run.sh grok-daily-brief grok",
+                    },
+                },
+            ],
+        }
+        runtime = {
+            "version": 1,
+            "jobs": [
+                {
+                    "id": "9c1b0a7d4e2f1001",
+                    "name": "grok-daily-brief",
+                    "payload": {
+                        "kind": "agentTurn",
+                        "message": "./tools/cron-core-workflow-run.sh grok-daily-brief grok",
+                    },
+                    "state": {"nextRunAtMs": 12345},
+                },
+            ],
+        }
+        drift = cjt.check_runtime_drift(repo, runtime)
+        self.assertEqual(drift, [])
+
+    def test_check_subcommand_exits_nonzero_on_drift(self):
+        """Integration test: check subcommand returns 1 when drift found."""
+        cjt = _load_cron_jobs_tool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "repo.json"
+            target_path = Path(tmpdir) / "runtime.json"
+            repo_path.write_text(
+                json.dumps({
+                    "version": 1,
+                    "jobs": [
+                        {
+                            "id": "9c1b0a7d4e2f1001",
+                            "name": "grok-daily-brief",
+                            "schedule": {"expr": "0 8 * * *"},
+                            "payload": {"kind": "agentTurn", "message": "do the thing"},
+                            "delivery": {
+                                "mode": "announce",
+                                "channel": "telegram",
+                                "to": "-1001234567890",
+                            },
+                        },
+                    ],
+                }),
+                encoding="utf-8",
+            )
+            target_path.write_text(
+                json.dumps({
+                    "version": 1,
+                    "jobs": [
+                        {
+                            "id": "1",
+                            "name": "grok-daily-brief",
+                            "payload": {"kind": "agentTurn", "message": "run the thing"},
+                            "state": {},
+                        },
+                    ],
+                }),
+                encoding="utf-8",
+            )
+            orig_argv = sys.argv
+            sys.argv = [
+                "cron-jobs-tool.py",
+                "check",
+                "--repo", str(repo_path),
+                "--target", str(target_path),
+            ]
+            try:
+                ret = cjt.main()
+            finally:
+                sys.argv = orig_argv
+            self.assertEqual(ret, 1)
+
+    def test_check_subcommand_exits_zero_when_synced(self):
+        cjt = _load_cron_jobs_tool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "repo.json"
+            target_path = Path(tmpdir) / "runtime.json"
+            job = {
+                "id": "9c1b0a7d4e2f1001",
+                "name": "grok-daily-brief",
+                "schedule": {"expr": "0 8 * * *"},
+                "payload": {"kind": "agentTurn", "message": "do the thing"},
+                "delivery": {
+                    "mode": "announce",
+                    "channel": "telegram",
+                    "to": "-1001234567890",
+                },
+            }
+            repo_path.write_text(
+                json.dumps({"version": 1, "jobs": [job]}), encoding="utf-8"
+            )
+            rt_job = dict(job)
+            rt_job["state"] = {"nextRunAtMs": 12345}
+            target_path.write_text(
+                json.dumps({"version": 1, "jobs": [rt_job]}), encoding="utf-8"
+            )
+            orig_argv = sys.argv
+            sys.argv = [
+                "cron-jobs-tool.py",
+                "check",
+                "--repo", str(repo_path),
+                "--target", str(target_path),
+            ]
+            try:
+                ret = cjt.main()
+            finally:
+                sys.argv = orig_argv
+            self.assertEqual(ret, 0)
+
+    def test_validate_rejects_agentturn_without_message(self):
+        """validate subcommand must catch agentTurn jobs with no message."""
+        cjt = _load_cron_jobs_tool()
+        data = {
+            "version": 1,
+            "jobs": [
+                {
+                    "id": "1",
+                    "name": "grok-daily-brief",
+                    "schedule": {"expr": "0 8 * * *"},
+                    "payload": {"kind": "agentTurn"},
+                    "delivery": {
+                        "mode": "announce",
+                        "channel": "telegram",
+                        "to": "-1001234567890",
+                    },
+                },
+            ],
+        }
+        errs = cjt.validate_jobs(data)
+        self.assertTrue(
+            any("missing 'message'" in e for e in errs),
+            f"Expected message validation error, got: {errs}",
+        )
 
 
 if __name__ == "__main__":

@@ -225,51 +225,27 @@ else
 fi
 
 # --- 8. Repo vs runtime cron sync ---
+# Uses cron-jobs-tool.py check which compares by job NAME (not just ID) to catch
+# the exact failure mode where the gateway rewrites job IDs but loses the message payload.
 log "Checking cron sync..."
 RUNTIME_CRON="$HOME/.openclaw/cron/jobs.json"
 if [ -f "$RUNTIME_CRON" ]; then
-  drift=$(python3 -c "
-import json, hashlib
-def normalize_schedule(s):
-    if not isinstance(s, dict): return s
-    return {'kind': s.get('kind'), 'expr': s.get('expr')}
-def job_hash(j):
-    return hashlib.md5(json.dumps({
-        'name': j.get('name'), 'schedule': normalize_schedule(j.get('schedule')),
-        'agentId': j.get('agentId'), 'enabled': j.get('enabled'),
-        'payload': j.get('payload'), 'delivery': j.get('delivery'),
-    }, sort_keys=True).encode()).hexdigest()
-repo = json.load(open('$WORKSPACE_ROOT/cron/jobs.json'))
-rt = json.load(open('$RUNTIME_CRON'))
-repo_h = {j['id']: job_hash(j) for j in repo.get('jobs', [])}
-rt_h = {j['id']: job_hash(j) for j in rt.get('jobs', [])}
-diffs = []
-for jid in set(repo_h) | set(rt_h):
-    if jid not in rt_h:
-        diffs.append(f'missing from runtime: {jid}')
-    elif jid not in repo_h:
-        pass
-    elif repo_h[jid] != rt_h[jid]:
-        rn = next((j['name'] for j in repo['jobs'] if j['id'] == jid), jid)
-        diffs.append(f'config drift: {rn}')
-print('|'.join(diffs) if diffs else '')
-" 2>/dev/null || echo "error")
-  if [ -z "$drift" ]; then
+  drift_output="$(python3 "$WORKSPACE_ROOT/tools/cron-jobs-tool.py" check 2>&1 || true)"
+  drift_exit=$?
+  if [ "$drift_exit" -eq 0 ]; then
     log "  Cron sync: OK"
-  elif [ "$drift" = "error" ]; then
-    add_issue "Could not compare cron configs"
-  else
-    add_issue "Cron drift: $drift"
+  elif [ "$drift_exit" -eq 1 ]; then
+    add_issue "Cron drift detected: $drift_output"
     if [ "$HEAL" -eq 1 ]; then
       log "  Healing: syncing cron jobs..."
-      if "$WORKSPACE_ROOT/tools/sync-cron-jobs.sh" >/dev/null 2>&1; then
-        "$WORKSPACE_ROOT/tools/gateway-ctl.sh" restart >/dev/null 2>&1
-        sleep 5
+      if "$WORKSPACE_ROOT/tools/sync-cron-jobs.sh" --restart >/dev/null 2>&1; then
         add_healed "Cron jobs synced and gateway restarted"
       else
         add_failed "Cron sync failed"
       fi
     fi
+  else
+    add_issue "Could not compare cron configs: $drift_output"
   fi
 else
   add_issue "Runtime cron file missing ($RUNTIME_CRON)"
