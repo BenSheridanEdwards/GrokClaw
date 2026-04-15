@@ -60,25 +60,74 @@ def load_file(path: Path, name: str, example_hint: str = "") -> str:
     return text
 
 
+def _read_answer_editor(title: str, prompt: str) -> str:
+    """Open $EDITOR with a temp file so the user can write/paste without buffer limits.
+
+    Falls back to terminal input if no editor is available.
+    """
+    import subprocess
+    import tempfile
+
+    editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
+    if not editor:
+        for candidate in ("code --wait", "nano", "vi"):
+            name = candidate.split()[0]
+            if any((Path(d) / name).is_file() for d in os.environ.get("PATH", "").split(":")):
+                editor = candidate
+                break
+
+    if not editor:
+        return _read_answer_stdin()
+
+    header = f"# {title}\n# {prompt}\n# Write your answer below this line. Save and close when done.\n\n"
+    with tempfile.NamedTemporaryFile(suffix=".md", mode="w", delete=False) as f:
+        f.write(header)
+        tmp_path = f.name
+
+    try:
+        subprocess.run(editor.split() + [tmp_path], check=True)
+        content = Path(tmp_path).read_text(encoding="utf-8")
+        # Strip comment header lines
+        lines = [l for l in content.splitlines() if not l.startswith("# ")]
+        return "\n".join(lines).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("  Editor failed, falling back to terminal input.")
+        return _read_answer_stdin()
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+
+def _read_answer_stdin() -> str:
+    """Read a multi-line answer from stdin. End with two blank lines or Ctrl-D."""
+    lines: list[str] = []
+    while True:
+        try:
+            line = input()
+        except EOFError:
+            break
+        lines.append(line)
+        if len(lines) >= 2 and lines[-1] == "" and lines[-2] == "":
+            lines = lines[:-2]
+            break
+    return "\n".join(lines).strip()
+
+
 def run_interview(interview_path: Path) -> str:
     print("\n=== Tinkerer Interview ===")
-    print("Answer 4 questions. Your raw answers will be saved and reused.\n")
+    print("Answer 4 questions. Your raw answers will be saved and reused.")
+    print("Each question opens in your editor — write your answer, save, and close.\n")
     sections = []
-    for title, prompt in INTERVIEW_QUESTIONS:
-        print(f"## {title}")
-        print(f"({prompt})")
-        print("Type your answer (press Enter twice to finish):\n")
-        lines = []
-        while True:
-            try:
-                line = input()
-            except EOFError:
-                break
-            if line == "" and lines and lines[-1] == "":
-                break
-            lines.append(line)
-        answer = "\n".join(lines).strip()
-        sections.append(f"## {title}\n\n{answer}")
+    for i, (title, prompt) in enumerate(INTERVIEW_QUESTIONS, 1):
+        print(f"--- Question {i}/{len(INTERVIEW_QUESTIONS)} ---")
+        print(f"  {title}")
+        print(f"  ({prompt})")
+        answer = _read_answer_editor(title, prompt)
+        if answer:
+            sections.append(f"## {title}\n\n{answer}")
+            print(f"  ✓ Saved ({len(answer)} chars)\n")
+        else:
+            sections.append(f"## {title}\n\n(no answer)")
+            print("  ⚠ Skipped\n")
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     content = f"# Tinkerer Interview\n\nRecorded on {now}\n\n" + "\n\n".join(sections) + "\n"
     interview_path.write_text(content, encoding="utf-8")
@@ -115,29 +164,34 @@ def generate_safe_answers(builder: str, interview: str, sensitive: dict) -> dict
 
     prompt = f"""You are Tinkerer, an AI agent applying to the Stationed AI Tinkerer role on behalf of Ben.
 
-Below is Ben's profile (BUILDER.md) and his raw interview answers (tinkerer-interview.md).
-Generate the form field answers. Be authentic to Ben's voice — not robotic, not over-polished.
+Below is Ben's profile (BUILDER.md) and his pre-written answers for each form field.
+Your job is to TRANSFER his answers into the form — not rewrite them.
+Make only minor edits for flow, clarity, or formatting. Keep Ben's voice exactly as-is.
+Preserve bullet-point lists using - dashes as-is — they read well in form textareas.
+Remove bold sub-headings like "**1. Describe what you built**" — just flow the content naturally.
+Preserve paragraph breaks between sub-sections — do NOT collapse everything into one giant paragraph.
 Write in first person as Ben.
 
 BUILDER.md:
 {builder}
 
-Interview answers:
+Ben's answers (organised by form field):
 {interview}
 
-Generate exactly three text blocks, separated by "---FIELD---":
+Output exactly three text blocks separated by "---FIELD---" markers:
 
-1. SUBMISSION: Synthesize the interview answers into a cohesive response that covers:
-   what was built, why Challenge 1, what you'd do with another week, and what excites about AI.
-   A few paragraphs, conversational but substantive.
+1. SUBMISSION — use the content under "# Field - Submission" from Ben's answers.
+   Combine the sub-sections into one cohesive block. Minor edits only.
 
-2. AI_JOURNEY: Based on the profile, describe where Ben is on his AI journey —
-   what he's building, experimenting with, comfort level. A couple paragraphs.
+2. AI_JOURNEY — use the content under "# Field - Where are you on your AI journey?"
+   Combine the sub-sections into one cohesive block. Minor edits only.
 
-3. EXCITEMENT: Based on the profile's philosophy section, what keeps Ben excited
-   about the future of AI. A couple paragraphs.
+3. EXCITEMENT — use the content under "# Field - What keeps you excited about the future?"
+   Combine the sub-sections into one cohesive block. Minor edits only.
 
-Output ONLY the three blocks separated by ---FIELD--- markers. No other text."""
+IMPORTANT: Separate the three blocks with EXACTLY the marker ===FIELD=== on its own line.
+Do NOT use --- or any other separator. Use ===FIELD=== and nothing else between blocks.
+Output ONLY the three blocks. No labels, no preamble, no markdown headers."""
 
     body = json.dumps({
         "model": "grok-4-1-fast-non-reasoning",
@@ -171,7 +225,15 @@ Output ONLY the three blocks separated by ---FIELD--- markers. No other text."""
         print(f"Response: {json.dumps(result, indent=2)[:500]}", file=sys.stderr)
         sys.exit(1)
 
-    parts = [p.strip() for p in text.split("---FIELD---")]
+    # Try the expected separator first, fall back to alternatives
+    if "===FIELD===" in text:
+        parts = [p.strip() for p in text.split("===FIELD===")]
+    elif "---FIELD---" in text:
+        parts = [p.strip() for p in text.split("---FIELD---")]
+    else:
+        # Last resort: split on markdown horizontal rules (---) on their own line
+        import re
+        parts = [p.strip() for p in re.split(r"\n---\n", text)]
     if len(parts) < 3:
         print(f"Warning: Expected 3 fields from LLM, got {len(parts)}. Some answers may be empty.", file=sys.stderr)
 
@@ -186,6 +248,37 @@ Output ONLY the three blocks separated by ---FIELD--- markers. No other text."""
         "ai_journey": parts[1] if len(parts) > 1 else "",
         "excitement": parts[2] if len(parts) > 2 else "",
     }
+
+
+def parse_safe_trial(text: str) -> dict:
+    """Extract the three free-text field values from a safe-trial.md file."""
+    sections = {
+        "submission": "",
+        "ai_journey": "",
+        "excitement": "",
+    }
+    # Map markdown headers to dict keys
+    header_map = {
+        "### Submission": "submission",
+        "### Where are you currently on your AI journey?": "ai_journey",
+        "### What keeps you excited about the future?": "excitement",
+    }
+    current_key = None
+    lines: list[str] = []
+
+    for line in text.splitlines():
+        if line.strip() in header_map:
+            if current_key and lines:
+                sections[current_key] = "\n".join(lines).strip()
+            current_key = header_map[line.strip()]
+            lines = []
+        elif current_key is not None:
+            lines.append(line)
+
+    if current_key and lines:
+        sections[current_key] = "\n".join(lines).strip()
+
+    return sections
 
 
 def write_safe_trial(answers: dict, output_path: Path):
@@ -247,11 +340,15 @@ def main():
     sensitive = parse_sensitive_data(sensitive_text)
 
     if args.safe:
-        if not interview_path.is_file():
-            interview = run_interview(interview_path)
-        else:
+        alt_interview_path = tinkerer_dir / "INTERVIEW.md"
+        if interview_path.is_file():
             interview = interview_path.read_text(encoding="utf-8")
             print(f"Using existing interview at {interview_path}")
+        elif alt_interview_path.is_file():
+            interview = alt_interview_path.read_text(encoding="utf-8")
+            print(f"Using INTERVIEW.md at {alt_interview_path}")
+        else:
+            interview = run_interview(interview_path)
 
         print("Generating answers via xAI Grok...")
         answers = generate_safe_answers(builder, interview, sensitive)
@@ -259,13 +356,13 @@ def main():
         return
 
     if args.submit:
-        if not interview_path.is_file():
-            print("Error: Run --safe first to complete the interview.", file=sys.stderr)
-            sys.exit(1)
-        interview = interview_path.read_text(encoding="utf-8")
-        safe_trial = ""
         if safe_trial_path.is_file():
-            safe_trial = safe_trial_path.read_text(encoding="utf-8")
+            safe_trial_text = safe_trial_path.read_text(encoding="utf-8")
+            print(f"Using safe trial at {safe_trial_path}")
+            free_text = parse_safe_trial(safe_trial_text)
+        else:
+            print("Error: Run --safe first to generate safe-trial.md", file=sys.stderr)
+            sys.exit(1)
 
         fields = {
             "name": extract_name(builder),
@@ -274,12 +371,10 @@ def main():
             "location": sensitive.get("location", ""),
             "github": GITHUB_LINK,
             "challenge": CHALLENGE,
+            **free_text,
         }
         run_browser(
             fields=fields,
-            safe_trial=safe_trial,
-            builder=builder,
-            interview=interview,
             workspace=workspace,
         )
 
@@ -307,10 +402,16 @@ def run_browser(fields: dict, is_trial: bool = False, safe_trial: str = "", buil
 
     free_text_source = ""
     if fields.get("submission"):
+        # Collapse to single lines so the browser agent inputs each as one atomic value
+        sub = fields['submission'].replace('\n', '\\n')
+        journey = fields['ai_journey'].replace('\n', '\\n')
+        excite = fields['excitement'].replace('\n', '\\n')
         free_text_source = f"""
-- Submission: {fields['submission']}
-- AI Journey: {fields['ai_journey']}
-- Excitement: {fields['excitement']}"""
+FREE-TEXT FIELDS — each value below goes into ONE textarea. Input each field ONCE, do NOT clear or re-type:
+
+- Submission textarea: {sub}
+- AI Journey textarea: {journey}
+- Excitement textarea: {excite}"""
     elif safe_trial:
         free_text_source = f"\nFREE-TEXT FIELDS (use the pre-generated answers):\n\n{safe_trial}"
     else:
@@ -344,6 +445,7 @@ FACTUAL FIELDS:
 INSTRUCTIONS:
 - Fill every field from top to bottom
 - For the dropdown, select "{fields.get('challenge', CHALLENGE)}"
+- For each textarea, paste the COMPLETE text in one go — do not overwrite or clear between paragraphs
 - Upload the CV file at: {cv_path}
 - Do NOT click Submit. Stop after filling all fields.
 - At the end, output a structured summary of every field and what was entered
@@ -368,7 +470,7 @@ INSTRUCTIONS:
                 except EOFError:
                     pass
             else:
-                print("Review the form in the browser.")
+                print("Review the form in the browser. Take your time.")
                 try:
                     answer = input("Submit this application? [y/N] ").strip().lower()
                 except EOFError:
@@ -386,8 +488,16 @@ INSTRUCTIONS:
                     print(f"{'=' * 60}")
                     print(submit_history.final_result())
                     print(f"{'=' * 60}\n")
+                    try:
+                        input("Press Enter to close the browser...")
+                    except EOFError:
+                        pass
                 else:
-                    print("Not submitted. Run --submit again when ready.")
+                    print("Not submitted. Browser stays open — run --submit again when ready.")
+                    try:
+                        input("Press Enter to close the browser...")
+                    except EOFError:
+                        pass
         finally:
             await browser.stop()
 
