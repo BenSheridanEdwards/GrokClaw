@@ -149,11 +149,61 @@ def parse_sensitive_data(text: str) -> dict:
     return data
 
 
+# Keys produced by parse_sensitive_data (markdown **Label** → lowercased dict key)
+REQUIRED_SENSITIVE_FIELDS = (
+    ("email", "Email"),
+    ("phone", "Phone"),
+    ("location", "Location"),
+)
+
+
+def validate_sensitive_data(sensitive: dict, source_name: str = "sensitive-data.md") -> None:
+    """Require non-empty email, phone, and location before --safe / --submit."""
+    missing_labels: list[str] = []
+    for key, _label in REQUIRED_SENSITIVE_FIELDS:
+        if not sensitive.get(key, "").strip():
+            missing_labels.append(_label)
+    if not missing_labels:
+        return
+    example_lines = "\n".join(
+        f"- **{label}**: <your value>" for _key, label in REQUIRED_SENSITIVE_FIELDS
+    )
+    print(
+        f"Error: {source_name} must set non-empty values for: {', '.join(missing_labels)}.\n"
+        "Use list items under ## Contact with these exact labels (see sensitive-data.md.example):\n"
+        f"{example_lines}",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
 def extract_name(builder: str) -> str:
+    """First `- **Name**: value` list item (key matched case-insensitively)."""
     for line in builder.splitlines():
-        if line.strip().startswith("- **Name**:"):
-            return line.split(":", 1)[1].strip()
+        stripped = line.strip()
+        if not stripped.startswith("- **") or "**:" not in stripped:
+            continue
+        try:
+            key_start = stripped.index("**") + 2
+            key_end = stripped.index("**:", key_start)
+            key = stripped[key_start:key_end].strip().lower()
+            if key == "name":
+                return stripped[key_end + 3:].strip()
+        except ValueError:
+            continue
     return ""
+
+
+def validate_builder_name(builder: str) -> None:
+    if extract_name(builder):
+        return
+    print(
+        "Error: BUILDER.md must include a non-empty name under ## Identity, for example:\n"
+        "  - **Name**: Your Name\n"
+        "See tinkerer/BUILDER.md.example.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def generate_safe_answers(builder: str, interview: str, sensitive: dict) -> dict:
@@ -335,9 +385,11 @@ def main():
         run_browser(fields=TRIAL_DATA, is_trial=True, workspace=workspace)
         return
 
-    builder = load_file(builder_path, "BUILDER.md")
+    builder = load_file(builder_path, "BUILDER.md", "tinkerer/BUILDER.md.example")
+    validate_builder_name(builder)
     sensitive_text = load_file(sensitive_path, "sensitive-data.md", "sensitive-data.md.example")
     sensitive = parse_sensitive_data(sensitive_text)
+    validate_sensitive_data(sensitive)
 
     if args.safe:
         alt_interview_path = tinkerer_dir / "INTERVIEW.md"
@@ -386,7 +438,15 @@ def run_browser(fields: dict, is_trial: bool = False, safe_trial: str = "", buil
         from browser_use import Agent, Browser
         from browser_use.llm.openai.like import ChatOpenAILike
     except ImportError:
-        print("Error: browser-use not installed. Install with: curl -fsSL https://browser-use.com/cli/install.sh | bash", file=sys.stderr)
+        print(
+            "Error: browser-use is not installed (could not import browser_use).\n\n"
+            "Install using the official documentation so you can review dependencies first:\n"
+            "  https://github.com/browser-use/browser-use#readme\n\n"
+            "Typical approach: create a virtual environment, then install with pip per the README "
+            "(avoid piping remote install scripts into your shell).\n"
+            "GrokClaw's launcher uses ~/.browser-use-env when present — see tools/run-tinkerer-apply.sh.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     api_key = os.environ.get("XAI_API_KEY", "")

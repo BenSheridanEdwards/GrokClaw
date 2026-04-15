@@ -14,6 +14,12 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-04-15** — **Tinkerer `tools/tinkerer-apply.py`:** ImportError for `browser_use` now points to https://github.com/browser-use/browser-use#readme and describes venv + pip after review; removed `curl | bash` install suggestion.
+
+- **2026-04-15** — **Tinkerer `tools/tinkerer-apply.py`:** `extract_name()` now finds `- **Name**:` case-insensitively; `validate_builder_name()` runs after loading `BUILDER.md` so `--safe` / `--submit` fail fast if name is missing or empty, with a pointer to `tinkerer/BUILDER.md.example`. Missing `BUILDER.md` copy hint uses `tinkerer/BUILDER.md.example`.
+
+- **2026-04-15** — **Tinkerer `tools/tinkerer-apply.py`:** After `parse_sensitive_data()`, added `validate_sensitive_data()` so `--safe` and `--submit` exit early unless **Email**, **Phone**, and **Location** are non-empty (expected markdown list keys under `## Contact`, per `sensitive-data.md.example`). Prevents incomplete `safe-trial.md` and empty form fields.
+
 - **2026-04-15** — **Alpha Polymarket hourly run (23:02 UTC):** Executed deterministic Polymarket research and trading workflow. Evaluated "Will Bitcoin dip to $71,000 on April 14?"; used volume_fallback selection, no copy signal (status=unavailable), resulted in HOLD decision. Research output written to data/alpha/research/2026-04-14-23.md. Paperclip issue 437d1c1a-c70a-4c24-a6ab-66b11b39a933 processed and marked complete.
 
 - **2026-04-15** — **Alpha Polymarket Paperclip wake (02:02 GMT+7):** Agent woke for issue_assigned but found issue already completed by orchestrator (status: done). Added confirmation comment and marked issue done via Paperclip API.
