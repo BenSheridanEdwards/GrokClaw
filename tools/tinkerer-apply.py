@@ -618,17 +618,20 @@ INSTRUCTIONS:
                     if answer == "submit":
                         print("\nSubmitting...")
                         submit_agent = Agent(
-                            task="Click the Submit Application button on the form and confirm the success screen. Report the result.",
+                            task="The form is already filled. Do NOT fill any fields. Just find and click the 'Submit Application' button, then confirm the submission was successful. Report the result.",
                             llm=llm,
-                            browser=browser,
+                            browser_session=browser,
                         )
-                        submit_history = await submit_agent.run()
+                        submit_history = await submit_agent.run(max_steps=5)
                         print(f"\n{'=' * 60}")
                         print("Tinkerer — Submitted")
                         print(f"{'=' * 60}")
                         print(submit_history.final_result())
                         print(f"{'=' * 60}\n")
-                        input("Press Enter to close the browser...")
+                        try:
+                            input("Press Enter to close the browser...")
+                        except (EOFError, KeyboardInterrupt):
+                            pass
                         break
                     elif answer == "close":
                         print("Not submitted. Run --submit again when ready.")
