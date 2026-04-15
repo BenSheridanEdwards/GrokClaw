@@ -14,6 +14,14 @@ Grok must read this file in full before proposing any suggestion, and update it 
 
 ## Completed work
 
+- **2026-04-15** — **Tinkerer `generate_safe_answers`:** Single delimiter contract — `SAFE_ANSWER_FIELD_SEPARATOR = "===FIELD==="`; prompt and split logic both use only that (removed `---FIELD---` / markdown `---` fallbacks).
+
+- **2026-04-15** — **Tinkerer `run_browser` free-text:** Replaced literal `\\n` textarea embedding with `json.dumps` of submission/journey/excitement plus instructions to parse JSON and paste decoded multi-line strings in one action.
+
+- **2026-04-15** — **Tinkerer `run_browser` CV preflight:** Resolves `tinkerer/{CV_FILENAME}`; `--submit` exits early with a clear error if the PDF is missing. `--trial` prints a preflight note, omits the file from `available_file_paths`, instructs the agent to skip CV upload, and repeats a summary line after the run.
+
+- **2026-04-15** — **Tinkerer parser tests:** Added `tests/test_tinkerer_apply_parsers.py` — unit tests for `parse_sensitive_data`, `extract_name`, and `parse_safe_trial` (including `safe-trial.md` header exact-match behavior) via `importlib` load of `tools/tinkerer-apply.py`.
+
 - **2026-04-15** — **Tinkerer `tools/tinkerer-apply.py`:** ImportError for `browser_use` now points to https://github.com/browser-use/browser-use#readme and describes venv + pip after review; removed `curl | bash` install suggestion.
 
 - **2026-04-15** — **Tinkerer `tools/tinkerer-apply.py`:** `extract_name()` now finds `- **Name**:` case-insensitively; `validate_builder_name()` runs after loading `BUILDER.md` so `--safe` / `--submit` fail fast if name is missing or empty, with a pointer to `tinkerer/BUILDER.md.example`. Missing `BUILDER.md` copy hint uses `tinkerer/BUILDER.md.example`.
