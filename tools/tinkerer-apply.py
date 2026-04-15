@@ -13,6 +13,8 @@ APPLICATION_URL = "https://jadan.zo.space/ai-tinkerer/apply"
 GITHUB_LINK = "https://github.com/BenSheridanEdwards/GrokClaw#tinkerer"
 CHALLENGE = "1. Let Your Agent Apply"
 CV_FILENAME = "BenSheridanEdwards-CV-2026.pdf"
+# LLM output for --safe: three blocks in order (submission, ai_journey, excitement), separated only by this line.
+SAFE_ANSWER_FIELD_SEPARATOR = "===FIELD==="
 
 TRIAL_DATA = {
     "name": "Test Tinkerer Agent",
@@ -113,23 +115,56 @@ def _read_answer_stdin() -> str:
 
 
 def run_interview(interview_path: Path) -> str:
+    """Interactive Q&A; writes markdown with `# Field - …` sections matching INTERVIEW.md.example."""
     print("\n=== Tinkerer Interview ===")
-    print("Answer 4 questions. Your raw answers will be saved and reused.")
+    print("Answer 4 questions. Your answers are grouped into form fields for --safe generation.")
     print("Each question opens in your editor — write your answer, save, and close.\n")
-    sections = []
+    answers: list[str] = []
     for i, (title, prompt) in enumerate(INTERVIEW_QUESTIONS, 1):
         print(f"--- Question {i}/{len(INTERVIEW_QUESTIONS)} ---")
         print(f"  {title}")
         print(f"  ({prompt})")
         answer = _read_answer_editor(title, prompt)
+        answers.append(answer.strip() if answer else "")
         if answer:
-            sections.append(f"## {title}\n\n{answer}")
             print(f"  ✓ Saved ({len(answer)} chars)\n")
         else:
-            sections.append(f"## {title}\n\n(no answer)")
             print("  ⚠ Skipped\n")
+
+    a1, a2, a3, a4 = answers
+
+    def _part(label: str, body: str) -> str:
+        text = body.strip() if body else "(no answer)"
+        return f"**{label}**\n\n{text}"
+
+    submission_body = "\n\n".join(
+        [
+            _part("Tell me about GrokClaw", a1),
+            _part("Why Challenge 1?", a2),
+            _part("What would you do with another week?", a3),
+            _part("What excites you most about AI right now?", a4),
+        ]
+    )
+    journey_body = a1.strip() if a1.strip() else "(no answer)"
+    excitement_body = a4.strip() if a4.strip() else "(no answer)"
+
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    content = f"# Tinkerer Interview\n\nRecorded on {now}\n\n" + "\n\n".join(sections) + "\n"
+    content = f"""# Tinkerer Interview
+
+Recorded on {now}
+
+# Field - Submission
+
+{submission_body}
+
+# Field - Where are you on your AI journey?
+
+{journey_body}
+
+# Field - What keeps you excited about the future?
+
+{excitement_body}
+"""
     interview_path.write_text(content, encoding="utf-8")
     print(f"\nInterview saved to {interview_path}\n")
     return content
@@ -228,7 +263,11 @@ BUILDER.md:
 Ben's answers (organised by form field):
 {interview}
 
-Output exactly three text blocks separated by "---FIELD---" markers:
+If the interview uses "# Field - …" section headers, take content from those sections.
+If it only uses legacy "## …" question headings (older saved interviews), map in order: combine all four
+answers into SUBMISSION; use the first answer for AI_JOURNEY and the fourth for EXCITEMENT.
+
+Output exactly three text blocks in this order, with no other text before or after:
 
 1. SUBMISSION — use the content under "# Field - Submission" from Ben's answers.
    Combine the sub-sections into one cohesive block. Minor edits only.
@@ -239,9 +278,9 @@ Output exactly three text blocks separated by "---FIELD---" markers:
 3. EXCITEMENT — use the content under "# Field - What keeps you excited about the future?"
    Combine the sub-sections into one cohesive block. Minor edits only.
 
-IMPORTANT: Separate the three blocks with EXACTLY the marker ===FIELD=== on its own line.
-Do NOT use --- or any other separator. Use ===FIELD=== and nothing else between blocks.
-Output ONLY the three blocks. No labels, no preamble, no markdown headers."""
+Separate consecutive blocks with EXACTLY one line containing only {SAFE_ANSWER_FIELD_SEPARATOR} (nothing else on that line).
+Do not use ---, markdown headers, or any other separator between blocks.
+Output ONLY the three blocks. No labels, no preamble."""
 
     body = json.dumps({
         "model": "grok-4-1-fast-non-reasoning",
@@ -275,17 +314,13 @@ Output ONLY the three blocks. No labels, no preamble, no markdown headers."""
         print(f"Response: {json.dumps(result, indent=2)[:500]}", file=sys.stderr)
         sys.exit(1)
 
-    # Try the expected separator first, fall back to alternatives
-    if "===FIELD===" in text:
-        parts = [p.strip() for p in text.split("===FIELD===")]
-    elif "---FIELD---" in text:
-        parts = [p.strip() for p in text.split("---FIELD---")]
-    else:
-        # Last resort: split on markdown horizontal rules (---) on their own line
-        import re
-        parts = [p.strip() for p in re.split(r"\n---\n", text)]
+    parts = [p.strip() for p in text.split(SAFE_ANSWER_FIELD_SEPARATOR)]
     if len(parts) < 3:
-        print(f"Warning: Expected 3 fields from LLM, got {len(parts)}. Some answers may be empty.", file=sys.stderr)
+        print(
+            f"Warning: Expected 3 blocks separated by {SAFE_ANSWER_FIELD_SEPARATOR!r}, "
+            f"got {len(parts)} segment(s). Some answers may be empty.",
+            file=sys.stderr,
+        )
 
     return {
         "name": extract_name(builder),
@@ -393,12 +428,12 @@ def main():
 
     if args.safe:
         alt_interview_path = tinkerer_dir / "INTERVIEW.md"
-        if interview_path.is_file():
-            interview = interview_path.read_text(encoding="utf-8")
-            print(f"Using existing interview at {interview_path}")
-        elif alt_interview_path.is_file():
+        if alt_interview_path.is_file():
             interview = alt_interview_path.read_text(encoding="utf-8")
             print(f"Using INTERVIEW.md at {alt_interview_path}")
+        elif interview_path.is_file():
+            interview = interview_path.read_text(encoding="utf-8")
+            print(f"Using existing interview at {interview_path}")
         else:
             interview = run_interview(interview_path)
 
@@ -461,17 +496,22 @@ def run_browser(fields: dict, is_trial: bool = False, safe_trial: str = "", buil
     )
 
     free_text_source = ""
-    if fields.get("submission"):
-        # Collapse to single lines so the browser agent inputs each as one atomic value
-        sub = fields['submission'].replace('\n', '\\n')
-        journey = fields['ai_journey'].replace('\n', '\\n')
-        excite = fields['excitement'].replace('\n', '\\n')
+    if any(fields.get(k) for k in ("submission", "ai_journey", "excitement")):
+        free_text_json = json.dumps(
+            {
+                "submission": fields.get("submission") or "",
+                "ai_journey": fields.get("ai_journey") or "",
+                "excitement": fields.get("excitement") or "",
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
         free_text_source = f"""
-FREE-TEXT FIELDS — each value below goes into ONE textarea. Input each field ONCE, do NOT clear or re-type:
+FREE-TEXT FIELDS — parse the JSON object below with a JSON parser (or equivalent). Each value is one string; after decoding, newlines inside that string are real line breaks, not the two characters backslash and n.
+Map keys to textareas: submission → Submission; ai_journey → "Where are you currently on your AI journey?"; excitement → "What keeps you excited about the future?".
+Paste each decoded string into its textarea in ONE action — full multi-line text, formatting preserved. Do not re-type the JSON.
 
-- Submission textarea: {sub}
-- AI Journey textarea: {journey}
-- Excitement textarea: {excite}"""
+{free_text_json}"""
     elif safe_trial:
         free_text_source = f"\nFREE-TEXT FIELDS (use the pre-generated answers):\n\n{safe_trial}"
     else:
@@ -485,6 +525,30 @@ Interview:
 {interview}"""
 
     cv_path = (workspace / "tinkerer" / CV_FILENAME).resolve()
+    cv_present = cv_path.is_file()
+    if is_trial and not cv_present:
+        print(
+            f"Note: CV not found at {cv_path} — trial will skip the CV upload step. "
+            f"Add tinkerer/{CV_FILENAME} before --submit.\n"
+        )
+    if not cv_present and not is_trial:
+        print(
+            f"Error: CV PDF not found at {cv_path}\n"
+            f"Place your resume in the repo as tinkerer/{CV_FILENAME} (gitignored; not in fresh checkouts), "
+            "then run --submit again.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if cv_present:
+        cv_instructions = (
+            f"- Upload the CV file from this path (use available_file_paths): {cv_path}"
+        )
+    else:
+        cv_instructions = (
+            "- Do NOT upload a CV — the PDF is missing on disk (trial mode only). "
+            f"Skip the resume/CV field or leave it empty. For a real run, add tinkerer/{CV_FILENAME} before --submit."
+        )
 
     fill_task = f"""You are Tinkerer, an AI agent applying to the Stationed AI Tinkerer role.
 
@@ -506,15 +570,17 @@ INSTRUCTIONS:
 - Fill every field from top to bottom
 - For the dropdown, select "{fields.get('challenge', CHALLENGE)}"
 - For each textarea, paste the COMPLETE text in one go — do not overwrite or clear between paragraphs
-- Upload the CV file at: {cv_path}
+{cv_instructions}
 - Do NOT click Submit. Stop after filling all fields.
 - At the end, output a structured summary of every field and what was entered
 """
 
+    available_paths = [str(cv_path)] if cv_present else []
+
     async def _run():
-        browser = Browser(headless=False)
+        browser = Browser(headless=False, keep_alive=True)
         try:
-            agent = Agent(task=fill_task, llm=llm, browser=browser, available_file_paths=[str(cv_path)])
+            agent = Agent(task=fill_task, llm=llm, browser=browser, available_file_paths=available_paths)
             history = await agent.run()
             mode_label = "trial" if is_trial else "submit"
             print(f"\n{'=' * 60}")
@@ -525,6 +591,11 @@ INSTRUCTIONS:
 
             if is_trial:
                 print("Trial complete — form filled with test data. No submission.")
+                if not cv_present:
+                    print(
+                        f"Note: CV upload was skipped — file not found at {cv_path}. "
+                        f"Add tinkerer/{CV_FILENAME} before running --submit."
+                    )
                 try:
                     input("Press Enter to close the browser...")
                 except EOFError:

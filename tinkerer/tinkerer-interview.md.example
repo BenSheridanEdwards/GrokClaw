@@ -2,18 +2,31 @@
 
 Recorded on YYYY-MM-DD
 
-These answers feed the Submission field of the Stationed application.
-Run `./tools/run-tinkerer-apply.sh --safe` to be interviewed interactively,
-or fill this in manually and re-run --safe to regenerate safe-trial.md.
+The interactive CLI writes this shape: three `# Field - …` sections so `--safe` matches
+`INTERVIEW.md.example` and `generate_safe_answers()`. Edit and re-run `--safe` as needed.
 
-## Tell me about GrokClaw
-[What is it, what did you build, what's interesting about it?]
+# Field - Submission
 
-## Why Challenge 1?
-[Why "Let Your Agent Apply" specifically?]
+**Tell me about GrokClaw**
 
-## What would you do with another week?
-[Where would you take this?]
+[Answer: what is it, what did you build, what's interesting about it?]
 
-## What excites you most about AI right now?
-[The thing that keeps you up at night — in a good way]
+**Why Challenge 1?**
+
+[Answer: why "Let Your Agent Apply" specifically?]
+
+**What would you do with another week?**
+
+[Answer: where would you take this?]
+
+**What excites you most about AI right now?**
+
+[Answer: the thing that keeps you up at night — in a good way]
+
+# Field - Where are you on your AI journey?
+
+[CLI copies your first answer here for journey context; edit freely.]
+
+# Field - What keeps you excited about the future?
+
+[CLI copies your fourth answer here; edit freely.]

@@ -3,7 +3,7 @@
 **Date:** 2026-04-13
 **Goal:** Build Tinkerer, GrokClaw's third OpenClaw agent — a browser-use application agent for the Stationed AI Tinkerer role (Challenge 1: "Let Your Agent Apply").
 
-**Architecture:** Three-mode CLI tool (`--safe`, `--trial`, `--submit`). `--safe` generates answers with no browser. `--trial` uses a headed browser on the live URL with built-in test placeholders and stops before Submit (no `BUILDER.md` / `sensitive-data.md`). `--submit` uses your profile and optional `safe-trial.md`, prompts, then submits. Profile data for `--safe` / `--submit` comes from `tinkerer/BUILDER.md` (public) and `tinkerer/sensitive-data.md` (gitignored). Interview answers live in `tinkerer/tinkerer-interview.md` (gitignored).
+**Architecture:** Three-mode CLI tool (`--safe`, `--trial`, `--submit`). `--safe` generates answers with no browser. `--trial` uses a headed browser on the live URL with built-in test placeholders and stops before Submit (no `BUILDER.md` / `sensitive-data.md`). `--submit` uses your profile and optional `safe-trial.md`, prompts, then submits. Profile data for `--safe` / `--submit` comes from `tinkerer/BUILDER.md` (public) and `tinkerer/sensitive-data.md` (gitignored). Interview answers: prefer `tinkerer/INTERVIEW.md`, else `tinkerer/tinkerer-interview.md` (gitignored), both using `# Field - …` sections aligned with `INTERVIEW.md.example`.
 
 **Tech Stack:** Python 3, browser-use SDK, xAI Grok API (`grok-4-1-fast-non-reasoning` for generation, `grok-3-fast` for browser), shell launcher.
 

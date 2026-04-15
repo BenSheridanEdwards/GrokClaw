@@ -71,15 +71,10 @@ These require Ben's authentic voice. Tinkerer handles this with an interactive i
 
 On `--safe` run:
 
-1. Check if `tinkerer-interview.md` exists
-2. If not, prompt Ben with 4 questions in the terminal, one at a time:
-   - "Tell me about GrokClaw — what is it, what did you build, what's interesting about it?"
-   - "Why Challenge 1: Let Your Agent Apply?"
-   - "What would you do with another week?"
-   - "What excites you most about AI right now?"
-3. Save raw answers to `tinkerer-interview.md`
-4. On subsequent runs, read from `tinkerer-interview.md` (skip prompts)
-5. To re-answer, delete `tinkerer-interview.md` or edit it directly
+1. If `INTERVIEW.md` exists, use it (hand-authored, `# Field - …` sections per `INTERVIEW.md.example`).
+2. Else if `tinkerer-interview.md` exists, use it (same structure; written by a prior interactive run).
+3. Else run the interactive interview (4 questions in `$EDITOR`), then save to `tinkerer-interview.md` using `# Field - Submission`, `# Field - Where are you on your AI journey?`, and `# Field - What keeps you excited about the future?` so answer generation can find the sections the LLM expects.
+4. To re-answer, delete the interview file you use, or edit it directly.
 
 Tinkerer synthesizes the raw interview answers + BUILDER.md into the polished Submission response. The substance is Ben's; Tinkerer handles framing and flow.
 
@@ -108,13 +103,12 @@ No browser. Pure generation (calls xAI API for text synthesis).
 
 1. Read `BUILDER.md` (exit with error if missing)
 2. Read `sensitive-data.md` (exit with error if missing, point to example)
-3. Run interactive interview if `tinkerer-interview.md` doesn't exist
-4. Read `tinkerer-interview.md`
-5. Generate form answers via `grok-4-1-fast-non-reasoning`
-6. Write `safe-trial.md` with every form field and its generated answer
-7. Print path to `safe-trial.md` and exit
+3. Resolve interview: prefer `INTERVIEW.md`, else `tinkerer-interview.md`, else run the interactive interview
+4. Generate form answers via `grok-4-1-fast-non-reasoning`
+5. Write `safe-trial.md` with every form field and its generated answer
+6. Print path to `safe-trial.md` and exit
 
-Ben reviews, tweaks `BUILDER.md` or `tinkerer-interview.md` if needed, runs `--safe` again until satisfied.
+Ben reviews, tweaks `BUILDER.md` or the interview file (`INTERVIEW.md` / `tinkerer-interview.md`) if needed, runs `--safe` again until satisfied.
 
 ### `--trial`
 
