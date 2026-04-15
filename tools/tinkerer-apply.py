@@ -471,33 +471,39 @@ INSTRUCTIONS:
                     pass
             else:
                 print("Review the form in the browser. Take your time.")
-                try:
-                    answer = input("Submit this application? [y/N] ").strip().lower()
-                except EOFError:
-                    answer = ""
-                if answer == "y":
-                    print("\nSubmitting...")
-                    submit_agent = Agent(
-                        task="Click the Submit Application button on the form and confirm the success screen. Report the result.",
-                        llm=llm,
-                        browser=browser,
-                    )
-                    submit_history = await submit_agent.run()
-                    print(f"\n{'=' * 60}")
-                    print("Tinkerer — Submitted")
-                    print(f"{'=' * 60}")
-                    print(submit_history.final_result())
-                    print(f"{'=' * 60}\n")
+                print("Type 'submit' to submit, or 'close' to close without submitting.")
+                while True:
                     try:
+                        answer = input("> ").strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        print("\nKeeping browser open. Ctrl+C again to force quit.")
+                        try:
+                            import time
+                            while True:
+                                time.sleep(60)
+                        except KeyboardInterrupt:
+                            break
+                        break
+                    if answer == "submit":
+                        print("\nSubmitting...")
+                        submit_agent = Agent(
+                            task="Click the Submit Application button on the form and confirm the success screen. Report the result.",
+                            llm=llm,
+                            browser=browser,
+                        )
+                        submit_history = await submit_agent.run()
+                        print(f"\n{'=' * 60}")
+                        print("Tinkerer — Submitted")
+                        print(f"{'=' * 60}")
+                        print(submit_history.final_result())
+                        print(f"{'=' * 60}\n")
                         input("Press Enter to close the browser...")
-                    except EOFError:
-                        pass
-                else:
-                    print("Not submitted. Browser stays open — run --submit again when ready.")
-                    try:
-                        input("Press Enter to close the browser...")
-                    except EOFError:
-                        pass
+                        break
+                    elif answer == "close":
+                        print("Not submitted. Run --submit again when ready.")
+                        break
+                    else:
+                        print("Type 'submit' or 'close'.")
         finally:
             await browser.stop()
 
