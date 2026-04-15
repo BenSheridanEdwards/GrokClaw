@@ -12,6 +12,7 @@ from pathlib import Path
 APPLICATION_URL = "https://jadan.zo.space/ai-tinkerer/apply"
 GITHUB_LINK = "https://github.com/BenSheridanEdwards/GrokClaw#tinkerer"
 CHALLENGE = "1. Let Your Agent Apply"
+CV_FILENAME = "BenSheridanEdwards-CV-2026.pdf"
 
 TRIAL_DATA = {
     "name": "Test Tinkerer Agent",
@@ -238,7 +239,7 @@ def main():
 
     if args.trial:
         print("Trial mode — filling form with test data...")
-        run_browser(fields=TRIAL_DATA, is_trial=True)
+        run_browser(fields=TRIAL_DATA, is_trial=True, workspace=workspace)
         return
 
     builder = load_file(builder_path, "BUILDER.md")
@@ -279,10 +280,11 @@ def main():
             safe_trial=safe_trial,
             builder=builder,
             interview=interview,
+            workspace=workspace,
         )
 
 
-def run_browser(fields: dict, is_trial: bool = False, safe_trial: str = "", builder: str = "", interview: str = ""):
+def run_browser(fields: dict, is_trial: bool = False, safe_trial: str = "", builder: str = "", interview: str = "", workspace: Path = Path(".")):
     """Launch browser-use agent to fill the Stationed application form."""
     try:
         import asyncio
@@ -321,6 +323,8 @@ Profile:
 Interview:
 {interview}"""
 
+    cv_path = (workspace / "tinkerer" / CV_FILENAME).resolve()
+
     fill_task = f"""You are Tinkerer, an AI agent applying to the Stationed AI Tinkerer role.
 
 Navigate to {APPLICATION_URL} and find the application form.
@@ -340,7 +344,7 @@ FACTUAL FIELDS:
 INSTRUCTIONS:
 - Fill every field from top to bottom
 - For the dropdown, select "{fields.get('challenge', CHALLENGE)}"
-- Do not upload a file — the GitHub link is sufficient
+- Upload the CV file at: {cv_path}
 - Do NOT click Submit. Stop after filling all fields.
 - At the end, output a structured summary of every field and what was entered
 """
@@ -348,7 +352,7 @@ INSTRUCTIONS:
     async def _run():
         browser = Browser(headless=False)
         try:
-            agent = Agent(task=fill_task, llm=llm, browser=browser)
+            agent = Agent(task=fill_task, llm=llm, browser=browser, available_file_paths=[str(cv_path)])
             history = await agent.run()
             mode_label = "trial" if is_trial else "submit"
             print(f"\n{'=' * 60}")
@@ -359,6 +363,10 @@ INSTRUCTIONS:
 
             if is_trial:
                 print("Trial complete — form filled with test data. No submission.")
+                try:
+                    input("Press Enter to close the browser...")
+                except EOFError:
+                    pass
             else:
                 print("Review the form in the browser.")
                 try:
@@ -381,7 +389,7 @@ INSTRUCTIONS:
                 else:
                     print("Not submitted. Run --submit again when ready.")
         finally:
-            await browser.close()
+            await browser.stop()
 
     try:
         asyncio.run(_run())

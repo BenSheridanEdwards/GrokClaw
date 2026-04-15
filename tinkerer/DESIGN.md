@@ -96,7 +96,7 @@ The Stationed application form at `https://jadan.zo.space/ai-tinkerer/apply` has
 | GitHub / Projects | text input | `https://github.com/BenSheridanEdwards/GrokClaw#tinkerer` |
 | Which challenge | dropdown, required | Fixed: "1. Let Your Agent Apply" |
 | Submission | textarea, required | Synthesized from `tinkerer-interview.md` + BUILDER.md |
-| Attach a file | file upload | Not used (GitHub link covers it) |
+| Attach a file | file upload | Uploads `BenSheridanEdwards-CV-2026.pdf` from `tinkerer/` |
 | AI journey | textarea, required | Generated from BUILDER.md AI Journey + What I've Built |
 | What keeps you excited | textarea, required | Generated from BUILDER.md Philosophy |
 
