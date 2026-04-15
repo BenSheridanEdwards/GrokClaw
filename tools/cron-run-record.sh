@@ -6,7 +6,7 @@
 #   cron-run-record.sh <job_name> <agent> <started|ok|error|skipped> "<summary>"
 #   printf '%s' "summary" | cron-run-record.sh <job_name> <agent> ok -
 #
-# agent: grok | kimi | alpha (who ran the job)
+# agent: grok | tinkerer | alpha (who ran the job)
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

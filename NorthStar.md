@@ -16,13 +16,13 @@ The goal is a system that is simple, inspectable, and operationally honest. Ever
 
 ## System Goal
 
-GrokClaw is a multi-agent OpenClaw system with 2 active agents:
+GrokClaw is a multi-agent OpenClaw system with 3 agents:
 
 - `Grok` is the coordinator, reviewer, and system operator (xai/grok → OpenRouter Nemotron free fallback)
 - `Alpha` is the hourly Polymarket research and trading agent (OpenRouter Nemotron free)
-- `Kimi` is an empty reusable shell retained for future reassignment
+- `Tinkerer` is the application agent for the Stationed AI Tinkerer role (xai/grok-4-1-fast-non-reasoning + grok-3-fast for browser, manual invoke, browser-use)
 
-Every agent has a fallback chain so jobs never silently die when a free-tier provider hits rate limits. The gateway falls through automatically; the doctor reports fallback activity once per day.
+Grok has a fallback chain (xai/grok → OpenRouter Nemotron free) so daily briefs never silently die when a free-tier provider hits rate limits. Alpha and Tinkerer run on single providers without fallbacks. The gateway falls through automatically for Grok; the doctor reports fallback activity once per day.
 
 The system should do three things well:
 
@@ -103,7 +103,7 @@ What "good" looks like:
 
 ## Supporting Reliability And Health Workflows
 
-These are not part of the 3 core OpenClaw jobs, but they are required to keep the system alive and trustworthy.
+These are not part of the 2 core OpenClaw jobs, but they are required to keep the system alive and trustworthy.
 
 ### Health Check
 
@@ -296,7 +296,7 @@ That means:
 
 Any non-core script or background check writing to Paperclip is a policy violation.
 
-**Executable health check (how this rule is enforced):** `tools/_workflow_health.py` treats a non-core Paperclip issue as an **ongoing** policy breach only when the issue is **not** in a terminal state (`done`, `failed`, `cancelled`, and equivalent). Issues that are already closed still reflect historical mistakes or retired paths (for example legacy Kimi runs), but they must not keep the doctor red forever or drown out current misses. **Open** non-core issues still fail the audit and should be closed or remediated.
+**Executable health check (how this rule is enforced):** `tools/_workflow_health.py` treats a non-core Paperclip issue as an **ongoing** policy breach only when the issue is **not** in a terminal state (`done`, `failed`, `cancelled`, and equivalent). Issues that are already closed still reflect historical mistakes or retired paths (for example retired workflow experiments), but they must not keep the doctor red forever or drown out current misses. **Open** non-core issues still fail the audit and should be closed or remediated.
 
 The issue should move through:
 

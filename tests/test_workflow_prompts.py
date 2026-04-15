@@ -22,8 +22,6 @@ class WorkflowPromptTests(unittest.TestCase):
         names = {job.get("name") for job in jobs}
         core = {"grok-daily-brief", "alpha-polymarket"}
         self.assertTrue(core.issubset(names), f"missing core workflows: {core - names}")
-        self.assertNotIn("kimi-polymarket", names)
-        self.assertNotIn("kimi-daily-brief", names)
 
     def test_two_workflow_cron_messages_invoke_orchestrator_only(self):
         workspace = Path(__file__).resolve().parents[1]
@@ -140,7 +138,6 @@ class WorkflowPromptTests(unittest.TestCase):
 
         self.assertEqual(jobs["grok-daily-brief"], "0 8 * * *")
         self.assertEqual(jobs["alpha-polymarket"], "0 * * * *")
-        self.assertNotIn("kimi-polymarket", jobs)
 
 
 if __name__ == "__main__":

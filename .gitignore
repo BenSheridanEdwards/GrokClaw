@@ -16,6 +16,12 @@ data/
 __pycache__/
 *.py[cod]
 node_modules/
+# Tinkerer workspace — private runtime files
+tinkerer/sensitive-data.md
+tinkerer/tinkerer-interview.md
+tinkerer/safe-trial.md
+tinkerer/BenSheridanEdwards-CV-2026.pdf
+
 # Graphify
 graphify-out/graph.html
 graphify-out/graph.json

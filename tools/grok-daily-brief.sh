@@ -5,7 +5,7 @@
 # Usage: grok-daily-brief.sh [date]
 #   date: YYYY-MM-DD (default: today)
 #
-# Cron: 0 8 * * * (8am daily, after Kimi 7am, Alpha 7:30am)
+# Cron: 0 8 * * * (8am daily, after Alpha hourly runs)
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

@@ -438,7 +438,7 @@ class CronRunRecordTests(unittest.TestCase):
                     print(json.dumps({{
                         "healthy": False,
                         "failureHash": "err123",
-                        "alertMessage": "Workflow health failure: kimi error",
+                        "alertMessage": "Workflow health failure: alpha error",
                         "draft": None
                     }}))
                     """
