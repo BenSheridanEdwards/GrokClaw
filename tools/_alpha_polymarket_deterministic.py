@@ -17,7 +17,14 @@ if str(WORKSPACE_ROOT_GUESS) not in sys.path:
 
 from tools import _polymarket_ledger as ledger
 
-BONDING_MIN_MATCHING_TRADERS = 1
+# Raised from 1 to 2: a single matching wallet is indistinguishable from
+# noise — it could be the market creator, a contrarian, or a random
+# sentiment bet. Requiring two wallets with matching positions means we
+# only copy when there is wallet-level *consensus*, which is the actual
+# signal we're trying to extract. All of trades 1–6 and 8 in the paper
+# book at time of writing were single-whale copies; trade 7 (4 whales)
+# is the only one with real agreement.
+BONDING_MIN_MATCHING_TRADERS = 2
 BONDING_MIN_CONFIDENCE = 0.45
 
 # Trader-count-weighted Bayesian blend of whale consensus with the market price.

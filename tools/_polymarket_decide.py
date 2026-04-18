@@ -17,9 +17,18 @@ if WORKSPACE_ROOT not in sys.path:
 from tools import _polymarket_metrics as metrics
 from tools import _polymarket_trade as trade
 from tools import _polymarket_ledger as ledger
+from tools import _polymarket_topics as topics
 
 DECISIONS_FILE = "data/polymarket-decisions.json"
 SKIPS_FILE = "data/polymarket-skips.json"
+TRADES_FILE = "data/polymarket-trades.json"
+RESULTS_FILE = "data/polymarket-results.json"
+
+# Stop news-cycle concentration: never hold more than this many open paper
+# trades in the same topic cluster (Iran/US, BTC, Russia/Ukraine, etc.).
+# The failure mode we fix: the paper book had 5 Iran/US bets opened in four
+# days so a single news shift on Iran tanked most of the book together.
+MAX_OPEN_PER_CLUSTER = 3
 
 MIN_EDGE = 0.05
 MIN_CONFIDENCE = 0.55
@@ -132,6 +141,18 @@ def build_record(
         > max_open_exposure_fraction
     ):
         gate_failures.append("open_exposure_cap")
+
+    cluster = topics.classify_question(candidate.get("question"))
+    if cluster:
+        trades_rows = metrics.load_jsonl(
+            metrics.jsonl_path(workspace_root, TRADES_FILE)
+        )
+        results_rows = metrics.load_jsonl(
+            metrics.jsonl_path(workspace_root, RESULTS_FILE)
+        )
+        open_clusters = topics.open_clusters_from_ledger(trades_rows, results_rows)
+        if open_clusters.get(cluster, 0) >= MAX_OPEN_PER_CLUSTER:
+            gate_failures.append("topic_concentration_cap")
 
     action = "trade" if not gate_failures else "skip"
     copy_strat = candidate.get("copy_strategy") or {}

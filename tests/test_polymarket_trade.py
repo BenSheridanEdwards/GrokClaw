@@ -250,7 +250,8 @@ class PolymarketTradeTests(unittest.TestCase):
         self.assertIsNone(best_market)
         self.assertIsNone(signal)
 
-    def test_select_bonding_copy_candidate_accepts_single_wallet_alignment(self):
+    def test_select_bonding_copy_candidate_rejects_single_wallet_alignment(self):
+        """A single matching whale is noise — require ≥2 wallet consensus."""
         soon = (datetime.now(timezone.utc) + timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
         markets = [
             {
@@ -281,10 +282,43 @@ class PolymarketTradeTests(unittest.TestCase):
             with mock.patch.object(trade, "fetch_positions_for_user", side_effect=fake_positions):
                 best_market, signal = trade.select_bonding_copy_candidate(markets)
 
+        self.assertIsNone(best_market)
+        self.assertIsNone(signal)
+
+    def test_select_bonding_copy_candidate_accepts_two_wallet_alignment(self):
+        """Two wallets agreeing on the same outcome is the minimum real consensus."""
+        soon = (datetime.now(timezone.utc) + timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        markets = [
+            {
+                "id": "m-pair",
+                "conditionId": "0xpair",
+                "question": "Will BTC close above 120k this week?",
+                "endDate": soon,
+                "outcomePrices": ["0.98", "0.02"],
+                "volume": "18000",
+            }
+        ]
+
+        with mock.patch.object(
+            trade,
+            "fetch_bonding_traders",
+            return_value=[
+                {"proxyWallet": "0x751a2b86cab503496efd325c8344e10159349ea1", "rank": "1"},
+                {"proxyWallet": "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b", "rank": "2"},
+            ],
+        ):
+            def fake_positions(wallet, condition_id=None, limit=100):
+                if condition_id:
+                    return []
+                pos = [{"conditionId": "0xpair", "outcome": "Yes", "currentValue": 2200, "title": "Will BTC close above 120k this week?"}]
+                return pos
+
+            with mock.patch.object(trade, "fetch_positions_for_user", side_effect=fake_positions):
+                best_market, signal = trade.select_bonding_copy_candidate(markets)
+
         self.assertIsNotNone(best_market)
-        self.assertEqual(best_market["conditionId"], "0xsingle")
-        self.assertIsNotNone(signal)
-        self.assertEqual(signal["traders_with_matching_positions"], 1)
+        self.assertEqual(best_market["conditionId"], "0xpair")
+        self.assertEqual(signal["traders_with_matching_positions"], 2)
 
     def test_select_bonding_copy_candidate_accepts_100c_price_boundary(self):
         soon = (datetime.now(timezone.utc) + timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%SZ")

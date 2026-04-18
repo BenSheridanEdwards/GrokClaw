@@ -84,6 +84,85 @@ class PolymarketDecideTests(unittest.TestCase):
                 skips = [json.loads(line) for line in handle if line.strip()]
             self.assertEqual(len(skips), 1)
 
+    def test_topic_concentration_cap_blocks_fourth_open_cluster_trade(self):
+        """Stop news-cycle concentration: 3 open trades in a cluster caps the 4th."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            trades_dir = workspace / "data"
+            trades_dir.mkdir(parents=True, exist_ok=True)
+            trades_path = trades_dir / "polymarket-trades.json"
+            existing = [
+                {"market_id": "t1", "question": "Iran nuclear deal by April 30?",
+                 "side": "YES", "odds": 0.1, "stake_amount": 10},
+                {"market_id": "t2", "question": "US escorts through Hormuz?",
+                 "side": "YES", "odds": 0.1, "stake_amount": 10},
+                {"market_id": "t3", "question": "Iran uranium surrender?",
+                 "side": "YES", "odds": 0.1, "stake_amount": 10},
+            ]
+            with trades_path.open("w", encoding="utf-8") as fh:
+                for t in existing:
+                    fh.write(json.dumps(t) + "\n")
+
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-18",
+                    "market_id": "t4",
+                    "question": "US x Iran diplomatic breakthrough by May 1?",
+                    "odds_yes": 0.30,
+                    "odds_no": 0.70,
+                    "volume": 50000,
+                    "endDate": "2026-05-01T00:00:00Z",
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace, "YES", 0.85, 0.9,
+                "Four matching whales say YES, but cluster is saturated.",
+            )
+
+            self.assertEqual(decision["action"], "skip")
+            self.assertIn("topic_concentration_cap", decision["gate_failures"])
+
+    def test_topic_concentration_cap_does_not_block_different_cluster(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            trades_dir = workspace / "data"
+            trades_dir.mkdir(parents=True, exist_ok=True)
+            trades_path = trades_dir / "polymarket-trades.json"
+            existing = [
+                {"market_id": "t1", "question": "Iran nuclear deal?",
+                 "side": "YES", "odds": 0.1, "stake_amount": 10},
+                {"market_id": "t2", "question": "Iran uranium?",
+                 "side": "YES", "odds": 0.1, "stake_amount": 10},
+                {"market_id": "t3", "question": "Hormuz escort?",
+                 "side": "YES", "odds": 0.1, "stake_amount": 10},
+            ]
+            with trades_path.open("w", encoding="utf-8") as fh:
+                for t in existing:
+                    fh.write(json.dumps(t) + "\n")
+
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-18",
+                    "market_id": "t4",
+                    "question": "Will BTC close above $80,000 by April 25?",
+                    "odds_yes": 0.50,
+                    "odds_no": 0.50,
+                    "volume": 50000,
+                    "endDate": "2026-04-25T00:00:00Z",
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace, "YES", 0.70, 0.9,
+                "BTC trade, different cluster — should not be capped.",
+            )
+
+            self.assertEqual(decision["action"], "trade")
+            self.assertNotIn("topic_concentration_cap", decision["gate_failures"])
+
     def test_market_at_extreme_blocks_trade_even_with_edge(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)

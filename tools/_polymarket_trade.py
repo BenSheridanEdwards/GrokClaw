@@ -37,7 +37,9 @@ WHALE_COPY_MAX_DAYS = 90
 # late-stage accumulation pattern we actually want to copy.
 BONDING_MIN_PRICE = 0.85
 BONDING_MAX_PRICE = 1.0
-BONDING_MIN_MATCHING_TRADERS = 1
+# Must match BONDING_MIN_MATCHING_TRADERS in _alpha_polymarket_deterministic.py.
+# Raised 1→2: a single wallet is indistinguishable from noise.
+BONDING_MIN_MATCHING_TRADERS = 2
 BONDING_TRADER_WALLETS = (
     "0x751a2b86cab503496efd325c8344e10159349ea1",  # Sharky6999
     "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b",  # 033033033

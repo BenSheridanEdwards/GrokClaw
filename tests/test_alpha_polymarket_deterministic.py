@@ -1,10 +1,23 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+
+_REPO = Path(__file__).resolve().parents[1]
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
+
+from tools import _alpha_polymarket_deterministic as alpha_det  # noqa: E402
+
+
+class AlphaPolymarketConstantsTests(unittest.TestCase):
+    def test_min_matching_traders_requires_consensus(self):
+        """One wallet is noise; demand ≥2 for a copy signal to be considered real."""
+        self.assertGreaterEqual(alpha_det.BONDING_MIN_MATCHING_TRADERS, 2)
 
 
 class AlphaPolymarketDeterministicTests(unittest.TestCase):
@@ -259,10 +272,12 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
             self.assertIn("0.7800", logged_args)
             self.assertNotIn("SKIP", logged_args)
 
-    def test_deterministic_flow_trades_with_single_matching_wallet(self):
+    def test_deterministic_flow_rejects_single_matching_wallet(self):
+        """A single matching whale is noise; the flow must HOLD rather than trade."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             tools = workspace / "tools"
+            audit_log = workspace / "data" / "audit-log" / "2026-04-09.jsonl"
             decide_log = workspace / "decide.log"
 
             self._write_stub(tools / "polymarket-context.sh", "#!/bin/sh\nset -eu\necho 'context ok'\n")
@@ -284,13 +299,23 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
                     #!/bin/sh
                     set -eu
                     printf '%s\\n' "$*" >> "{decide_log}"
-                    printf '%s\\n' '{{"action":"trade","reasoning":"single wallet is allowed","edge":0.01,"stake_amount":3.0}}'
+                    printf '%s\\n' '{{"action":"skip","reasoning":"insufficient traders","edge":0.0,"stake_amount":0.0}}'
                     """
                 ),
             )
             self._write_stub(tools / "polymarket-resolve-turn.sh", "#!/bin/sh\nset -eu\necho '{}'\n")
             self._write_stub(tools / "alpha-memory-ingest.sh", "#!/bin/sh\nset -eu\nexit 0\n")
-            self._write_stub(tools / "telegram-post.sh", "#!/bin/sh\nset -eu\nexit 0\n")
+            self._write_stub(
+                tools / "telegram-post.sh",
+                textwrap.dedent(
+                    f"""\
+                    #!/bin/sh
+                    set -eu
+                    mkdir -p "{audit_log.parent}"
+                    printf '{{"ts":"2026-04-09T12:40:00Z","kind":"telegram_post","topic":"%s","message":"%s"}}\\n' "$1" "$2" >> "{audit_log}"
+                    """
+                ),
+            )
             self._write_stub(tools / "agent-report.sh", "#!/bin/sh\nset -eu\nexit 0\n")
 
             env = os.environ.copy()
@@ -305,7 +330,13 @@ class AlphaPolymarketDeterministicTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-            self.assertIn("YES", decide_log.read_text(encoding="utf-8"))
+            # The deterministic flow never calls polymarket-decide.sh for a
+            # single-wallet candidate — it falls through to HOLD directly.
+            self.assertNotIn("YES", decide_log.read_text(encoding="utf-8") if decide_log.exists() else "")
+            self.assertIn(
+                "insufficient matching wallets (1/2)",
+                audit_log.read_text(encoding="utf-8"),
+            )
 
 
 if __name__ == "__main__":
