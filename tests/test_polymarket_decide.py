@@ -84,6 +84,33 @@ class PolymarketDecideTests(unittest.TestCase):
                 skips = [json.loads(line) for line in handle if line.strip()]
             self.assertEqual(len(skips), 1)
 
+    def test_market_at_extreme_blocks_trade_even_with_edge(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-18",
+                    "market_id": "999",
+                    "question": "Will BTC be above $1?",
+                    "odds_yes": 0.9995,
+                    "odds_no": 0.0005,
+                    "volume": 50000,
+                    "endDate": "2026-04-19T00:00:00Z",
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace,
+                "YES",
+                0.9999,
+                0.95,
+                "Whale says certainty but market already has it priced.",
+            )
+
+            self.assertEqual(decision["action"], "skip")
+            self.assertIn("market_at_extreme", decision["gate_failures"])
+
     def test_explicit_skip_records_reason_and_clears_candidate(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)

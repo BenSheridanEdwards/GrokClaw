@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timedelta, timezone
 
 from tools import _polymarket_resolve as resolve
 
@@ -18,6 +19,37 @@ class PolymarketResolveTests(unittest.TestCase):
         for bad_odds in (0, -1, 1.2):
             with self.assertRaises(ValueError):
                 resolve.pnl(bad_odds, True)
+
+    def test_grace_period_resolution_when_decisive_and_past_end(self):
+        now = datetime(2026, 4, 18, 12, 0, tzinfo=timezone.utc)
+        past_end = (now - timedelta(hours=48)).isoformat().replace("+00:00", "Z")
+        market = {
+            "closed": False,
+            "endDate": past_end,
+            "outcomePrices": '["0.004", "0.996"]',
+        }
+        self.assertTrue(resolve.market_is_resolved(market, now=now))
+        self.assertEqual(resolve.get_winning_side(market, now=now), "NO")
+
+    def test_grace_period_does_not_resolve_within_grace_window(self):
+        now = datetime(2026, 4, 18, 12, 0, tzinfo=timezone.utc)
+        recent_end = (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z")
+        market = {
+            "closed": False,
+            "endDate": recent_end,
+            "outcomePrices": '["0.004", "0.996"]',
+        }
+        self.assertFalse(resolve.market_is_resolved(market, now=now))
+
+    def test_grace_period_does_not_resolve_when_price_not_decisive(self):
+        now = datetime(2026, 4, 18, 12, 0, tzinfo=timezone.utc)
+        past_end = (now - timedelta(hours=72)).isoformat().replace("+00:00", "Z")
+        market = {
+            "closed": False,
+            "endDate": past_end,
+            "outcomePrices": '["0.6", "0.4"]',
+        }
+        self.assertFalse(resolve.market_is_resolved(market, now=now))
 
 
 if __name__ == "__main__":

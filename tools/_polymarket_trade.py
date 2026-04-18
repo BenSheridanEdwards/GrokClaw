@@ -25,11 +25,17 @@ PENDING_FILE = "data/polymarket-pending-trade.json"
 DECISIONS_FILE = "data/polymarket-decisions.json"
 MARKET_PAGE_SIZE = 50
 MARKET_MAX_PAGES = 10
-LEADERBOARD_LIMIT = 5  # Whale focus: top 5 traders by PNL
+LEADERBOARD_LIMIT = 10  # Wider whale net once we filter for matching positions
 POSITIONS_PAGE_SIZE = 100
-BONDING_MAX_HOURS_TO_RESOLUTION = 36
+# Widened from 36h → 96h: the 36h window almost never matches anything in the
+# geopolitical/crypto allowlist, starving the strategy. 4 days still captures
+# the bonding pattern (high-conviction wallet sitting on near-resolution price)
+# without straying into pure latency-arb territory.
+BONDING_MAX_HOURS_TO_RESOLUTION = 96
 WHALE_COPY_MAX_DAYS = 90
-BONDING_MIN_PRICE = 0.95
+# Lowered from 0.95 → 0.85: still expresses strong conviction but unblocks the
+# late-stage accumulation pattern we actually want to copy.
+BONDING_MIN_PRICE = 0.85
 BONDING_MAX_PRICE = 1.0
 BONDING_MIN_MATCHING_TRADERS = 1
 BONDING_TRADER_WALLETS = (
@@ -57,22 +63,23 @@ GEOPOLITICAL_KEYWORDS = (
 )
 
 
-def get_already_evaluated_ids(workspace_root, days=2):
-    """Return set of market_id we've already decided/traded in last N days (avoids repeat)."""
+def get_already_evaluated_ids(workspace_root, days=7):
+    """Return set of market_ids we've already TRADED (not merely skipped) in last N days.
+
+    Skipped markets are eligible for re-evaluation as conditions change (price,
+    time-to-resolution, new whale positions); only actual paper trades should
+    be excluded to avoid duplicating exposure on the same market.
+    """
     from datetime import datetime, timezone, timedelta
     now = datetime.now(timezone.utc)
     cutoff = (now - timedelta(days=days)).strftime("%Y-%m-%d")
     excluded = set()
-    for path in [
-        os.path.join(workspace_root, DECISIONS_FILE),
-        os.path.join(workspace_root, TRADES_FILE),
-    ]:
-        for row in metrics.load_jsonl(path):
-            if (row.get("date") or "") < cutoff:
-                continue
-            mid = row.get("market_id")
-            if mid:
-                excluded.add(str(mid).lower())
+    for row in metrics.load_jsonl(os.path.join(workspace_root, TRADES_FILE)):
+        if (row.get("date") or "") < cutoff:
+            continue
+        mid = row.get("market_id")
+        if mid:
+            excluded.add(str(mid).lower())
     return excluded
 
 
@@ -182,10 +189,12 @@ def fetch_top_traders(limit=LEADERBOARD_LIMIT):
     seen_wallets = set()
     combined = []
     for category in LEADERBOARD_CATEGORIES:
+        # MONTH (not WEEK) filters out lucky-streak short-term traders and keeps
+        # the wallets with sustained edge — what we actually want to copy.
         query = urllib.parse.urlencode(
             {
                 "category": category,
-                "timePeriod": "WEEK",
+                "timePeriod": "MONTH",
                 "orderBy": "PNL",
                 "limit": str(limit),
                 "offset": "0",
@@ -484,6 +493,14 @@ def select_copy_candidate(markets, excluded_ids=None):
         trader_count = signal["traders_with_matching_positions"]
         if trader_count < 1:
             continue
+        # Skip markets the public has already priced at the same extreme as the
+        # whale: edge after blending will be near zero and the decide gate
+        # blocks them anyway. Filtering here lets us fall through to the next
+        # whale candidate instead of returning a guaranteed-skip market.
+        odds_yes, odds_no = market_prices(market)
+        side_price = odds_yes if signal["consensus_side"] == "YES" else odds_no
+        if side_price >= 0.95 or side_price <= 0.05:
+            continue
         notional = signal["yes_weighted_notional"] + signal["no_weighted_notional"]
         score = notional * (0.5 + signal["confidence"])
         if score > best_score:
@@ -593,7 +610,8 @@ def log_trade(workspace_root, market_id, question, side, odds, reasoning, metada
     line = json.dumps(entry) + "\n"
     with open(trades_path, "a") as f:
         f.write(line)
-    print(f"Logged trade: {question[:50]}... ({side} @ {odds})")
+    # stderr (not stdout) so callers parsing the decision JSON don't break.
+    print(f"Logged trade: {question[:50]}... ({side} @ {odds})", file=sys.stderr)
 
 
 def stage_candidate(workspace_root, candidate):

@@ -16,6 +16,7 @@ if WORKSPACE_ROOT not in sys.path:
 
 from tools import _polymarket_metrics as metrics
 from tools import _polymarket_trade as trade
+from tools import _polymarket_ledger as ledger
 
 DECISIONS_FILE = "data/polymarket-decisions.json"
 SKIPS_FILE = "data/polymarket-skips.json"
@@ -26,12 +27,20 @@ MIN_VOLUME = 5000.0
 MIN_VOLUME_WHALE_BACKED = 3000.0
 BONDING_MIN_VOLUME = 2000.0
 MAX_STAKE_FRACTION = 0.02
-MAX_OPEN_EXPOSURE_FRACTION = 0.10
+# 0.10 cap with 2% stakes meant 5 concurrent slots; with stuck pending trades
+# the cap permanently tripped and blocked every new trade. Doubled to 20% to
+# allow ~10 concurrent positions for paper-money signal density.
+MAX_OPEN_EXPOSURE_FRACTION = 0.20
 FRACTIONAL_KELLY = 0.25
 BONDING_MIN_EDGE = 0.005
 BONDING_MIN_CONFIDENCE = 0.45
 BONDING_MAX_STAKE_FRACTION = 0.01
-BONDING_MAX_OPEN_EXPOSURE_FRACTION = 0.08
+BONDING_MAX_OPEN_EXPOSURE_FRACTION = 0.16
+
+# Refuse to trade when the market has already priced the outcome at near-certainty:
+# the residual "edge" is gas/fee-loss territory, not real opportunity.
+MARKET_PROBABILITY_FLOOR = 0.05
+MARKET_PROBABILITY_CEILING = 0.95
 
 
 def validate_probability(value, label):
@@ -84,11 +93,24 @@ def build_record(
         max_stake_fraction = BONDING_MAX_STAKE_FRACTION
         max_open_exposure_fraction = BONDING_MAX_OPEN_EXPOSURE_FRACTION
 
+    workspace_root = str(candidate["workspace_root"])
+    source_mul = ledger.source_stake_multiplier(selection_source, workspace_root=workspace_root)
+    similarity_mul = ledger.similarity_stake_multiplier(
+        candidate.get("question", ""), selection_source, workspace_root=workspace_root,
+    )
+    feedback_multiplier = source_mul * similarity_mul
+    max_stake_fraction = max_stake_fraction * feedback_multiplier
+
     stake_fraction = min(raw_kelly * FRACTIONAL_KELLY, max_stake_fraction)
     stake_amount = round(bankroll_before * stake_fraction, 2)
-    open_exposure = metrics.unresolved_exposure(str(candidate["workspace_root"]))
+    open_exposure = metrics.unresolved_exposure(workspace_root)
 
     gate_failures = []
+    if selection_source != "bonding_copy" and (
+        market_probability < MARKET_PROBABILITY_FLOOR
+        or market_probability > MARKET_PROBABILITY_CEILING
+    ):
+        gate_failures.append("market_at_extreme")
     if edge < min_edge:
         gate_failures.append("edge_below_threshold")
     if confidence < min_confidence:
@@ -113,6 +135,12 @@ def build_record(
 
     action = "trade" if not gate_failures else "skip"
     copy_strat = candidate.get("copy_strategy") or {}
+    wallets = []
+    for sample in (copy_strat.get("samples") or []):
+        wallet = sample.get("wallet") if isinstance(sample, dict) else None
+        if wallet:
+            wallets.append(str(wallet).lower())
+    wallets = sorted(set(wallets))
     return {
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "market_id": candidate["market_id"],
@@ -134,6 +162,10 @@ def build_record(
         "whale_traders": copy_strat.get("traders_with_matching_positions"),
         "selection_source": candidate.get("selection_source"),
         "strategy_profile": "bonding_copy" if selection_source == "bonding_copy" else "default",
+        "wallets": wallets,
+        "source_stake_multiplier": round(source_mul, 4),
+        "similarity_stake_multiplier": round(similarity_mul, 4),
+        "feedback_multiplier": round(feedback_multiplier, 4),
         "reasoning": reasoning,
         "action": action,
         "gate_failures": gate_failures,
@@ -175,6 +207,8 @@ def evaluate_staged_candidate(
                 "kelly_fraction": record["kelly_fraction"],
                 "stake_fraction": record["stake_fraction"],
                 "stake_amount": record["stake_amount"],
+                "selection_source": record["selection_source"],
+                "wallets": record["wallets"],
             },
         )
         trade.clear_staged_candidate(str(workspace_root))

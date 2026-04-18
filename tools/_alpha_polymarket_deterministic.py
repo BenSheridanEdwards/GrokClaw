@@ -11,8 +11,23 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+WORKSPACE_ROOT_GUESS = Path(__file__).resolve().parents[1]
+if str(WORKSPACE_ROOT_GUESS) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT_GUESS))
+
+from tools import _polymarket_ledger as ledger
+
 BONDING_MIN_MATCHING_TRADERS = 1
 BONDING_MIN_CONFIDENCE = 0.45
+
+# Trader-count-weighted Bayesian blend of whale consensus with the market price.
+# A single matching wallet is mostly noise; we anchor heavily to the market.
+# Each additional matching wallet shifts more weight onto the copy signal,
+# saturating at the cap. This keeps Kelly sizing honest and prevents the
+# "whale says 99.99%" theatre that produces fake 90c edges.
+WHALE_BLEND_BASE = 0.45
+WHALE_BLEND_PER_TRADER = 0.15
+WHALE_BLEND_CAP = 0.85
 
 
 @dataclass
@@ -69,6 +84,51 @@ def clamp_open_probability(value: float, epsilon: float = 0.0001) -> float:
     if not math.isfinite(probability):
         raise ValueError("probability must be finite")
     return max(epsilon, min(1.0 - epsilon, probability))
+
+
+def whale_blend_weight(matching_traders: int, wallets: Optional[list] = None, workspace_root: Optional[str] = None) -> float:
+    """Trader-count + per-wallet learned weight.
+
+    Cold-start fallback (no wallet history): linear in trader count.
+    With wallet history: average each wallet's Bayesian posterior weight, then
+    add a small multi-trader agreement bonus (capped).
+    """
+    if wallets:
+        learned = [ledger.wallet_blend_weight(w, workspace_root=workspace_root) for w in wallets]
+        wallet_avg = sum(learned) / len(learned)
+        agreement_bonus = WHALE_BLEND_PER_TRADER * max(0, len(wallets) - 1)
+        return max(0.0, min(WHALE_BLEND_CAP, wallet_avg + agreement_bonus))
+    weight = WHALE_BLEND_BASE + WHALE_BLEND_PER_TRADER * max(matching_traders, 0)
+    return max(0.0, min(WHALE_BLEND_CAP, weight))
+
+
+def blend_with_market(
+    whale_prob_yes: float,
+    market_prob_yes: float,
+    matching_traders: int,
+    wallets: Optional[list] = None,
+    workspace_root: Optional[str] = None,
+) -> float:
+    weight = whale_blend_weight(matching_traders, wallets=wallets, workspace_root=workspace_root)
+    blended = weight * whale_prob_yes + (1.0 - weight) * market_prob_yes
+    return clamp_open_probability(blended)
+
+
+def apply_calibration_shrink(
+    blended_prob_yes: float,
+    market_prob_yes: float,
+    workspace_root: Optional[str] = None,
+) -> tuple:
+    """If global calibration is poor, shrink the (blended - market) gap toward 0.
+
+    Returns (shrunk_prob_yes, info). info is the calibration_multiplier dict
+    plus the multiplier value, suitable for logging.
+    """
+    multiplier, info = ledger.calibration_multiplier(workspace_root=workspace_root)
+    shrunk = market_prob_yes + multiplier * (blended_prob_yes - market_prob_yes)
+    info = dict(info)
+    info["multiplier"] = multiplier
+    return clamp_open_probability(shrunk), info
 
 
 def build_research_markdown(
@@ -173,14 +233,42 @@ def main(argv: list[str]) -> int:
             and traders >= BONDING_MIN_MATCHING_TRADERS
         )
         if has_valid_copy_signal:
-            selected_prob_yes = clamp_open_probability(float(consensus_yes))
-            side = "YES" if selected_prob_yes >= 0.5 else "NO"
-            selected_prob = selected_prob_yes if side == "YES" else (1.0 - selected_prob_yes)
+            whale_prob_yes = clamp_open_probability(float(consensus_yes))
+            try:
+                market_prob_yes = clamp_open_probability(float(candidate.get("odds_yes", 0.5)))
+            except (TypeError, ValueError):
+                market_prob_yes = 0.5
+            sample_wallets = []
+            for sample in (copy.get("samples") or []):
+                wallet = sample.get("wallet") if isinstance(sample, dict) else None
+                if wallet:
+                    sample_wallets.append(str(wallet).lower())
+            sample_wallets = sorted(set(sample_wallets))
+            workspace_root = str(root)
+            blended_prob_yes = blend_with_market(
+                whale_prob_yes, market_prob_yes, traders,
+                wallets=sample_wallets, workspace_root=workspace_root,
+            )
+            blend_weight = whale_blend_weight(
+                traders, wallets=sample_wallets, workspace_root=workspace_root
+            )
+            shrunk_prob_yes, calib_info = apply_calibration_shrink(
+                blended_prob_yes, market_prob_yes, workspace_root=workspace_root,
+            )
+            side = "YES" if shrunk_prob_yes >= 0.5 else "NO"
+            selected_prob = shrunk_prob_yes if side == "YES" else (1.0 - shrunk_prob_yes)
             selected_prob = clamp_open_probability(selected_prob)
             conf = max(min(float(confidence), 0.95), BONDING_MIN_CONFIDENCE)
+            calib_tag = (
+                f"calib×{calib_info['multiplier']:.2f}" if calib_info.get("applied")
+                else f"calib=cold({calib_info.get('samples', 0)}smp)"
+            )
             reasoning = (
-                f"Deterministic copy execution from {selection_source} wallet alignment; "
-                f"source={selection_source}, consensus_yes={selected_prob_yes:.4f}, confidence={conf:.4f}"
+                f"Deterministic copy execution from {selection_source}; "
+                f"source={selection_source}, whale_yes={whale_prob_yes:.4f}, "
+                f"market_yes={market_prob_yes:.4f}, blended_yes={blended_prob_yes:.4f}, "
+                f"shrunk_yes={shrunk_prob_yes:.4f}, traders={traders}, "
+                f"blend_weight={blend_weight:.2f}, {calib_tag}, confidence={conf:.4f}"
             )
             decision_out = run_command(
                 root,
