@@ -15,8 +15,15 @@ Read these sources — **you must actually read every file listed, not skip them
 - `data/agent-reports/*.json` — today's agent reports
 - `data/alpha/research/*.md` — read the latest 2-3 research files to understand what markets Alpha is evaluating, what candidates it found, and what the decision rationale was. This feeds the Run Breakdown section.
 - `data/linear-creations/*.jsonl` — flag any flow outside `suggestion` or `user_request`
-- `data/github-discover/*.json` — **you must read today's file** (e.g. `data/github-discover/2026-04-12.json`). It contains `starred` and `trending` arrays of repos. Parse the JSON and extract every repo's `name`, `description`, `stars`, `language`, and `source` fields.
 - Run read-only health checks: gateway, Paperclip, Telegram, Ollama
+
+**Discovery data is delivered pre-rendered, not raw.** Do not parse `data/github-discover/*.json` yourself. Run:
+
+```
+./tools/_brief_discovery_render.py $(date -u +%Y-%m-%d)
+```
+
+The output is an authoritative markdown block listing every repo in today's discovery JSON with its verbatim description, stars, language, and a `[NEW]` / `[IN_STACK]` label already determined (and `SEEN_RECENTLY` if it appeared in a brief in the last 7 days). Paste that block into the GitHub Discoveries section of the research file and add analysis under each entry. **Do not add, remove, or rename repos from the block.**
 
 ## Step 2: Browse X for AI and crypto trending topics
 
@@ -59,55 +66,20 @@ Any creation flow violations. If none, state "No violations."
 
 ## GitHub Discoveries
 
-### Starred (repos Ben starred this week)
-For EACH starred repo in data/github-discover/*.json, write a **full paragraph** (minimum 3 sentences, typically 4-6):
+Paste the full output of `./tools/_brief_discovery_render.py <date>` as a block under this heading, then add an analysis paragraph under each repo. The block is authoritative:
 
-**HARD RULES — violations will be caught by the evidence contract:**
-- Every entry MUST have: full repo description from JSON + label + analysis paragraph
-- One-liners like `"Visual testing. NEW: UI testing."` are **contract violations**
-- Entries without a specific GrokClaw integration path (for NEW) or usage location (for IN STACK) are **contract violations**
-- You MUST quote the full `description` field from the JSON — not your paraphrase of it
+- **Do not add repos that are not in the block.** Every `owner/repo` in the final brief must appear in today's discovery JSON. A post-hoc validator (`tools/_brief_validator.py`) runs after the brief and will fail the workflow if any repo is not in the JSON.
+- **Do not remove or rename repos from the block.** Analysis goes under each entry, the entry itself stays verbatim.
+- **Do not change the `[NEW]` / `[IN_STACK]` / `SEEN_RECENTLY` labels.** They are computed by the render tool from the stack reference files.
 
-**Structure for EACH repo:**
-```
-**owner/name** (N stars, Language) — [FULL description from JSON, verbatim]
+Under each repo write a 3-6 sentence analysis paragraph:
+- **For `[IN_STACK]`** — state exactly where it is used (file path + line reference), and name one concrete improvement or gap in that integration.
+- **For `[NEW]`** — name the specific GrokClaw gap it fills, the file(s) it would touch, and whether it warrants a SUGGESTION entry. If there is no integration path, say "No integration path — skip."
+- **For `[SEEN_RECENTLY]`** — one sentence is fine: refer back to the earlier brief and skip re-analysis unless something material changed.
 
-[NEW | IN YOUR STACK | SKIP]: [3-6 sentence analysis]
-```
+**Do not paraphrase the `Description:` line from the render tool.** It is already the verbatim JSON description.
 
-**Good example (NEW repo):**
-> **lost-pixel/lost-pixel** (1.6k stars, TypeScript) — "Open source alternative to Percy, Chromatic, Applitools."
->
-> NEW: GrokClaw has no visual regression testing for Paperclip's web UI. lost-pixel runs headless screenshots in CI and diffs them against baselines — catching CSS regressions, broken layouts, and missing elements that unit tests can't see. Integration path: add a `.github/workflows/visual-regression.yml` that runs lost-pixel against Paperclip's dashboard pages after each deploy. This closes a real gap — we've had UI regressions after Paperclip updates that weren't caught until manual checks.
-
-**Good example (IN YOUR STACK repo):**
-> **karpathy/autoresearch** (70k stars, Python) — "AI agents running research on single-GPU nanochat training automatically"
->
-> IN YOUR STACK: Alpha's hourly workflow uses autoresearch for structured market research (referenced in NorthStar.md:77 and docs/prompts/cron-work-alpha-polymarket.md). Each deterministic run produces a research markdown in `data/alpha/research/`. The current integration is read-only — autoresearch generates but Alpha doesn't feed outcomes back to improve future research quality. A feedback loop from resolved Polymarket outcomes → autoresearch training data could improve Alpha's candidate selection over time.
-
-**Good example (SKIP):**
-> **mattmireles/gemma-tuner-multimodal** (1.2k stars, Python) — "Fine-tune Gemma 4 and 3n with audio, images and text on Apple Silicon"
->
-> SKIP: GrokClaw doesn't fine-tune models — all agents use API-hosted models (Grok, Claude, Nemotron). Local fine-tuning would require maintaining model weights and training pipelines, which is outside the project's architecture. No integration path.
-
-Cross-reference against ALL of these to determine if it's already integrated:
-- `memory/MEMORY.md`
-- `graphify-out/wiki/index.md` (drill into community articles)
-- `NorthStar.md` (the operating model — mentions tools like autoresearch, MemPalace, etc.)
-- `AGENTS.md` (agent configurations and tool references)
-- `docs/prompts/cron-work-alpha-polymarket.md` (Alpha's workflow tools)
-- If the repo name OR its core concept appears in ANY of those files, it is IN YOUR STACK — not NEW
-
-### Trending (hot repos this week)
-For the **top 5 trending repos by stars** that are relevant to multi-agent systems, crypto trading, or developer tooling — **same full-paragraph depth as starred**. Do not just write "IN STACK" or "SKIP" — every entry gets the same analysis treatment.
-
-**Priority trending repos to look for:**
-- Anything related to Polymarket, prediction markets, or trading bots (directly relevant to Alpha)
-- OpenClaw/Claude Code ecosystem tools (directly relevant to infrastructure)
-- Agent memory, agent orchestration, or multi-agent frameworks (relevant to architecture)
-- Skip: game engines, mobile apps, ML training frameworks, generic web apps
-
-If the discovery file is empty or missing, state: "Discovery file not found — run ./tools/github-discover.sh"
+If the render tool prints `Discovery file not found` for today, run `./tools/github-discover.sh` and re-run the render tool. Do not proceed past this step without a discovery block.
 
 ## X Signals
 Top 3 signals from X browsing (if browser step ran). For each:
@@ -163,15 +135,13 @@ NEEDS ATTENTION
 - [or "Nothing — all systems healthy"]
 
 DISCOVERED
-- [only NEW repos — omit anything already integrated in GrokClaw]
-- [format: "repo — what it does + specific GrokClaw use case (Nk stars, starred/trending)"]
-- [e.g. "lost-pixel — visual regression testing; catches Paperclip UI breaks in CI (1.6k stars, starred)"]
-- [e.g. "nuwa-skill — distill expert decision patterns into agents; could capture Ben decision style for Grok suggestions (8k stars, trending)"]
-- [e.g. "polymarket-trading-bot — whale-tracking module could replace our manual wallet list in _polymarket_trade.py (214 stars, trending)"]
+- [pull ONLY from entries labeled [NEW] by the render tool, excluding any [NEW · SEEN_RECENTLY] ones]
+- [format: "owner/repo — one-line GrokClaw use case (Nk stars, starred|trending)"]
+- [the description text must be grounded in the repo's JSON description — do not invent capabilities]
 - [each entry MUST explain the specific GrokClaw connection — not just describe the repo]
-- [PRIORITIZE: repos related to Polymarket/trading, OpenClaw ecosystem, agent memory, or multi-agent systems]
-- [max 5 entries]
-- [or "No new discoveries today" — but this should be rare if discover data exists]
+- [PRIORITIZE: repos related to Polymarket/trading, OpenClaw/Claude Code ecosystem, agent memory, or multi-agent systems]
+- [max 5 entries; prefer depth over count]
+- [or "No new discoveries today" — valid when every [NEW] entry in the render block has no integration path]
 
 X SIGNALS
 - [one-line signal with substance, not hype]
@@ -185,11 +155,21 @@ Full details: data/briefs/YYYY-MM-DD.md' | ./tools/telegram-post.sh suggestions
 
 If you have a suggestion worth approval, use `./tools/telegram-suggestion.sh` instead of the plain post.
 
+## Step 5: Validate the brief
+
+Before the Telegram post is considered final, run:
+
+```
+./tools/_brief_validator.py --date $(date -u +%Y-%m-%d)
+```
+
+Exit code 0 means the brief is hallucination-clean. Any other exit code means the research file mentions at least one `owner/repo` that is not in today's discovery JSON — fix the brief (remove the invented repo) and re-run the validator before posting.
+
 ## Rules
 
 - **Read every data source listed in Step 1** — do not skip files or assume they're empty
 - **NEEDS ATTENTION must be actionable** — include the exact command to run, file to check, or URL to visit. "openclaw update" alone is unacceptable; "Run: npm update openclaw (v2026.4.9 → v2026.4.11)" is correct.
-- **DISCOVERED is for NEW repos only** — the Telegram message must only list repos NOT already integrated in GrokClaw. Cross-reference against memory/MEMORY.md and graphify-out/wiki/index.md. If a repo is already in your stack (e.g. graphify, MemPalace), do NOT include it in the Telegram DISCOVERED section — it belongs in the research file only. The Telegram DISCOVERED section is for genuinely new finds that Ben hasn't seen before.
+- **DISCOVERED is driven by the render tool, not your memory.** The render tool is the single source of truth for which repos exist today. The Telegram DISCOVERED list is a filtered subset of the `[NEW]` entries in that block. Any `owner/repo` in your output that is not in today's `data/github-discover/*.json` is a hallucination and will fail validation.
 - **X SIGNALS must have substance** — new tool launches, market events, or notable technical threads only. No engagement bait, no "AI is the future" takes.
 - **Suggestions must be concrete** — include the command, file, or integration path. If you can't articulate the specific action, don't suggest it.
 - The companion research file must be written BEFORE the Telegram message
