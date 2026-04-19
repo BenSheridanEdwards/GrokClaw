@@ -158,6 +158,14 @@ def build_record(
     ):
         gate_failures.append("model_market_extreme_delta")
 
+    if (
+        side == "YES"
+        and selection_source != "bonding_copy"
+        and topics.is_aspirational_question(candidate.get("question"))
+        and traders < EXTREME_DELTA_WHALE_OVERRIDE
+    ):
+        gate_failures.append("aspirational_yes_bias")
+
     cluster = topics.classify_question(candidate.get("question"))
     if cluster:
         trades_rows = metrics.load_jsonl(

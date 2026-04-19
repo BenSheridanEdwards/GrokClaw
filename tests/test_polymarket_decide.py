@@ -255,6 +255,86 @@ class PolymarketDecideTests(unittest.TestCase):
             self.assertEqual(decision["action"], "trade")
             self.assertNotIn("model_market_extreme_delta", decision["gate_failures"])
 
+    def test_aspirational_yes_blocked_without_whale_consensus(self):
+        """Polymarket buyers overpay YES on 'will X happen by Y' aspirational questions."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-19",
+                    "market_id": "m-aspire",
+                    "question": "Will Iran agree to a peace deal by April 30?",
+                    "odds_yes": 0.30,
+                    "odds_no": 0.70,
+                    "volume": 50000,
+                    "endDate": "2026-04-30T00:00:00Z",
+                    "copy_strategy": {
+                        "consensus_probability_yes": 0.55,
+                        "confidence": 0.6,
+                        "traders_with_matching_positions": 1,
+                    },
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace, "YES", 0.55, 0.8,
+                "Optimistic take on a question whose base rate is NO.",
+            )
+            self.assertEqual(decision["action"], "skip")
+            self.assertIn("aspirational_yes_bias", decision["gate_failures"])
+
+    def test_aspirational_no_side_is_allowed(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-19",
+                    "market_id": "m-aspire-no",
+                    "question": "Will Russia and Ukraine sign a ceasefire by May 15?",
+                    "odds_yes": 0.35,
+                    "odds_no": 0.65,
+                    "volume": 50000,
+                    "endDate": "2026-05-15T00:00:00Z",
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace, "NO", 0.80, 0.85,
+                "Default NO on aspirational deadline — base rate favors NO.",
+            )
+            self.assertEqual(decision["action"], "trade")
+            self.assertNotIn("aspirational_yes_bias", decision["gate_failures"])
+
+    def test_aspirational_yes_allowed_with_three_whales(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-19",
+                    "market_id": "m-aspire-whaled",
+                    "question": "Will Tesla deliver over 500,000 vehicles by Q2 end?",
+                    "odds_yes": 0.45,
+                    "odds_no": 0.55,
+                    "volume": 50000,
+                    "endDate": "2026-06-30T00:00:00Z",
+                    "copy_strategy": {
+                        "consensus_probability_yes": 0.7,
+                        "confidence": 0.7,
+                        "traders_with_matching_positions": 3,
+                    },
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace, "YES", 0.70, 0.8,
+                "Three whales consensus on YES — override the default-NO bias.",
+            )
+            self.assertEqual(decision["action"], "trade")
+            self.assertNotIn("aspirational_yes_bias", decision["gate_failures"])
+
     def test_explicit_skip_records_reason_and_clears_candidate(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)

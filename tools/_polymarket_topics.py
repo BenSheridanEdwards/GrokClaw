@@ -84,6 +84,36 @@ def classify_question(question: Optional[str]) -> Optional[str]:
     return None
 
 
+ASPIRATIONAL_TRIGGERS = (
+    "peace deal", "peace agreement", "ceasefire", "truce",
+    "surrender", "breakthrough", "diplomatic meeting", "treaty",
+    "agreement", "deliver", "deploy", "launch", "release",
+    "announce", "approve", "pass", "sign", "ratify",
+    "reach", "achieve", "win", "resolve",
+)
+
+ASPIRATIONAL_DEADLINE_RE = re.compile(
+    r"\b(by|before|on or before)\s+[a-zA-Z0-9]",
+    re.IGNORECASE,
+)
+
+
+def is_aspirational_question(question):
+    """True for 'will X [positive-action] by [deadline]' patterns.
+
+    These questions systematically overprice YES on Polymarket because
+    hopeful buyers pay up for the chance. The base rate favors NO.
+    """
+    if not question:
+        return False
+    text = str(question).lower()
+    if "will " not in text:
+        return False
+    if not ASPIRATIONAL_DEADLINE_RE.search(text):
+        return False
+    return any(trigger in text for trigger in ASPIRATIONAL_TRIGGERS)
+
+
 def open_clusters_from_ledger(
     trades: Iterable[dict],
     results: Iterable[dict],
