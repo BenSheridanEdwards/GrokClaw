@@ -51,6 +51,16 @@ BONDING_MAX_OPEN_EXPOSURE_FRACTION = 0.16
 MARKET_PROBABILITY_FLOOR = 0.05
 MARKET_PROBABILITY_CEILING = 0.95
 
+# When the model disagrees with the market by more than this on the side we
+# intend to trade, the most likely explanation is model miscalibration, not
+# mispricing. The Iran/US resolved losses (model said 99.99% on NO-settling
+# markets priced 5-50%) are the fingerprint we are filtering out.
+# We exempt cases where at least this many independent whales have the same
+# position — that is a strong enough signal to override the model-vs-market
+# disagreement.
+EXTREME_DELTA_THRESHOLD = 0.5
+EXTREME_DELTA_WHALE_OVERRIDE = 3
+
 
 def validate_probability(value, label):
     probability = float(value)
@@ -141,6 +151,12 @@ def build_record(
         > max_open_exposure_fraction
     ):
         gate_failures.append("open_exposure_cap")
+
+    if (
+        abs(selected_probability - market_probability) > EXTREME_DELTA_THRESHOLD
+        and traders < EXTREME_DELTA_WHALE_OVERRIDE
+    ):
+        gate_failures.append("model_market_extreme_delta")
 
     cluster = topics.classify_question(candidate.get("question"))
     if cluster:

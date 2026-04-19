@@ -190,6 +190,71 @@ class PolymarketDecideTests(unittest.TestCase):
             self.assertEqual(decision["action"], "skip")
             self.assertIn("market_at_extreme", decision["gate_failures"])
 
+    def test_extreme_delta_blocks_trade_with_fewer_than_3_whales(self):
+        """|model_p - market_p| > 0.5 is model miscalibration, not edge, unless many whales agree."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-19",
+                    "market_id": "m-extreme",
+                    "question": "Will an unlikely geopolitical event happen by April 30?",
+                    "odds_yes": 0.30,
+                    "odds_no": 0.70,
+                    "volume": 50000,
+                    "endDate": "2026-04-30T00:00:00Z",
+                    "copy_strategy": {
+                        "consensus_probability_yes": 0.85,
+                        "confidence": 0.8,
+                        "traders_with_matching_positions": 2,
+                    },
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace,
+                "YES",
+                0.85,
+                0.95,
+                "Model 85 vs market 30 — 55pp delta. Almost certainly the model is wrong.",
+            )
+
+            self.assertEqual(decision["action"], "skip")
+            self.assertIn("model_market_extreme_delta", decision["gate_failures"])
+
+    def test_extreme_delta_allowed_when_at_least_3_whales_match(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-19",
+                    "market_id": "m-extreme-whaled",
+                    "question": "Will a crypto price milestone hit by April 30?",
+                    "odds_yes": 0.30,
+                    "odds_no": 0.70,
+                    "volume": 50000,
+                    "endDate": "2026-04-30T00:00:00Z",
+                    "copy_strategy": {
+                        "consensus_probability_yes": 0.85,
+                        "confidence": 0.8,
+                        "traders_with_matching_positions": 3,
+                    },
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace,
+                "YES",
+                0.85,
+                0.95,
+                "Same 55pp delta but 3 whales stacked YES — treat as real edge.",
+            )
+
+            self.assertEqual(decision["action"], "trade")
+            self.assertNotIn("model_market_extreme_delta", decision["gate_failures"])
+
     def test_explicit_skip_records_reason_and_clears_candidate(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
