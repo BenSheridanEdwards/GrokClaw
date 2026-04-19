@@ -32,7 +32,7 @@ trade.stage_candidate(
 )
 PY
 
-WORKSPACE_ROOT="$TMPDIR" "$SCRIPT_DIR/polymarket-decide.sh" YES 0.66 0.82 "Smoke test edge from deterministic fixture"
+WORKSPACE_ROOT="$TMPDIR" "$SCRIPT_DIR/polymarket-decide.sh" YES 0.80 0.82 "Smoke test edge from deterministic fixture"
 
 python3 - "$TMPDIR" <<'PY'
 import json

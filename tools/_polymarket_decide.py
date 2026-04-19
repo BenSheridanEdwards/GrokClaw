@@ -55,17 +55,42 @@ MARKET_PROBABILITY_CEILING = 0.95
 # intend to trade, the most likely explanation is model miscalibration, not
 # mispricing. The Iran/US resolved losses (model said 99.99% on NO-settling
 # markets priced 5-50%) are the fingerprint we are filtering out.
-# We exempt cases where at least this many independent whales have the same
-# position — that is a strong enough signal to override the model-vs-market
-# disagreement.
-EXTREME_DELTA_THRESHOLD = 0.5
-EXTREME_DELTA_WHALE_OVERRIDE = 3
+# The reference-model blend (see blend_reference_probability) shrinks
+# model-vs-market disagreement before sizing, making a separate hard gate
+# unreachable in practice. We keep this constant as the whale-count override
+# threshold reused by the aspirational-YES gate.
+WHALE_OVERRIDE_MIN_TRADERS = 3
 
 # Calibration-unproven gate. A (topic, source) combo with a proven bad Brier
 # score should not place stakes until it improves. Requires enough resolved
 # samples in the same combo to draw a signal from noise.
 CALIBRATION_MAX_BRIER = 0.25
 CALIBRATION_REQUIRED_SAMPLES = 20
+
+# Reference-model blend weights. The raw Grok probability has produced
+# single-source disasters (99.99% calls on NO-settling markets); anchoring
+# to the market and the whale consensus removes the single-source failure
+# mode. Weights renormalize when whale signal is absent.
+BLEND_WEIGHT_MARKET = 0.5
+BLEND_WEIGHT_WHALE = 0.3
+BLEND_WEIGHT_GROK = 0.2
+
+
+def blend_reference_probability(market_p_yes, whale_p_yes, grok_p_yes):
+    """Return a blended probability-of-YES from the three sources.
+
+    Whale weight drops out when no whale signal is available; the remaining
+    weights (market + grok) renormalize to sum to 1.
+    """
+    w_market = BLEND_WEIGHT_MARKET
+    w_whale = BLEND_WEIGHT_WHALE
+    w_grok = BLEND_WEIGHT_GROK
+
+    if whale_p_yes is None:
+        total = w_market + w_grok
+        return (w_market / total) * market_p_yes + (w_grok / total) * grok_p_yes
+
+    return w_market * market_p_yes + w_whale * whale_p_yes + w_grok * grok_p_yes
 
 
 def validate_probability(value, label):
@@ -105,6 +130,31 @@ def build_record(
     market_probability = (
         candidate["odds_yes"] if side == "YES" else candidate["odds_no"]
     )
+
+    # Reference-model blend: shrink raw Grok probability toward market +
+    # whale consensus. Bonding-copy is exempt — its edge lives in late-stage
+    # microstructure where the market IS the signal, so blending toward it
+    # would erase the strategy.
+    if (candidate.get("selection_source") or "") != "bonding_copy":
+        market_p_yes = float(candidate["odds_yes"])
+        grok_p_yes = (
+            selected_probability if side == "YES" else 1.0 - selected_probability
+        )
+        copy_strat_for_blend = candidate.get("copy_strategy") or {}
+        whale_p_yes_raw = copy_strat_for_blend.get("consensus_probability_yes")
+        whale_p_yes = None
+        traders_for_blend = int(
+            copy_strat_for_blend.get("traders_with_matching_positions", 0) or 0
+        )
+        if whale_p_yes_raw is not None and traders_for_blend > 0:
+            whale_p_yes = float(whale_p_yes_raw)
+        blended_p_yes = blend_reference_probability(
+            market_p_yes, whale_p_yes, grok_p_yes
+        )
+        selected_probability = (
+            blended_p_yes if side == "YES" else 1.0 - blended_p_yes
+        )
+
     edge = selected_probability - market_probability
     raw_kelly = kelly_fraction(market_probability, selected_probability)
     selection_source = candidate.get("selection_source") or ""
@@ -159,16 +209,10 @@ def build_record(
         gate_failures.append("open_exposure_cap")
 
     if (
-        abs(selected_probability - market_probability) > EXTREME_DELTA_THRESHOLD
-        and traders < EXTREME_DELTA_WHALE_OVERRIDE
-    ):
-        gate_failures.append("model_market_extreme_delta")
-
-    if (
         side == "YES"
         and selection_source != "bonding_copy"
         and topics.is_aspirational_question(candidate.get("question"))
-        and traders < EXTREME_DELTA_WHALE_OVERRIDE
+        and traders < WHALE_OVERRIDE_MIN_TRADERS
     ):
         gate_failures.append("aspirational_yes_bias")
 

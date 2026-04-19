@@ -50,7 +50,7 @@ class PolymarketDecideTests(unittest.TestCase):
             decision = decide.evaluate_staged_candidate(
                 workspace,
                 "YES",
-                0.65,
+                0.85,
                 0.8,
                 "The market is underpricing the likely outcome.",
             )
@@ -190,71 +190,6 @@ class PolymarketDecideTests(unittest.TestCase):
             self.assertEqual(decision["action"], "skip")
             self.assertIn("market_at_extreme", decision["gate_failures"])
 
-    def test_extreme_delta_blocks_trade_with_fewer_than_3_whales(self):
-        """|model_p - market_p| > 0.5 is model miscalibration, not edge, unless many whales agree."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workspace = Path(tmpdir)
-            trade.stage_candidate(
-                workspace,
-                {
-                    "date": "2026-04-19",
-                    "market_id": "m-extreme",
-                    "question": "Will an unlikely geopolitical event happen by April 30?",
-                    "odds_yes": 0.30,
-                    "odds_no": 0.70,
-                    "volume": 50000,
-                    "endDate": "2026-04-30T00:00:00Z",
-                    "copy_strategy": {
-                        "consensus_probability_yes": 0.85,
-                        "confidence": 0.8,
-                        "traders_with_matching_positions": 2,
-                    },
-                },
-            )
-
-            decision = decide.evaluate_staged_candidate(
-                workspace,
-                "YES",
-                0.85,
-                0.95,
-                "Model 85 vs market 30 — 55pp delta. Almost certainly the model is wrong.",
-            )
-
-            self.assertEqual(decision["action"], "skip")
-            self.assertIn("model_market_extreme_delta", decision["gate_failures"])
-
-    def test_extreme_delta_allowed_when_at_least_3_whales_match(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workspace = Path(tmpdir)
-            trade.stage_candidate(
-                workspace,
-                {
-                    "date": "2026-04-19",
-                    "market_id": "m-extreme-whaled",
-                    "question": "Will a crypto price milestone hit by April 30?",
-                    "odds_yes": 0.30,
-                    "odds_no": 0.70,
-                    "volume": 50000,
-                    "endDate": "2026-04-30T00:00:00Z",
-                    "copy_strategy": {
-                        "consensus_probability_yes": 0.85,
-                        "confidence": 0.8,
-                        "traders_with_matching_positions": 3,
-                    },
-                },
-            )
-
-            decision = decide.evaluate_staged_candidate(
-                workspace,
-                "YES",
-                0.85,
-                0.95,
-                "Same 55pp delta but 3 whales stacked YES — treat as real edge.",
-            )
-
-            self.assertEqual(decision["action"], "trade")
-            self.assertNotIn("model_market_extreme_delta", decision["gate_failures"])
-
     def test_aspirational_yes_blocked_without_whale_consensus(self):
         """Polymarket buyers overpay YES on 'will X happen by Y' aspirational questions."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -301,7 +236,7 @@ class PolymarketDecideTests(unittest.TestCase):
             )
 
             decision = decide.evaluate_staged_candidate(
-                workspace, "NO", 0.80, 0.85,
+                workspace, "NO", 0.95, 0.85,
                 "Default NO on aspirational deadline — base rate favors NO.",
             )
             self.assertEqual(decision["action"], "trade")
@@ -419,6 +354,60 @@ class PolymarketDecideTests(unittest.TestCase):
             )
             self.assertEqual(decision["action"], "trade")
             self.assertNotIn("calibration_unproven", decision["gate_failures"])
+
+    def test_reference_blend_shrinks_grok_probability_toward_market(self):
+        """Grok's raw 99% overshoot should be blended down toward market + whale consensus."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-19",
+                    "market_id": "m-blend",
+                    "question": "Will BTC close above $75,000 on May 1?",
+                    "odds_yes": 0.40,
+                    "odds_no": 0.60,
+                    "volume": 50000,
+                    "endDate": "2026-05-01T00:00:00Z",
+                    "copy_strategy": {
+                        "consensus_probability_yes": 0.65,
+                        "confidence": 0.8,
+                        "traders_with_matching_positions": 3,
+                    },
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace, "YES", 0.99, 0.95,
+                "Grok overshoot should get shrunk by blend.",
+            )
+            # Blend: 0.5*market(0.40) + 0.3*whale(0.65) + 0.2*grok(0.99) = 0.593
+            self.assertAlmostEqual(decision["model_probability"], 0.593, places=2)
+            self.assertNotEqual(decision["model_probability"], 0.99)
+
+    def test_reference_blend_uses_grok_when_no_whale_signal(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-19",
+                    "market_id": "m-noW",
+                    "question": "Market with no whale copy signal?",
+                    "odds_yes": 0.30,
+                    "odds_no": 0.70,
+                    "volume": 50000,
+                    "endDate": "2026-05-01T00:00:00Z",
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace, "YES", 0.70, 0.8,
+                "No whales — weights renormalize across market + grok.",
+            )
+            # Without whales: 0.5/(0.5+0.2)=5/7 market, 0.2/(0.5+0.2)=2/7 grok
+            # blended = (5/7)*0.30 + (2/7)*0.70 = 0.4143
+            self.assertAlmostEqual(decision["model_probability"], 0.4143, places=3)
 
     def test_explicit_skip_records_reason_and_clears_candidate(self):
         with tempfile.TemporaryDirectory() as tmpdir:
