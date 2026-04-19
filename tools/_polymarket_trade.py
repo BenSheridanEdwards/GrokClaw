@@ -66,18 +66,29 @@ GEOPOLITICAL_KEYWORDS = (
 
 
 def get_already_evaluated_ids(workspace_root, days=7):
-    """Return set of market_ids we've already TRADED (not merely skipped) in last N days.
+    """Return set of market_ids to skip in selection.
 
-    Skipped markets are eligible for re-evaluation as conditions change (price,
-    time-to-resolution, new whale positions); only actual paper trades should
-    be excluded to avoid duplicating exposure on the same market.
+    Excludes:
+    - Any market TRADED in the last `days` days (prevents duplicate exposure).
+    - Any market SKIPPED on the current UTC date (prevents the hourly cron from
+      re-evaluating the same market it already rejected earlier today — the
+      conditions do not change meaningfully within one UTC day).
     """
     from datetime import datetime, timezone, timedelta
     now = datetime.now(timezone.utc)
+    today = now.strftime("%Y-%m-%d")
     cutoff = (now - timedelta(days=days)).strftime("%Y-%m-%d")
     excluded = set()
     for row in metrics.load_jsonl(os.path.join(workspace_root, TRADES_FILE)):
         if (row.get("date") or "") < cutoff:
+            continue
+        mid = row.get("market_id")
+        if mid:
+            excluded.add(str(mid).lower())
+    for row in metrics.load_jsonl(os.path.join(workspace_root, DECISIONS_FILE)):
+        if row.get("action") != "skip":
+            continue
+        if (row.get("date") or "") != today:
             continue
         mid = row.get("market_id")
         if mid:

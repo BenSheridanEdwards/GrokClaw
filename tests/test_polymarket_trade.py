@@ -69,6 +69,31 @@ class PolymarketTradeTests(unittest.TestCase):
             finally:
                 trade.datetime = original_datetime
 
+    def test_get_already_evaluated_ids_excludes_markets_skipped_today(self):
+        """Stop hourly cron from re-evaluating a market it already skipped the same UTC day."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            metrics.append_jsonl(
+                str(workspace / "data" / "polymarket-decisions.json"),
+                {"date": today, "market_id": "SKIP-M", "action": "skip"},
+            )
+            excluded = trade.get_already_evaluated_ids(str(workspace), days=2)
+            self.assertIn("skip-m", excluded)
+
+    def test_get_already_evaluated_ids_ignores_skip_from_prior_day(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            yesterday = (datetime.now(timezone.utc) - timedelta(days=2)).strftime(
+                "%Y-%m-%d"
+            )
+            metrics.append_jsonl(
+                str(workspace / "data" / "polymarket-decisions.json"),
+                {"date": yesterday, "market_id": "OLD-SKIP", "action": "skip"},
+            )
+            excluded = trade.get_already_evaluated_ids(str(workspace), days=2)
+            self.assertNotIn("old-skip", excluded)
+
     def test_fetch_markets_pages_until_empty_result(self):
         responses = [
             [{"id": "page-1"}],
