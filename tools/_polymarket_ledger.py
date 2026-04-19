@@ -238,6 +238,41 @@ def calibration_multiplier(workspace_root=None) -> tuple:
     }
 
 
+def topic_source_calibration(question, source, workspace_root=None):
+    """Return (samples, brier) for resolved predictions in the same topic × source.
+
+    Pulls the topic cluster from _polymarket_topics and counts all resolved
+    results whose question falls in the same cluster and was selected via the
+    same source. Used as a predict-only calibration gate: no stakes should be
+    placed on a (topic, source) combo with too few samples or a bad Brier.
+    """
+    from tools import _polymarket_topics as topics_mod
+
+    target_cluster = topics_mod.classify_question(question)
+    if not target_cluster:
+        return 0, None
+
+    results = load_results(workspace_root)
+    source_index = _decision_source_index(workspace_root)
+    errors = []
+    for r in results:
+        r_src = _result_source(r, source_index)
+        if r_src != source:
+            continue
+        r_cluster = topics_mod.classify_question(r.get("question"))
+        if r_cluster != target_cluster:
+            continue
+        prob_yes = r.get("probability_yes")
+        if prob_yes is None:
+            continue
+        outcome = 1.0 if r.get("winning_side") == "YES" else 0.0
+        errors.append((float(prob_yes) - outcome) ** 2)
+
+    if not errors:
+        return 0, None
+    return len(errors), sum(errors) / len(errors)
+
+
 def short_wallet(wallet: str, prefix: int = 6) -> str:
     if not wallet:
         return ""

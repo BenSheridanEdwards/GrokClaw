@@ -42,6 +42,63 @@ class WalletStatsTests(unittest.TestCase):
             self.assertLess(w, 0.35)
 
 
+class TopicSourceCalibrationTests(unittest.TestCase):
+    def test_cold_start_returns_zero_samples(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            samples, brier = ledger.topic_source_calibration(
+                "Will BTC close above $80k by Friday?",
+                "whale_top_trader_copy",
+                workspace_root=tmp,
+            )
+            self.assertEqual(samples, 0)
+            self.assertIsNone(brier)
+
+    def test_counts_same_topic_source_resolved_predictions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            results = []
+            for i in range(25):
+                results.append(
+                    {
+                        "market_id": f"m{i}",
+                        "question": "Will BTC close above $80,000 on some date?",
+                        "selection_source": "whale_top_trader_copy",
+                        "probability_yes": 0.6,
+                        "winning_side": "YES",
+                        "won": True,
+                    }
+                )
+            _write_jsonl(Path(tmp) / "data" / "polymarket-results.json", results)
+            samples, brier = ledger.topic_source_calibration(
+                "Will BTC close above $75k tomorrow?",
+                "whale_top_trader_copy",
+                workspace_root=tmp,
+            )
+            self.assertEqual(samples, 25)
+            # All YES, predicted 0.6 → brier = (0.6-1)^2 = 0.16
+            self.assertAlmostEqual(brier, 0.16, places=3)
+
+    def test_different_topic_does_not_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            results = [
+                {
+                    "market_id": f"m{i}",
+                    "question": "Iran nuclear deal?",
+                    "selection_source": "whale_top_trader_copy",
+                    "probability_yes": 0.8,
+                    "winning_side": "NO",
+                    "won": False,
+                }
+                for i in range(25)
+            ]
+            _write_jsonl(Path(tmp) / "data" / "polymarket-results.json", results)
+            samples, _ = ledger.topic_source_calibration(
+                "Will BTC close above $75k tomorrow?",
+                "whale_top_trader_copy",
+                workspace_root=tmp,
+            )
+            self.assertEqual(samples, 0)
+
+
 class SourceKillSwitchTests(unittest.TestCase):
     def test_no_kill_with_few_samples(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -61,6 +61,12 @@ MARKET_PROBABILITY_CEILING = 0.95
 EXTREME_DELTA_THRESHOLD = 0.5
 EXTREME_DELTA_WHALE_OVERRIDE = 3
 
+# Calibration-unproven gate. A (topic, source) combo with a proven bad Brier
+# score should not place stakes until it improves. Requires enough resolved
+# samples in the same combo to draw a signal from noise.
+CALIBRATION_MAX_BRIER = 0.25
+CALIBRATION_REQUIRED_SAMPLES = 20
+
 
 def validate_probability(value, label):
     probability = float(value)
@@ -165,6 +171,18 @@ def build_record(
         and traders < EXTREME_DELTA_WHALE_OVERRIDE
     ):
         gate_failures.append("aspirational_yes_bias")
+
+    cal_samples, cal_brier = ledger.topic_source_calibration(
+        candidate.get("question", ""),
+        selection_source,
+        workspace_root=workspace_root,
+    )
+    if (
+        cal_samples >= CALIBRATION_REQUIRED_SAMPLES
+        and cal_brier is not None
+        and cal_brier > CALIBRATION_MAX_BRIER
+    ):
+        gate_failures.append("calibration_unproven")
 
     cluster = topics.classify_question(candidate.get("question"))
     if cluster:

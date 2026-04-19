@@ -335,6 +335,91 @@ class PolymarketDecideTests(unittest.TestCase):
             self.assertEqual(decision["action"], "trade")
             self.assertNotIn("aspirational_yes_bias", decision["gate_failures"])
 
+    def test_calibration_gate_skips_when_bad_brier_on_topic_source(self):
+        """Once a (topic, source) combo has ≥20 samples with Brier > 0.25, block it."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            results_path = workspace / "data" / "polymarket-results.json"
+            results_path.parent.mkdir(parents=True, exist_ok=True)
+            with results_path.open("w", encoding="utf-8") as fh:
+                for i in range(25):
+                    fh.write(
+                        json.dumps(
+                            {
+                                "market_id": f"past-{i}",
+                                "question": "Will BTC hit $x on some date?",
+                                "selection_source": "whale_top_trader_copy",
+                                "probability_yes": 0.9,
+                                "winning_side": "NO",
+                                "won": False,
+                            }
+                        )
+                        + "\n"
+                    )
+
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-19",
+                    "market_id": "btc-new",
+                    "question": "Will Bitcoin break $85,000 by May 1?",
+                    "odds_yes": 0.40,
+                    "odds_no": 0.60,
+                    "volume": 50000,
+                    "endDate": "2026-05-01T00:00:00Z",
+                    "selection_source": "whale_top_trader_copy",
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace, "YES", 0.60, 0.8,
+                "New BTC bet, but the topic×source combo is historically miscalibrated.",
+            )
+            self.assertEqual(decision["action"], "skip")
+            self.assertIn("calibration_unproven", decision["gate_failures"])
+
+    def test_calibration_gate_passes_when_brier_is_good(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            results_path = workspace / "data" / "polymarket-results.json"
+            results_path.parent.mkdir(parents=True, exist_ok=True)
+            with results_path.open("w", encoding="utf-8") as fh:
+                for i in range(25):
+                    fh.write(
+                        json.dumps(
+                            {
+                                "market_id": f"past-{i}",
+                                "question": "Will BTC hit $y on some date?",
+                                "selection_source": "whale_top_trader_copy",
+                                "probability_yes": 0.85,
+                                "winning_side": "YES",
+                                "won": True,
+                            }
+                        )
+                        + "\n"
+                    )
+
+            trade.stage_candidate(
+                workspace,
+                {
+                    "date": "2026-04-19",
+                    "market_id": "btc-new2",
+                    "question": "Will Bitcoin break $85,000 by May 1?",
+                    "odds_yes": 0.40,
+                    "odds_no": 0.60,
+                    "volume": 50000,
+                    "endDate": "2026-05-01T00:00:00Z",
+                    "selection_source": "whale_top_trader_copy",
+                },
+            )
+
+            decision = decide.evaluate_staged_candidate(
+                workspace, "YES", 0.60, 0.8,
+                "New BTC bet; proven calibration on this combo.",
+            )
+            self.assertEqual(decision["action"], "trade")
+            self.assertNotIn("calibration_unproven", decision["gate_failures"])
+
     def test_explicit_skip_records_reason_and_clears_candidate(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
